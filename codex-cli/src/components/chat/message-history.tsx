@@ -1,20 +1,21 @@
 import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
-
+import type { CoreMessage } from "ai";
+ 
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
+import { getId } from "../../utils/ai.js";
 import { Box, Static } from "ink";
 import React from "react";
 
 // A batch entry can either be a standalone response item or a grouped set of
 // items (e.g. auto‑approved tool‑call batches) that should be rendered
 // together.
-type BatchEntry = { item?: ResponseItem; group?: GroupedResponseItem };
+type BatchEntry = { item?: CoreMessage; group?: GroupedResponseItem };
 type MessageHistoryProps = {
   batch: Array<BatchEntry>;
   groupCounts: Record<string, number>;
-  items: Array<ResponseItem>;
+  items: Array<CoreMessage>;
   userMsgCount: number;
   confirmationPrompt: React.ReactNode;
   loading: boolean;
@@ -41,31 +42,31 @@ const MessageHistory: React.FC<MessageHistoryProps> = ({
        */}
       <Static items={["header", ...messages]}>
         {(item, index) => {
-          if (item === "header") {
+          if (typeof item === "string") {
             return <TerminalHeader key="header" {...headerProps} />;
           }
 
           // After the guard above `item` can only be a ResponseItem.
-          const message = item as ResponseItem;
+          const message = item;
           return (
             <Box
-              key={`${message.id}-${index}`}
+              key={`${getId(message)}-${index}`}
               flexDirection="column"
               borderStyle={
-                message.type === "message" && message.role === "user"
+                message.role === "user"
                   ? "round"
                   : undefined
               }
               borderColor={
-                message.type === "message" && message.role === "user"
+                message.role === "user"
                   ? "gray"
                   : undefined
               }
               marginLeft={
-                message.type === "message" && message.role === "user" ? 0 : 4
+                message.role === "user" ? 0 : 4
               }
               marginTop={
-                message.type === "message" && message.role === "user" ? 0 : 1
+                message.role === "user" ? 0 : 1
               }
             >
               <TerminalChatResponseItem item={message} />

@@ -1,7 +1,6 @@
-import type {
-  ResponseItem,
-  ResponseOutputItem,
-} from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
+
+import { getMessageType, getTextContent } from "./ai";
 
 /**
  * Build a GitHub issues‐new URL that pre‑fills the Codex 2‑bug‑report.yml
@@ -15,7 +14,7 @@ export function buildBugReportUrl({
   platform,
 }: {
   /** Chat history so we can summarise user steps */
-  items: Array<ResponseItem | ResponseOutputItem>;
+  items: Array<CoreMessage>;
   /** CLI revision string (e.g. output of `codex --revision`) */
   cliVersion: string;
   /** Active model name */
@@ -34,29 +33,20 @@ export function buildBugReportUrl({
 
   const bullets: Array<string> = [];
   for (let i = 0; i < items.length; ) {
-    const entry = items[i];
-    if (entry?.type === "message" && entry.role === "user") {
-      const contentArray = entry.content as
-        | Array<{ text?: string }>
-        | undefined;
-      const messageText = contentArray
-        ?.map((c) => c.text ?? "")
-        .join(" ")
-        .trim();
+    const entry = items[i]!;
+    if (entry.role === "user") {
+      const messageText = getTextContent(entry).trim();
 
       let reasoning = 0;
       let toolCalls = 0;
       let j = i + 1;
       while (j < items.length) {
-        const it = items[j];
-        if (it?.type === "message" && it?.role === "user") {
+        const it = items[j]!;
+        if (it?.role === "user") {
           break;
-        } else if (
-          it?.type === "reasoning" ||
-          (it?.type === "message" && it?.role === "assistant")
-        ) {
+        } else if (it?.role === "assistant") {
           reasoning += 1;
-        } else if (it?.type === "function_call") {
+        } else if (getMessageType(it) === "function_call") {
           toolCalls += 1;
         }
         j++;

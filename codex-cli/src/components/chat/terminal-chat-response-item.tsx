@@ -1,17 +1,16 @@
 import type { OverlayModeType } from "./terminal-chat";
+import type { CoreMessage, CoreToolMessage } from "ai";
 import type { TerminalRendererOptions } from "marked-terminal";
-import type {
-  ResponseFunctionToolCallItem,
-  ResponseFunctionToolCallOutputItem,
-  ResponseInputMessageItem,
-  ResponseItem,
-  ResponseOutputMessage,
-  ResponseReasoningItem,
-} from "openai/resources/responses/responses";
+import type { ExecOutputMetadata } from "src/utils/agent/sandbox/interface";
 
 import { useTerminalSize } from "../../hooks/use-terminal-size";
-import { collapseXmlBlocks } from "../../utils/file-tag-utils";
-import { parseToolCall, parseToolCallOutput } from "../../utils/parsers";
+import {
+  getMessageType,
+  getReasoning,
+  getTextContent,
+  getToolCallResult,
+} from "../../utils/ai";
+import { parseToolCall } from "../../utils/parsers";
 import chalk, { type ForegroundColorName } from "chalk";
 import { Box, Text } from "ink";
 import { parse, setOptions } from "marked";
@@ -23,11 +22,11 @@ export default function TerminalChatResponseItem({
   fullStdout = false,
   setOverlayMode,
 }: {
-  item: ResponseItem;
+  item: CoreMessage;
   fullStdout?: boolean;
   setOverlayMode?: React.Dispatch<React.SetStateAction<OverlayModeType>>;
 }): React.ReactElement {
-  switch (item.type) {
+  switch (getMessageType(item)) {
     case "message":
       return (
         <TerminalChatResponseMessage
@@ -40,7 +39,7 @@ export default function TerminalChatResponseItem({
     case "function_call_output":
       return (
         <TerminalChatResponseToolCallOutput
-          message={item}
+          message={item as CoreToolMessage}
           fullStdout={fullStdout}
         />
       );
@@ -48,8 +47,7 @@ export default function TerminalChatResponseItem({
       break;
   }
 
-  // @ts-expect-error `reasoning` is not in the responses API yet
-  if (item.type === "reasoning") {
+  if (getMessageType(item) === "reasoning") {
     return <TerminalChatResponseReasoning message={item} />;
   }
 
@@ -79,23 +77,19 @@ export default function TerminalChatResponseItem({
 export function TerminalChatResponseReasoning({
   message,
 }: {
-  message: ResponseReasoningItem & { duration_ms?: number };
+  message: CoreMessage & { duration_ms?: number };
 }): React.ReactElement | null {
-  // Only render when there is a reasoning summary
-  if (!message.summary || message.summary.length === 0) {
+  const reasoning = getReasoning(message);
+
+  if (!reasoning) {
     return null;
   }
+
   return (
     <Box gap={1} flexDirection="column">
-      {message.summary.map((summary, key) => {
-        const s = summary as { headline?: string; text: string };
-        return (
-          <Box key={key} flexDirection="column">
-            {s.headline && <Text bold>{s.headline}</Text>}
-            <Markdown>{s.text}</Markdown>
-          </Box>
-        );
-      })}
+      <Box flexDirection="column">
+        <Markdown>{reasoning}</Markdown>
+      </Box>
     </Box>
   );
 }
@@ -109,15 +103,13 @@ function TerminalChatResponseMessage({
   message,
   setOverlayMode,
 }: {
-  message: ResponseInputMessageItem | ResponseOutputMessage;
+  message: CoreMessage;
   setOverlayMode?: React.Dispatch<React.SetStateAction<OverlayModeType>>;
 }) {
   // auto switch to model mode if the system message contains "has been deprecated"
   useEffect(() => {
     if (message.role === "system") {
-      const systemMessage = message.content.find(
-        (c) => c.type === "input_text",
-      )?.text;
+      const systemMessage = message.content;
       if (systemMessage?.includes("model_not_found")) {
         setOverlayMode?.("model");
       }
@@ -129,33 +121,12 @@ function TerminalChatResponseMessage({
       <Text bold color={colorsByRole[message.role] || "gray"}>
         {message.role === "assistant" ? "codex" : message.role}
       </Text>
-      <Markdown>
-        {message.content
-          .map(
-            (c) =>
-              c.type === "output_text"
-                ? c.text
-                : c.type === "refusal"
-                  ? c.refusal
-                  : c.type === "input_text"
-                    ? collapseXmlBlocks(c.text)
-                    : c.type === "input_image"
-                      ? "<Image>"
-                      : c.type === "input_file"
-                        ? c.filename
-                        : "", // unknown content type
-          )
-          .join(" ")}
-      </Markdown>
+      <Markdown>{getTextContent(message)}</Markdown>
     </Box>
   );
 }
 
-function TerminalChatResponseToolCall({
-  message,
-}: {
-  message: ResponseFunctionToolCallItem;
-}) {
+function TerminalChatResponseToolCall({ message }: { message: CoreMessage }) {
   const details = parseToolCall(message);
   return (
     <Box flexDirection="column" gap={1}>
@@ -173,10 +144,14 @@ function TerminalChatResponseToolCallOutput({
   message,
   fullStdout,
 }: {
-  message: ResponseFunctionToolCallOutputItem;
+  message: CoreToolMessage;
   fullStdout: boolean;
 }) {
-  const { output, metadata } = parseToolCallOutput(message.output);
+  const toolResult = getToolCallResult(message)!;
+  const { output, metadata } = JSON.parse(toolResult.result as string) as {
+    output: string;
+    metadata: ExecOutputMetadata;
+  };
   const { exit_code, duration_seconds } = metadata;
   const metadataInfo = useMemo(
     () =>
@@ -191,7 +166,7 @@ function TerminalChatResponseToolCallOutput({
     [exit_code, duration_seconds],
   );
   let displayedContent = output;
-  if (message.type === "function_call_output" && !fullStdout) {
+  if (getMessageType(message) === "function_call_output" && !fullStdout) {
     const lines = displayedContent.split("\n");
     if (lines.length > 4) {
       const head = lines.slice(0, 4);
@@ -233,7 +208,7 @@ function TerminalChatResponseToolCallOutput({
 export function TerminalChatResponseGenericMessage({
   message,
 }: {
-  message: ResponseItem;
+  message: CoreMessage;
 }): React.ReactElement {
   return <Text>{JSON.stringify(message, null, 2)}</Text>;
 }

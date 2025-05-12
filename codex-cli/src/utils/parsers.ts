@@ -2,14 +2,10 @@ import type {
   ExecInput,
   ExecOutputMetadata,
 } from "./agent/sandbox/interface.js";
-import type { ResponseFunctionToolCall } from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
 
-import { log } from "node:console";
+import { getMessageType, getToolCall } from "./ai.js";
 import { formatCommandForDisplay } from "src/format-command.js";
-
-// The console utility import is intentionally explicit to avoid bundlers from
-// including the entire `console` module when only the `log` function is
-// required.
 
 export function parseToolCallOutput(toolCallOutput: string): {
   output: string;
@@ -44,9 +40,12 @@ export type CommandReviewDetails = {
  * - a human-readable string to display to the user
  */
 export function parseToolCall(
-  toolCall: ResponseFunctionToolCall,
+  message: CoreMessage,
 ): CommandReviewDetails | undefined {
-  const toolCallArgs = parseToolCallArguments(toolCall.arguments);
+  if (getMessageType(message) !== "function_call") {
+    return undefined;
+  }
+  const toolCallArgs = parseToolCallArguments(message);
   if (toolCallArgs == null) {
     return undefined;
   }
@@ -66,21 +65,16 @@ export function parseToolCall(
  * that array. Otherwise, returns undefined.
  */
 export function parseToolCallArguments(
-  toolCallArguments: string,
+  message: CoreMessage,
 ): ExecInput | undefined {
-  let json: unknown;
-  try {
-    json = JSON.parse(toolCallArguments);
-  } catch (err) {
-    log(`Failed to parse toolCall.arguments: ${toolCallArguments}`);
+  const toolCall = getToolCall(message);
+  if (toolCall == null) {
     return undefined;
   }
 
-  if (typeof json !== "object" || json == null) {
-    return undefined;
-  }
-
-  const { cmd, command } = json as Record<string, unknown>;
+  const args = toolCall.args;
+  
+  const { cmd, command } = args as Record<string, unknown>;
   // The OpenAI model sometimes produces a single string instead of an array.
   // Accept both shapes:
   const commandArray =
@@ -93,7 +87,7 @@ export function parseToolCallArguments(
   }
 
   // @ts-expect-error timeout and workdir may not exist on json.
-  const { timeout, workdir } = json;
+  const { timeout, workdir } = args;
   return {
     cmd: commandArray,
     workdir: typeof workdir === "string" ? workdir : undefined,

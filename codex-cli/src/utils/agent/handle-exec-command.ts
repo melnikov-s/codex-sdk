@@ -1,7 +1,7 @@
 import type { CommandConfirmation } from "./agent-loop.js";
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
 import type { ExecInput } from "./sandbox/interface.js";
-import type { ResponseInputItem } from "openai/resources/responses/responses.mjs";
+
 
 import { canAutoApprove } from "../../approvals.js";
 import { formatCommandForDisplay } from "../../format-command.js";
@@ -12,6 +12,7 @@ import { ReviewDecision } from "./review.js";
 import { isLoggingEnabled, log } from "../logger/log.js";
 import { SandboxType } from "./sandbox/interface.js";
 import { PATH_TO_SEATBELT_EXECUTABLE } from "./sandbox/macos-seatbelt.js";
+import { type CoreMessage} from "ai";
 import fs from "fs/promises";
 
 // ---------------------------------------------------------------------------
@@ -68,7 +69,7 @@ function deriveCommandKey(cmd: Array<string>): string {
 type HandleExecCommandResult = {
   outputText: string;
   metadata: Record<string, unknown>;
-  additionalItems?: Array<ResponseInputItem>;
+  additionalItems?: Array<CoreMessage>;
 };
 
 export async function handleExecCommand(
@@ -365,9 +366,8 @@ async function askUserPermission(
       metadata: {},
       additionalItems: [
         {
-          type: "message",
           role: "user",
-          content: [{ type: "input_text", text: note }],
+          content: note,
         },
       ],
     };

@@ -47,7 +47,6 @@ describe("/clear command", () => {
       confirmationPrompt: null,
       explanation: undefined,
       submitConfirmation: () => {},
-      setLastResponseId: () => {},
       setItems,
       contextLeftPercent: 100,
       openOverlay: () => {},
@@ -84,8 +83,7 @@ describe("/clear command", () => {
     expect(newItems).toHaveLength(2);
     expect(newItems.at(-1)).toMatchObject({
       role: "system",
-      type: "message",
-      content: [{ type: "input_text", text: "Terminal cleared" }],
+      content: "Terminal cleared",
     });
 
     cleanup();

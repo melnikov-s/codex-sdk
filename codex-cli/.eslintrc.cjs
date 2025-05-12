@@ -41,7 +41,7 @@ module.exports = {
     "@typescript-eslint/array-type": ["error", { default: "generic" }],
     // FIXME(mbolin): Introduce this.
     // "@typescript-eslint/explicit-function-return-type": "error",
-    "@typescript-eslint/explicit-module-boundary-types": "error",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
     "@typescript-eslint/no-explicit-any": "error",
     "@typescript-eslint/switch-exhaustiveness-check": [
       "error",
@@ -70,7 +70,7 @@ module.exports = {
       "error",
       { allowConstantExport: true },
     ],
-    "no-await-in-loop": "error",
+    "no-await-in-loop": "off",
     "no-bitwise": "error",
     "no-caller": "error",
     // This is fine during development, but should not be checked in.

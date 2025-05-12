@@ -14,10 +14,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render } from "ink-testing-library";
 import React from "react";
-import type {
-  ResponseInputMessageItem,
-  ResponseFunctionToolCallItem,
-} from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
 import HistoryOverlay from "../src/components/history-overlay";
 
 // ---------------------------------------------------------------------------
@@ -41,26 +38,27 @@ vi.mock("ink", async () => {
 // Test Helpers
 // ---------------------------------------------------------------------------
 
-function createUserMessage(content: string): ResponseInputMessageItem {
+function createUserMessage(content: string): CoreMessage {
   return {
-    type: "message",
     role: "user",
-    id: `msg_${Math.random().toString(36).slice(2)}`,
-    content: [{ type: "input_text", text: content }],
+    content: content,
   };
 }
 
-function createFunctionCall(
-  name: string,
-  args: unknown,
-): ResponseFunctionToolCallItem {
+function createFunctionCall(name: string, args: unknown): CoreMessage {
+  const toolCallId = `call_${Math.random().toString(36).slice(2)}`; // Generate unique ID
   return {
-    type: "function_call",
-    name,
-    id: `fn_${Math.random().toString(36).slice(2)}`,
-    call_id: `call_${Math.random().toString(36).slice(2)}`,
-    arguments: JSON.stringify(args),
-  } as ResponseFunctionToolCallItem;
+    role: "assistant",
+    content: [
+      // Content is an array
+      {
+        type: "tool-call", // Correct type
+        toolCallId: toolCallId, // Assign generated ID
+        toolName: name, // Use 'name' parameter
+        args, // Use 'args' parameter as result
+      },
+    ],
+  };
 }
 
 // ---------------------------------------------------------------------------

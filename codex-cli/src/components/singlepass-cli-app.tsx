@@ -1,16 +1,11 @@
-/* eslint-disable no-await-in-loop */
-
 import type { AppConfig } from "../utils/config";
 import type { FileOperation } from "../utils/singlepass/file_ops";
 
 import Spinner from "./vendor/ink-spinner"; // Third‑party / vendor components
 import TextInput from "./vendor/ink-text-input";
 import {
-  OPENAI_TIMEOUT_MS,
   OPENAI_ORGANIZATION,
   OPENAI_PROJECT,
-  getBaseUrl,
-  getApiKey,
 } from "../utils/config";
 import {
   generateDiffSummary,
@@ -23,11 +18,11 @@ import {
   makeAsciiDirectoryStructure,
 } from "../utils/singlepass/context_files";
 import { EditedFilesSchema } from "../utils/singlepass/file_ops";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateObject } from "ai";
 import * as fsSync from "fs";
 import * as fsPromises from "fs/promises";
 import { Box, Text, useApp, useInput } from "ink";
-import OpenAI from "openai";
-import { zodResponseFormat } from "openai/helpers/zod";
 import path from "path";
 import React, { useEffect, useState, useRef } from "react";
 
@@ -407,25 +402,20 @@ export function SinglePassApp({
         headers["OpenAI-Project"] = OPENAI_PROJECT;
       }
 
-      const openai = new OpenAI({
-        apiKey: getApiKey(config.provider),
-        baseURL: getBaseUrl(config.provider),
-        timeout: OPENAI_TIMEOUT_MS,
-        defaultHeaders: headers,
+      const openaiProvider = createOpenAI({
+        headers,
       });
-      const chatResp = await openai.beta.chat.completions.parse({
-        model: config.model,
-        ...(config.flexMode ? { service_tier: "flex" } : {}),
+
+      const { object: edited } = await generateObject({
+        model: openaiProvider.chat(config.model),
         messages: [
           {
             role: "user",
             content: taskContextStr,
           },
         ],
-        response_format: zodResponseFormat(EditedFilesSchema, "schema"),
+        schema: EditedFilesSchema,
       });
-
-      const edited = chatResp.choices[0]?.message?.parsed ?? null;
 
       setShowSpinner(false);
 

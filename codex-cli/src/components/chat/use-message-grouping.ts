@@ -1,9 +1,9 @@
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
 
 /**
  * Represents a grouped sequence of response items (e.g., function call batches).
  */
 export type GroupedResponseItem = {
   label: string;
-  items: Array<ResponseItem>;
+  items: Array<CoreMessage>;
 };

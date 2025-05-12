@@ -9,13 +9,14 @@ import type { AppRollout } from "./app";
 import type { ApprovalPolicy } from "./approvals";
 import type { CommandConfirmation } from "./utils/agent/agent-loop";
 import type { AppConfig } from "./utils/config";
-import type { ResponseItem } from "openai/resources/responses/responses";
-import type { ReasoningEffort } from "openai/resources.mjs";
+import type { Model } from "./utils/providers";
+import type { CoreMessage } from "ai";
 
 import App from "./app";
 import { runSinglePass } from "./cli-singlepass";
 import { AgentLoop } from "./utils/agent/agent-loop";
 import { ReviewDecision } from "./utils/agent/review";
+import { getMessageType, getToolCall, getToolCallResult } from "./utils/ai";
 import { AutoApprovalMode } from "./utils/auto-approval-mode";
 import { checkForUpdates } from "./utils/check-updates";
 import {
@@ -23,11 +24,12 @@ import {
   loadConfig,
   PRETTY_PRINT,
   INSTRUCTIONS_FILEPATH,
+  getEnvKey,
 } from "./utils/config";
 import { createInputItem } from "./utils/input-utils";
 import { initLogger } from "./utils/logger/log";
-import { isModelSupportedForResponses } from "./utils/model-utils.js";
 import { parseToolCall } from "./utils/parsers";
+import { getProvider } from "./utils/providers";
 import { onExit, setInkRenderer } from "./utils/terminal";
 import chalk from "chalk";
 import { spawnSync } from "child_process";
@@ -260,10 +262,11 @@ let config = loadConfig(undefined, undefined, {
 });
 
 const prompt = cli.input[0];
-const model = cli.flags.model ?? config.model;
+const model = (cli.flags.model ?? config.model) as unknown as Model;
 const imagePaths = cli.flags.image;
-const provider = cli.flags.provider ?? config.provider ?? "openai";
+const provider = getProvider(model);
 const apiKey = getApiKey(provider);
+const envKey = getEnvKey(provider);
 
 // Set of providers that don't require API keys
 const NO_API_KEY_REQUIRED = new Set(["ollama"]);
@@ -273,43 +276,28 @@ if (!apiKey && !NO_API_KEY_REQUIRED.has(provider.toLowerCase())) {
   // eslint-disable-next-line no-console
   console.error(
     `\n${chalk.red(`Missing ${provider} API key.`)}\n\n` +
-      `Set the environment variable ${chalk.bold(
-        `${provider.toUpperCase()}_API_KEY`,
-      )} ` +
+      `Set the environment variable ${chalk.bold(envKey)} ` +
       `and re-run this command.\n` +
       `${
         provider.toLowerCase() === "openai"
           ? `You can create a key here: ${chalk.bold(
               chalk.underline("https://platform.openai.com/account/api-keys"),
             )}\n`
-          : provider.toLowerCase() === "gemini"
-            ? `You can create a ${chalk.bold(
-                `${provider.toUpperCase()}_API_KEY`,
-              )} ` + `in the ${chalk.bold(`Google AI Studio`)}.\n`
-            : `You can create a ${chalk.bold(
-                `${provider.toUpperCase()}_API_KEY`,
-              )} ` + `in the ${chalk.bold(`${provider}`)} dashboard.\n`
+          : provider.toLowerCase() === "google"
+            ? `You can create a ${chalk.bold(`${envKey}`)} ` +
+              `in the ${chalk.bold(`Google AI Studio`)}.\n`
+            : `You can create a ${chalk.bold(`${envKey}`)} ` +
+              `in the ${chalk.bold(`${provider}`)} dashboard.\n`
       }`,
   );
   process.exit(1);
 }
-
-const flagPresent = Object.hasOwn(cli.flags, "disableResponseStorage");
-
-const disableResponseStorage = flagPresent
-  ? Boolean(cli.flags.disableResponseStorage) // value user actually passed
-  : (config.disableResponseStorage ?? false); // fall back to YAML, default to false
 
 config = {
   apiKey,
   ...config,
   model: model ?? config.model,
   notify: Boolean(cli.flags.notify),
-  reasoningEffort:
-    (cli.flags.reasoning as ReasoningEffort | undefined) ?? "high",
-  flexMode: Boolean(cli.flags.flexMode),
-  provider,
-  disableResponseStorage,
 };
 
 // Check for updates after loading config. This is important because we write state file in
@@ -318,33 +306,6 @@ try {
   await checkForUpdates();
 } catch {
   // ignore
-}
-
-// For --flex-mode, validate and exit if incorrect.
-if (cli.flags.flexMode) {
-  const allowedFlexModels = new Set(["o3", "o4-mini"]);
-  if (!allowedFlexModels.has(config.model)) {
-    // eslint-disable-next-line no-console
-    console.error(
-      `The --flex-mode option is only supported when using the 'o3' or 'o4-mini' models. ` +
-        `Current model: '${config.model}'.`,
-    );
-    process.exit(1);
-  }
-}
-
-if (
-  !(await isModelSupportedForResponses(provider, config.model)) &&
-  (!provider || provider.toLowerCase() === "openai")
-) {
-  // eslint-disable-next-line no-console
-  console.error(
-    `The model "${config.model}" does not appear in the list of models ` +
-      `available to your account. Double-check the spelling (use\n` +
-      `  openai models list\n` +
-      `to see the full list) or choose another model with the --model flag.`,
-  );
-  process.exit(1);
 }
 
 let rollout: AppRollout | undefined;
@@ -447,35 +408,21 @@ const instance = render(
 );
 setInkRenderer(instance);
 
-function formatResponseItemForQuietMode(item: ResponseItem): string {
+function formatResponseItemForQuietMode(item: CoreMessage): string {
   if (!PRETTY_PRINT) {
     return JSON.stringify(item);
   }
-  switch (item.type) {
+  const type = getMessageType(item);
+  switch (type) {
     case "message": {
       const role = item.role === "assistant" ? "assistant" : item.role;
-      const txt = item.content
-        .map((c) => {
-          if (c.type === "output_text" || c.type === "input_text") {
-            return c.text;
-          }
-          if (c.type === "input_image") {
-            return "<Image>";
-          }
-          if (c.type === "input_file") {
-            return c.filename;
-          }
-          if (c.type === "refusal") {
-            return c.refusal;
-          }
-          return "?";
-        })
-        .join(" ");
+      const txt = item.content;
       return `${role}: ${txt}`;
     }
     case "function_call": {
       const details = parseToolCall(item);
-      return `$ ${details?.cmdReadableText ?? item.name}`;
+      const toolCall = getToolCall(item);
+      return `$ ${details?.cmdReadableText ?? toolCall?.toolName}`;
     }
     case "function_call_output": {
       // @ts-expect-error metadata unknown on ResponseFunctionToolCallOutputItem
@@ -488,7 +435,8 @@ function formatResponseItemForQuietMode(item: ResponseItem): string {
         parts.push(`duration: ${meta.duration_seconds}s`);
       }
       const header = parts.length > 0 ? ` (${parts.join(", ")})` : "";
-      return `command.stdout${header}\n${item.output}`;
+      const toolCallOutput = getToolCallResult(item);
+      return `command.stdout${header}\n${toolCallOutput}`;
     }
     default: {
       return JSON.stringify(item);
@@ -513,11 +461,9 @@ async function runQuietMode({
     model: config.model,
     config: config,
     instructions: config.instructions,
-    provider: config.provider,
     approvalPolicy,
     additionalWritableRoots,
-    disableResponseStorage: config.disableResponseStorage,
-    onItem: (item: ResponseItem) => {
+    onItem: (item: CoreMessage) => {
       // eslint-disable-next-line no-console
       console.log(formatResponseItemForQuietMode(item));
     },
@@ -533,9 +479,6 @@ async function runQuietMode({
           ? ReviewDecision.YES
           : ReviewDecision.NO_CONTINUE;
       return Promise.resolve({ review: reviewDecision });
-    },
-    onLastResponseId: () => {
-      /* intentionally ignored in quiet mode */
     },
   });
 

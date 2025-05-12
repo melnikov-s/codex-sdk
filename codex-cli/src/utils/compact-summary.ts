@@ -1,39 +1,29 @@
-import type { AppConfig } from "./config.js";
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
+import type { Model } from "./providers";
+import type { CoreMessage } from "ai";
 
-import { getBaseUrl, getApiKey } from "./config.js";
-import OpenAI from "openai";
+import { getLanguageModel } from "./providers";
+import { generateText } from 'ai';
+
 /**
  * Generate a condensed summary of the conversation items.
  * @param items The list of conversation items to summarize
  * @param model The model to use for generating the summary
- * @returns A concise structured summary string
- */
-/**
- * Generate a condensed summary of the conversation items.
- * @param items The list of conversation items to summarize
- * @param model The model to use for generating the summary
- * @param flexMode Whether to use the flex-mode service tier
  * @param config The configuration object
  * @returns A concise structured summary string
  */
 export async function generateCompactSummary(
-  items: Array<ResponseItem>,
-  model: string,
-  flexMode = false,
-  config: AppConfig,
+  items: Array<CoreMessage>,
+  model: Model,
 ): Promise<string> {
-  const oai = new OpenAI({
-    apiKey: getApiKey(config.provider),
-    baseURL: getBaseUrl(config.provider),
-  });
+  const MAX_COMPACT_SUMMARY_TOKENS = 2048;
+
+  const languageModel = getLanguageModel(model);
 
   const conversationText = items
     .filter(
       (
         item,
-      ): item is ResponseItem & { content: Array<unknown>; role: string } =>
-        item.type === "message" &&
+      ): item is CoreMessage & { content: Array<unknown>; role: string } =>
         (item.role === "user" || item.role === "assistant") &&
         Array.isArray(item.content),
     )
@@ -52,9 +42,8 @@ export async function generateCompactSummary(
     })
     .join("\n");
 
-  const response = await oai.chat.completions.create({
-    model,
-    ...(flexMode ? { service_tier: "flex" } : {}),
+  const { text: summary } = await generateText({
+    model: languageModel,
     messages: [
       {
         role: "assistant",
@@ -66,6 +55,7 @@ export async function generateCompactSummary(
         content: `Here is the conversation so far:\n${conversationText}\n\nPlease summarize this conversation, covering:\n1. Tasks performed and outcomes\n2. Code files, modules, or functions modified or examined\n3. Important decisions or assumptions made\n4. Errors encountered and test or build results\n5. Remaining tasks, open questions, or next steps\nProvide the summary in a clear, concise format.`,
       },
     ],
+    maxTokens: MAX_COMPACT_SUMMARY_TOKENS,
   });
-  return response.choices[0]?.message.content ?? "Unable to generate summary.";
+  return summary ?? "Unable to generate summary.";
 }

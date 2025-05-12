@@ -1,5 +1,7 @@
 // Node ESM supports JSON imports behind an assertion. TypeScript's
 // `resolveJsonModule` takes care of the typings.
+import type { LanguageModel } from "ai";
+
 import pkg from "../../package.json" assert { type: "json" };
 
 // Read the version directly from package.json.
@@ -39,13 +41,13 @@ export function getSessionId(): string {
   return sessionId;
 }
 
-let currentModel = "";
+let currentModel: LanguageModel | null = null;
 
 /**
  * Record the model that is currently being used for the conversation.
  * Setting an empty string clears the record so the next agent run can update it.
  */
-export function setCurrentModel(model: string): void {
+export function setCurrentModel(model: LanguageModel): void {
   currentModel = model;
 }
 
@@ -53,6 +55,6 @@ export function setCurrentModel(model: string): void {
  * Return the model that was last supplied to {@link setCurrentModel}.
  * If no model has been recorded yet, an empty string is returned.
  */
-export function getCurrentModel(): string {
+export function getCurrentModel(): LanguageModel | null {
   return currentModel;
 }

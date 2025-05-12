@@ -77,6 +77,7 @@ vi.mock("../src/format-command.js", () => ({
 
 // Stub the logger to avoid file‑system side effects during tests.
 import { AgentLoop } from "../src/utils/agent/agent-loop.js";
+import type { CoreMessage } from "ai";
 
 vi.mock("../src/utils/agent/log.js", () => ({
   __esModule: true,
@@ -92,25 +93,23 @@ describe("Agent cancellation race", () => {
 
     const agent = new AgentLoop({
       additionalWritableRoots: [],
-      model: "any",
+      model: "openai/gpt-4o-mini",
       instructions: "",
-      config: { model: "any", instructions: "", notify: false },
+      config: { model: "openai/gpt-4o-mini", instructions: "", notify: false },
       approvalPolicy: { mode: "auto" } as any,
       onItem: (i) => items.push(i),
       onLoading: () => {},
       getCommandConfirmation: async () => ({ review: "yes" }) as any,
-      onLastResponseId: () => {},
     });
 
     const input = [
       {
-        type: "message",
         role: "user",
-        content: [{ type: "input_text", text: "say hello" }],
-      },
+        content: [{ type: "text", text: "say hello" }],
+      } as CoreMessage,
     ];
 
-    agent.run(input as any);
+    agent.run(input);
 
     // Cancel after the stream has started.
     await new Promise((r) => setTimeout(r, 5));
@@ -120,11 +119,10 @@ describe("Agent cancellation race", () => {
     // type something else – this resets the agent state.
     agent.run([
       {
-        type: "message",
         role: "user",
-        content: [{ type: "input_text", text: "noop" }],
+        content: [{ type: "text", text: "noop" }],
       },
-    ] as any);
+    ]);
 
     // Give everything time to flush.
     await new Promise((r) => setTimeout(r, 40));

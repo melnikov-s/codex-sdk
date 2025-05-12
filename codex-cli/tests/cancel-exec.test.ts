@@ -14,7 +14,7 @@ describe("exec cancellation", () => {
     // printing anything. We should abort long before that happens.
     const cmd = ["node", "-e", "setTimeout(() => console.log('late'), 5000);"];
     const config: AppConfig = {
-      model: "test-model",
+      model: "openai/gpt-4o",
       instructions: "test-instructions",
     };
     const start = Date.now();
@@ -42,7 +42,7 @@ describe("exec cancellation", () => {
     const abortController = new AbortController();
 
     const config: AppConfig = {
-      model: "test-model",
+      model: "openai/gpt-4o",
       instructions: "test-instructions",
     };
 

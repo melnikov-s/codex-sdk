@@ -1,4 +1,4 @@
-import type { ResponseInputItem } from "openai/resources/responses/responses";
+import type { CoreUserMessage, ImagePart, TextPart } from "ai";
 
 import { fileTypeFromBuffer } from "file-type";
 import fs from "fs/promises";
@@ -7,29 +7,26 @@ import path from "path";
 export async function createInputItem(
   text: string,
   images: Array<string>,
-): Promise<ResponseInputItem.Message> {
-  const inputItem: ResponseInputItem.Message = {
+): Promise<CoreUserMessage> {
+  const inputItem: CoreUserMessage = {
     role: "user",
-    content: [{ type: "input_text", text }],
-    type: "message",
+    content: [{ type: "text", text }],
   };
 
   for (const filePath of images) {
     try {
-      /* eslint-disable no-await-in-loop */
       const binary = await fs.readFile(filePath);
       const kind = await fileTypeFromBuffer(binary);
-      /* eslint-enable no-await-in-loop */
       const encoded = binary.toString("base64");
       const mime = kind?.mime ?? "application/octet-stream";
-      inputItem.content.push({
-        type: "input_image",
-        detail: "auto",
-        image_url: `data:${mime};base64,${encoded}`,
+      (inputItem.content as Array<ImagePart>).push({
+        type: "image",
+        mimeType: mime,
+        image: `data:${mime};base64,${encoded}`,
       });
     } catch (err) {
-      inputItem.content.push({
-        type: "input_text",
+      (inputItem.content as Array<TextPart>).push({
+        type: "text",
         text: `[missing image: ${path.basename(filePath)}]`,
       });
     }

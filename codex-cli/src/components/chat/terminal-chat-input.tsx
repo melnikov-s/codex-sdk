@@ -2,10 +2,7 @@ import type { MultilineTextEditorHandle } from "./multiline-editor";
 import type { ReviewDecision } from "../../utils/agent/review.js";
 import type { FileSystemSuggestion } from "../../utils/file-system-suggestions.js";
 import type { HistoryEntry } from "../../utils/storage/command-history.js";
-import type {
-  ResponseInputItem,
-  ResponseItem,
-} from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
 
 import MultilineTextEditor from "./multiline-editor";
 import { TerminalChatCommandReview } from "./terminal-chat-command-review.js";
@@ -31,6 +28,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
+import { getMessageType } from "src/utils/ai";
 import { useInterval } from "use-interval";
 
 const suggestions = [
@@ -46,7 +44,6 @@ export default function TerminalChatInput({
   confirmationPrompt,
   explanation,
   submitConfirmation,
-  setLastResponseId,
   setItems,
   contextLeftPercent,
   openOverlay,
@@ -62,15 +59,14 @@ export default function TerminalChatInput({
 }: {
   isNew: boolean;
   loading: boolean;
-  submitInput: (input: Array<ResponseInputItem>) => void;
+  submitInput: (input: Array<CoreMessage>) => void;
   confirmationPrompt: React.ReactNode | null;
   explanation?: string;
   submitConfirmation: (
     decision: ReviewDecision,
     customDenyMessage?: string,
   ) => void;
-  setLastResponseId: (lastResponseId: string) => void;
-  setItems: React.Dispatch<React.SetStateAction<Array<ResponseItem>>>;
+  setItems: React.Dispatch<React.SetStateAction<Array<CoreMessage>>>;
   contextLeftPercent: number;
   openOverlay: () => void;
   openModelOverlay: () => void;
@@ -82,7 +78,7 @@ export default function TerminalChatInput({
   active: boolean;
   thinkingSeconds: number;
   // New: current conversation items so we can include them in bug reports
-  items?: Array<ResponseItem>;
+  items?: Array<CoreMessage>;
 }): React.ReactElement {
   // Slash command suggestion index
   const [selectedSlashSuggestion, setSelectedSlashSuggestion] =
@@ -446,8 +442,7 @@ export default function TerminalChatInput({
           submitInput([
             {
               role: "user",
-              content: [{ type: "input_text", text: suggestion }],
-              type: "message",
+              content: suggestion,
             },
           ]);
         }
@@ -515,7 +510,6 @@ export default function TerminalChatInput({
       } else if (inputValue === "/clear" || inputValue === "clear") {
         setInput("");
         setSessionId("");
-        setLastResponseId("");
 
         // Clear the terminal screen (including scrollback) before resetting context.
         clearTerminal();
@@ -524,16 +518,17 @@ export default function TerminalChatInput({
         // it so Ink's <Static> treats it as new output and actually renders it.
         setItems((prev) => {
           const filteredOldItems = prev.filter((item) => {
+            const type = getMessageType(item);
             // Remove any token‑heavy entries (user/assistant turns and function calls)
             if (
-              item.type === "message" &&
+              type === "message" &&
               (item.role === "user" || item.role === "assistant")
             ) {
               return false;
             }
             if (
-              item.type === "function_call" ||
-              item.type === "function_call_output"
+              type === "function_call" ||
+              type === "function_call_output"
             ) {
               return false;
             }
@@ -544,9 +539,9 @@ export default function TerminalChatInput({
             ...filteredOldItems,
             {
               id: `clear-${Date.now()}`,
-              type: "message",
               role: "system",
-              content: [{ type: "input_text", text: "Terminal cleared" }],
+              content: "Terminal cleared",
+              parts: [{ type: "text", text: "Terminal cleared" }],
             },
           ];
         });
@@ -567,11 +562,9 @@ export default function TerminalChatInput({
               ...prev,
               {
                 id: `clearhistory-${Date.now()}`,
-                type: "message",
                 role: "system",
-                content: [
-                  { type: "input_text", text: "Command history cleared" },
-                ],
+                content: "Command history cleared",
+                parts: [{ type: "text", text: "Command history cleared" }],
               },
             ]);
           },
@@ -602,14 +595,9 @@ export default function TerminalChatInput({
             ...prev,
             {
               id: `bugreport-${Date.now()}`,
-              type: "message",
               role: "system",
-              content: [
-                {
-                  type: "input_text",
-                  text: `🔗 Bug report URL: ${url}`,
-                },
-              ],
+              content: `🔗 Bug report URL: ${url}`,
+              parts: [{ type: "text", text: `🔗 Bug report URL: ${url}` }],
             },
           ]);
         } catch (error) {
@@ -618,14 +606,9 @@ export default function TerminalChatInput({
             ...prev,
             {
               id: `bugreport-error-${Date.now()}`,
-              type: "message",
               role: "system",
-              content: [
-                {
-                  type: "input_text",
-                  text: `⚠️ Failed to create bug report URL: ${error}`,
-                },
-              ],
+              content: `⚠️ Failed to create bug report URL: ${error}`,
+              parts: [{ type: "text", text: `⚠️ Failed to create bug report URL: ${error}` }],
             },
           ]);
         }
@@ -644,14 +627,9 @@ export default function TerminalChatInput({
             ...prev,
             {
               id: `invalidcommand-${Date.now()}`,
-              type: "message",
               role: "system",
-              content: [
-                {
-                  type: "input_text",
-                  text: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
-                },
-              ],
+              content: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
+              parts: [{ type: "text", text: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.` }],
             },
           ]);
 
@@ -718,7 +696,6 @@ export default function TerminalChatInput({
     [
       setInput,
       submitInput,
-      setLastResponseId,
       setItems,
       app,
       setHistory,

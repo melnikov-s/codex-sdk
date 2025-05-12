@@ -7,7 +7,7 @@
 // compiled `dist/` output used by the published CLI.
 
 import type { FullAutoErrorMode } from "./auto-approval-mode.js";
-import type { ReasoningEffort } from "openai/resources.mjs";
+import type { Model, Provider } from "./providers.js";
 
 import { AutoApprovalMode } from "./auto-approval-mode.js";
 import { log } from "./logger/log.js";
@@ -43,8 +43,8 @@ if (!isVitest) {
   loadDotenv({ path: USER_WIDE_CONFIG_PATH });
 }
 
-export const DEFAULT_AGENTIC_MODEL = "o4-mini";
-export const DEFAULT_FULL_CONTEXT_MODEL = "gpt-4.1";
+export const DEFAULT_AGENTIC_MODEL = "openai/o4-mini";
+export const DEFAULT_FULL_CONTEXT_MODEL = "openai/gpt-4.1";
 export const DEFAULT_APPROVAL_MODE = AutoApprovalMode.SUGGEST;
 export const DEFAULT_INSTRUCTIONS = "";
 
@@ -82,7 +82,7 @@ export function setApiKey(apiKey: string): void {
   OPENAI_API_KEY = apiKey;
 }
 
-export function getBaseUrl(provider: string = "openai"): string | undefined {
+export function getBaseUrl(provider: Provider = "openai"): string | undefined {
   // Check for a PROVIDER-specific override: e.g. OPENAI_BASE_URL or OLLAMA_BASE_URL.
   const envKey = `${provider.toUpperCase()}_BASE_URL`;
   if (process.env[envKey]) {
@@ -92,7 +92,7 @@ export function getBaseUrl(provider: string = "openai"): string | undefined {
   // Get providers config from config file.
   const config = loadConfig();
   const providersConfig = config.providers ?? providers;
-  const providerInfo = providersConfig[provider.toLowerCase()];
+  const providerInfo = providersConfig[provider];
   if (providerInfo) {
     return providerInfo.baseURL;
   }
@@ -106,10 +106,19 @@ export function getBaseUrl(provider: string = "openai"): string | undefined {
   return undefined;
 }
 
-export function getApiKey(provider: string = "openai"): string | undefined {
+export function getEnvKey(provider: Provider = "openai"): string | undefined {
   const config = loadConfig();
   const providersConfig = config.providers ?? providers;
-  const providerInfo = providersConfig[provider.toLowerCase()];
+  const providerInfo = providersConfig[provider];
+  if (providerInfo) {
+    return providerInfo.envKey;
+  }
+}
+
+export function getApiKey(provider: Provider = "openai"): string | undefined {
+  const config = loadConfig();
+  const providersConfig = config.providers ?? providers;
+  const providerInfo = providersConfig[provider];
   if (providerInfo) {
     if (providerInfo.name === "Ollama") {
       return process.env[providerInfo.envKey] ?? "dummy";
@@ -157,7 +166,6 @@ export type StoredConfig = {
   };
   /** User-defined safe commands */
   safeCommands?: Array<string>;
-  reasoningEffort?: ReasoningEffort;
 };
 
 // Minimal config written on first run.  An *empty* model string ensures that
@@ -175,21 +183,14 @@ export type MemoryConfig = {
 // Represents full runtime config, including loaded instructions.
 export type AppConfig = {
   apiKey?: string;
-  model: string;
-  provider?: string;
+  model: Model;
   instructions: string;
   approvalMode?: AutoApprovalMode;
   fullAutoErrorMode?: FullAutoErrorMode;
   memory?: MemoryConfig;
-  reasoningEffort?: ReasoningEffort;
   /** Whether to enable desktop notifications for responses */
   notify?: boolean;
 
-  /** Disable server-side response storage (send full transcript each request) */
-  disableResponseStorage?: boolean;
-
-  /** Enable the "flex-mode" processing mode for supported models (o3, o4-mini) */
-  flexMode?: boolean;
   providers?: Record<string, { name: string; baseURL: string; envKey: string }>;
   history?: {
     maxSize: number;
@@ -389,10 +390,11 @@ export const loadConfig = (
 
   // Treat empty string ("" or whitespace) as absence so we can fall back to
   // the latest DEFAULT_MODEL.
-  const storedModel =
+  const storedModel = (
     storedConfig.model && storedConfig.model.trim() !== ""
       ? storedConfig.model.trim()
-      : undefined;
+      : undefined
+  ) as Model;
 
   const config: AppConfig = {
     model:
@@ -400,7 +402,6 @@ export const loadConfig = (
       (options.isFullContext
         ? DEFAULT_FULL_CONTEXT_MODEL
         : DEFAULT_AGENTIC_MODEL),
-    provider: storedConfig.provider,
     instructions: combinedInstructions,
     notify: storedConfig.notify === true,
     approvalMode: storedConfig.approvalMode,
@@ -412,8 +413,6 @@ export const loadConfig = (
           storedConfig.tools?.shell?.maxLines ?? DEFAULT_SHELL_MAX_LINES,
       },
     },
-    disableResponseStorage: storedConfig.disableResponseStorage === true,
-    reasoningEffort: storedConfig.reasoningEffort,
   };
 
   // -----------------------------------------------------------------------
@@ -525,11 +524,7 @@ export const saveConfig = (
   // Create the config object to save
   const configToSave: StoredConfig = {
     model: config.model,
-    provider: config.provider,
-    providers: config.providers,
     approvalMode: config.approvalMode,
-    disableResponseStorage: config.disableResponseStorage,
-    reasoningEffort: config.reasoningEffort,
   };
 
   // Add history settings if they exist

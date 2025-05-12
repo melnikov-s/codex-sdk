@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop */
-
 import * as fsSync from "fs";
 import fs from "fs/promises";
 import path from "path";

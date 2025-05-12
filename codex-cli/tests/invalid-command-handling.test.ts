@@ -9,7 +9,7 @@ import type { AppConfig } from "../src/utils/config.js";
 describe("rawExec – invalid command handling", () => {
   it("resolves with non‑zero exit code when executable is missing", async () => {
     const cmd = ["definitely-not-a-command-1234567890"];
-    const config = { model: "any", instructions: "" } as AppConfig;
+    const config = { model: "openai/gpt-4o", instructions: "" } as AppConfig;
     const result = await rawExec(cmd, {}, config);
 
     expect(result.exitCode).not.toBe(0);

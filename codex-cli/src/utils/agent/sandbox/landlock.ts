@@ -64,7 +64,6 @@ async function detectSandboxExecutable(): Promise<string> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       await fs.promises.access(
         path.join(dir, "package.json"),
         fs.constants.F_OK,

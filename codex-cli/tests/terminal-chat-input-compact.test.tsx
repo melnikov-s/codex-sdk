@@ -13,7 +13,6 @@ describe("TerminalChatInput compact command", () => {
       confirmationPrompt: null,
       explanation: undefined,
       submitConfirmation: () => {},
-      setLastResponseId: () => {},
       setItems: () => {},
       contextLeftPercent: 10,
       openOverlay: () => {},

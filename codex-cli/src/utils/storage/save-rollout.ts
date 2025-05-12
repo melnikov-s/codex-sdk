@@ -1,4 +1,4 @@
-import type { ResponseItem } from "openai/resources/responses/responses";
+import type { Message, CoreMessage } from "ai";
 
 import { loadConfig } from "../config";
 import { log } from "../logger/log.js";
@@ -10,7 +10,7 @@ const SESSIONS_ROOT = path.join(os.homedir(), ".codex", "sessions");
 
 async function saveRolloutAsync(
   sessionId: string,
-  items: Array<ResponseItem>,
+  items: Array<CoreMessage | Message>,
 ): Promise<void> {
   await fs.mkdir(SESSIONS_ROOT, { recursive: true });
 
@@ -44,7 +44,7 @@ async function saveRolloutAsync(
 
 export function saveRollout(
   sessionId: string,
-  items: Array<ResponseItem>,
+  items: Array<CoreMessage>,
 ): void {
   // Best-effort. We also do not log here in case of failure as that should be taken care of
   // by `saveRolloutAsync` already.

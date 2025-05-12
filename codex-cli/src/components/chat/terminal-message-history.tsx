@@ -1,21 +1,22 @@
 import type { OverlayModeType } from "./terminal-chat.js";
 import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
 
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
+import { getId } from "../../utils/ai.js";
 import { Box, Static } from "ink";
 import React, { useMemo } from "react";
 
 // A batch entry can either be a standalone response item or a grouped set of
 // items (e.g. auto‑approved tool‑call batches) that should be rendered
 // together.
-type BatchEntry = { item?: ResponseItem; group?: GroupedResponseItem };
+type BatchEntry = { item?: CoreMessage; group?: GroupedResponseItem };
 type TerminalMessageHistoryProps = {
   batch: Array<BatchEntry>;
   groupCounts: Record<string, number>;
-  items: Array<ResponseItem>;
+  items: Array<CoreMessage>;
   userMsgCount: number;
   confirmationPrompt: React.ReactNode;
   loading: boolean;
@@ -43,12 +44,12 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
           elapsed time, so we no longer render a separate counter here. */}
       <Static items={["header", ...messages]}>
         {(item, index) => {
-          if (item === "header") {
+          if (typeof item === "string") {
             return <TerminalHeader key="header" {...headerProps} />;
           }
 
           // After the guard above, item is a ResponseItem
-          const message = item as ResponseItem;
+          const message = item;
           // Suppress empty reasoning updates (i.e. items with an empty summary).
           const msg = message as unknown as { summary?: Array<unknown> };
           if (msg.summary?.length === 0) {
@@ -56,13 +57,13 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
           }
           return (
             <Box
-              key={`${message.id}-${index}`}
+              key={`${getId(message)}-${index}`}
               flexDirection="column"
               marginLeft={
-                message.type === "message" && message.role === "user" ? 0 : 4
+                message.role === "user" ? 0 : 4
               }
               marginTop={
-                message.type === "message" && message.role === "user" ? 0 : 1
+                message.role === "user" ? 0 : 1
               }
             >
               <TerminalChatResponseItem

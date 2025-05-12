@@ -1,16 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
-
-// Mock OpenAI to avoid API key requirement
-vi.mock("openai", () => {
-  class FakeOpenAI {
-    public responses = {
-      create: vi.fn(),
-    };
-  }
-  class APIConnectionTimeoutError extends Error {}
-  return { __esModule: true, default: FakeOpenAI, APIConnectionTimeoutError };
-});
 
 // Stub the logger to avoid file‑system side effects during tests
 vi.mock("../src/utils/logger/log.js", () => ({
@@ -21,6 +9,7 @@ vi.mock("../src/utils/logger/log.js", () => ({
 
 // Import AgentLoop after mocking dependencies
 import { AgentLoop } from "../src/utils/agent/agent-loop.js";
+import type { CoreMessage } from "ai";
 
 describe("Token streaming performance", () => {
   // Mock callback for collecting tokens and their timestamps
@@ -47,13 +36,12 @@ describe("Token streaming performance", () => {
   it("processes tokens with minimal delay", async () => {
     // Create a minimal AgentLoop instance
     const agentLoop = new AgentLoop({
-      model: "gpt-4",
+      model: "openai/gpt-4",
       approvalPolicy: "auto-edit",
       additionalWritableRoots: [],
       onItem: mockOnItem,
       onLoading: vi.fn(),
       getCommandConfirmation: vi.fn().mockResolvedValue({ review: "approve" }),
-      onLastResponseId: vi.fn(),
     });
 
     // Mock a stream of 100 tokens
@@ -61,21 +49,17 @@ describe("Token streaming performance", () => {
       { length: 100 },
       (_, i) =>
         ({
-          id: `token-${i}`,
-          type: "message",
           role: "assistant",
-          content: [{ type: "output_text", text: `Token ${i}` }],
-          status: "completed",
-        }) as ResponseItem,
+          content: `Token ${i}`,
+        }) as CoreMessage,
     );
 
     // Call run with some input
     const runPromise = agentLoop.run([
       {
-        type: "message",
         role: "user",
-        content: [{ type: "input_text", text: "Test message" }],
-      },
+        content: "Test message",
+      } as CoreMessage,
     ]);
 
     // Instead of trying to access private methods, just call onItem directly

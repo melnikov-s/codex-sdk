@@ -30,8 +30,7 @@
     "punycode": "^2.3.1"
   },
   "engines": {
-    "node": ">=22",
-    "pnpm": ">=9.0.0"
+    "node": ">=22"
   },
   "lint-staged": {
     "*.json": "prettier --write",
@@ -43,5 +42,5 @@
       "cd codex-cli && pnpm run typecheck"
     ]
   },
-  "packageManager": "pnpm@10.8.1"
+  "packageManager": "pnpm@10.10.0"
 }

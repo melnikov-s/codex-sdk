@@ -87,9 +87,9 @@ describe("Agent cancellation", () => {
     const received: Array<any> = [];
 
     const agent = new AgentLoop({
-      model: "any",
+      model: "openai/gpt-4o-mini",
       instructions: "",
-      config: { model: "any", instructions: "", notify: false },
+      config: { model: "openai/gpt-4o-mini", instructions: "", notify: false },
       approvalPolicy: { mode: "auto" } as any,
       additionalWritableRoots: [],
       onItem: (item) => {
@@ -97,7 +97,6 @@ describe("Agent cancellation", () => {
       },
       onLoading: () => {},
       getCommandConfirmation: async () => ({ review: "yes" }) as any,
-      onLastResponseId: () => {},
     });
 
     const userMsg = [
@@ -138,14 +137,13 @@ describe("Agent cancellation", () => {
 
     const agent = new AgentLoop({
       additionalWritableRoots: [],
-      model: "any",
+      model: "openai/gpt-4o-mini",
       instructions: "",
-      config: { model: "any", instructions: "", notify: false },
+      config: { model: "openai/gpt-4o-mini", instructions: "", notify: false },
       approvalPolicy: { mode: "auto" } as any,
       onItem: (item) => received.push(item),
       onLoading: () => {},
       getCommandConfirmation: async () => ({ review: "yes" }) as any,
-      onLastResponseId: () => {},
     });
 
     const userMsg = [

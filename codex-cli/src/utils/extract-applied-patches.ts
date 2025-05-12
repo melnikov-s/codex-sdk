@@ -1,14 +1,16 @@
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
+
+import { getMessageType } from "./ai";
 
 /**
  * Extracts the patch texts of all `apply_patch` tool calls from the given
  * message history. Returns an empty string when none are found.
  */
-export function extractAppliedPatches(items: Array<ResponseItem>): string {
+export function extractAppliedPatches(items: Array<CoreMessage>): string {
   const patches: Array<string> = [];
 
   for (const item of items) {
-    if (item.type !== "function_call") {
+    if (getMessageType(item) !== "function_call") {
       continue;
     }
 

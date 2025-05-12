@@ -29,7 +29,7 @@ describe("rawExec – abort kills entire process group", () => {
     const script = "sleep 30 & pid=$!; echo $pid; wait $pid";
     const cmd = ["bash", "-c", script];
     const config: AppConfig = {
-      model: "test-model",
+      model: "openai/gpt-4o",
       instructions: "test-instructions",
     };
 

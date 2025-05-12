@@ -1,8 +1,9 @@
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
 import type { CommandConfirmation } from "../../utils/agent/agent-loop.js";
 import type { AppConfig } from "../../utils/config.js";
+import type { CoreMessage } from "ai";
 import type { ColorName } from "chalk";
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
+import type { Model } from "src/utils/providers.js";
 
 import TerminalChatInput from "./terminal-chat-input.js";
 import { TerminalChatToolCallCommand } from "./terminal-chat-tool-call-command.js";
@@ -12,17 +13,17 @@ import { useConfirmation } from "../../hooks/use-confirmation.js";
 import { useTerminalSize } from "../../hooks/use-terminal-size.js";
 import { AgentLoop } from "../../utils/agent/agent-loop.js";
 import { ReviewDecision } from "../../utils/agent/review.js";
+import {
+  calculateContextPercentRemaining,
+  getTextContent,
+} from "../../utils/ai.js";
 import { generateCompactSummary } from "../../utils/compact-summary.js";
-import { getBaseUrl, getApiKey, saveConfig } from "../../utils/config.js";
+import { saveConfig } from "../../utils/config.js";
 import { extractAppliedPatches as _extractAppliedPatches } from "../../utils/extract-applied-patches.js";
 import { getGitDiff } from "../../utils/get-diff.js";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
-import {
-  getAvailableModels,
-  calculateContextPercentRemaining,
-  uniqueById,
-} from "../../utils/model-utils.js";
+import { getLanguageModel } from "../../utils/providers.js";
 import { CLI_VERSION } from "../../utils/session.js";
 import { shortCwd } from "../../utils/short-path.js";
 import { saveRollout } from "../../utils/storage/save-rollout.js";
@@ -31,10 +32,9 @@ import DiffOverlay from "../diff-overlay.js";
 import HelpOverlay from "../help-overlay.js";
 import HistoryOverlay from "../history-overlay.js";
 import ModelOverlay from "../model-overlay.js";
-import chalk from "chalk";
+import { generateText } from "ai";
 import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
-import OpenAI from "openai";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { inspect } from "util";
 
@@ -66,30 +66,20 @@ const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
  *
  * @param command The command to explain
  * @param model The model to use for generating the explanation
- * @param flexMode Whether to use the flex-mode service tier
  * @param config The configuration object
  * @returns A human-readable explanation of what the command does
  */
 async function generateCommandExplanation(
   command: Array<string>,
-  model: string,
-  flexMode: boolean,
-  config: AppConfig,
+  model: Model,
 ): Promise<string> {
   try {
-    // Create a temporary OpenAI client
-    const oai = new OpenAI({
-      apiKey: getApiKey(config.provider),
-      baseURL: getBaseUrl(config.provider),
-    });
-
     // Format the command for display
     const commandForDisplay = formatCommandForDisplay(command);
 
-    // Create a prompt that asks for an explanation with a more detailed system prompt
-    const response = await oai.chat.completions.create({
-      model,
-      ...(flexMode ? { service_tier: "flex" } : {}),
+    // Use the Vercel AI SDK's generateText function
+    const result = await generateText({
+      model: getLanguageModel(model),
       messages: [
         {
           role: "system",
@@ -104,9 +94,7 @@ async function generateCommandExplanation(
     });
 
     // Extract the explanation from the response
-    const explanation =
-      response.choices[0]?.message.content || "Unable to generate explanation.";
-    return explanation;
+    return result.text || "Unable to generate explanation.";
   } catch (error) {
     log(`Error generating command explanation: ${error}`);
 
@@ -125,7 +113,7 @@ async function generateCommandExplanation(
             "Unable to generate explanation: Rate limit exceeded. Please try again later.";
         } else if (error.status >= 500) {
           errorMessage =
-            "Unable to generate explanation: OpenAI service is currently unavailable. Please try again later.";
+            "Unable to generate explanation: Service is currently unavailable. Please try again later.";
         }
       }
     }
@@ -143,44 +131,32 @@ export default function TerminalChat({
   fullStdout,
 }: Props): React.ReactElement {
   const notify = Boolean(config.notify);
-  const [model, setModel] = useState<string>(config.model);
-  const [provider, setProvider] = useState<string>(config.provider || "openai");
-  const [lastResponseId, setLastResponseId] = useState<string | null>(null);
-  const [items, setItems] = useState<Array<ResponseItem>>([]);
+  const [model, setModel] = useState<Model>(config.model);
   const [loading, setLoading] = useState<boolean>(false);
   const [approvalPolicy, setApprovalPolicy] = useState<ApprovalPolicy>(
     initialApprovalPolicy,
   );
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
+  const [items, setItems] = useState<Array<CoreMessage>>([]);
 
   const handleCompact = async () => {
     setLoading(true);
     try {
-      const summary = await generateCompactSummary(
-        items,
-        model,
-        Boolean(config.flexMode),
-        config,
-      );
+      const summary = await generateCompactSummary(items, model);
       setItems([
         {
-          id: `compact-${Date.now()}`,
-          type: "message",
           role: "assistant",
-          content: [{ type: "output_text", text: summary }],
-        } as ResponseItem,
+          content: summary,
+        },
       ]);
     } catch (err) {
       setItems((prev) => [
         ...prev,
         {
           id: `compact-error-${Date.now()}`,
-          type: "message",
           role: "system",
-          content: [
-            { type: "input_text", text: `Failed to compact context: ${err}` },
-          ],
-        } as ResponseItem,
+          content: `Failed to compact context: ${err}`,
+        },
       ]);
     } finally {
       setLoading(false);
@@ -231,7 +207,7 @@ export default function TerminalChat({
 
     log("creating NEW AgentLoop");
     log(
-      `model=${model} provider=${provider} instructions=${Boolean(
+      `model=${model} instructions=${Boolean(
         config.instructions,
       )} approvalPolicy=${approvalPolicy}`,
     );
@@ -242,17 +218,14 @@ export default function TerminalChat({
     const sessionId = crypto.randomUUID();
     agentRef.current = new AgentLoop({
       model,
-      provider,
       config,
       instructions: config.instructions,
       approvalPolicy,
-      disableResponseStorage: config.disableResponseStorage,
       additionalWritableRoots,
-      onLastResponseId: setLastResponseId,
       onItem: (item) => {
         log(`onItem: ${JSON.stringify(item)}`);
         setItems((prev) => {
-          const updated = uniqueById([...prev, item as ResponseItem]);
+          const updated = [...prev, item];
           saveRollout(sessionId, updated);
           return updated;
         });
@@ -273,12 +246,7 @@ export default function TerminalChat({
         // If the user wants an explanation, generate one and ask again.
         if (review === ReviewDecision.EXPLAIN) {
           log(`Generating explanation for command: ${commandForDisplay}`);
-          const explanation = await generateCommandExplanation(
-            command,
-            model,
-            Boolean(config.flexMode),
-            config,
-          );
+          const explanation = await generateCommandExplanation(command, model);
           log(`Generated explanation: ${explanation}`);
 
           // Ask for confirmation again, but with the explanation.
@@ -315,7 +283,7 @@ export default function TerminalChat({
     // We intentionally omit 'approvalPolicy' and 'confirmationPrompt' from the deps
     // so switching modes or showing confirmation dialogs doesn’t tear down the loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, provider, config, requestConfirmation, additionalWritableRoots]);
+  }, [model, config, requestConfirmation, additionalWritableRoots]);
 
   // Whenever loading starts/stops, reset or start a timer — but pause the
   // timer while a confirmation overlay is displayed so we don't trigger a
@@ -359,20 +327,10 @@ export default function TerminalChat({
     ) {
       if (process.platform === "darwin") {
         // find the last assistant message
-        const assistantMessages = items.filter(
-          (i) => i.type === "message" && i.role === "assistant",
-        );
+        const assistantMessages = items.filter((i) => i.role === "assistant");
         const last = assistantMessages[assistantMessages.length - 1];
         if (last) {
-          const text = last.content
-            .map((c) => {
-              if (c.type === "output_text") {
-                return c.text;
-              }
-              return "";
-            })
-            .join("")
-            .trim();
+          const text = getTextContent(last);
           const preview = text.replace(/\n/g, " ").slice(0, 100);
           const safePreview = preview.replace(/"/g, '\\"');
           const title = "Codex CLI";
@@ -418,39 +376,10 @@ export default function TerminalChat({
     processInitialInputItems();
   }, [agent, initialPrompt, initialImagePaths]);
 
-  // ────────────────────────────────────────────────────────────────
-  // In-app warning if CLI --model isn't in fetched list
-  // ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      const available = await getAvailableModels(provider);
-      if (model && available.length > 0 && !available.includes(model)) {
-        setItems((prev) => [
-          ...prev,
-          {
-            id: `unknown-model-${Date.now()}`,
-            type: "message",
-            role: "system",
-            content: [
-              {
-                type: "input_text",
-                text: `Warning: model "${model}" is not in the list of available models for provider "${provider}".`,
-              },
-            ],
-          },
-        ]);
-      }
-    })();
-    // run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Just render every item in order, no grouping/collapse.
   const lastMessageBatch = items.map((item) => ({ item }));
   const groupCounts: Record<string, number> = {};
-  const userMsgCount = items.filter(
-    (i) => i.type === "message" && i.role === "user",
-  ).length;
+  const userMsgCount = items.filter((i) => i.role === "user").length;
 
   const contextLeftPercent = useMemo(
     () => calculateContextPercentRemaining(items, model),
@@ -476,12 +405,10 @@ export default function TerminalChat({
               version: CLI_VERSION,
               PWD,
               model,
-              provider,
               approvalPolicy,
               colorsByPolicy,
               agent,
               initialImagePaths,
-              flexModeEnabled: Boolean(config.flexMode),
             }}
           />
         ) : (
@@ -494,7 +421,6 @@ export default function TerminalChat({
             loading={loading}
             setItems={setItems}
             isNew={Boolean(items.length === 0)}
-            setLastResponseId={setLastResponseId}
             confirmationPrompt={confirmationPrompt}
             explanation={explanation}
             submitConfirmation={(
@@ -525,7 +451,7 @@ export default function TerminalChat({
                   id: `diff-${Date.now()}`,
                   type: "message",
                   role: "system",
-                  content: [{ type: "input_text", text }],
+                  content: text,
                 },
               ]);
               // Ensure no overlay is shown.
@@ -548,19 +474,15 @@ export default function TerminalChat({
                 ...prev,
                 {
                   id: `interrupt-${Date.now()}`,
-                  type: "message",
                   role: "system",
-                  content: [
-                    {
-                      type: "input_text",
-                      text: "⏹️  Execution interrupted by user. You can continue typing.",
-                    },
-                  ],
+                  content:
+                    "⏹️  Execution interrupted by user. You can continue typing.",
                 },
               ]);
             }}
             submitInput={(inputs) => {
-              agent.run(inputs, lastResponseId || "");
+              setItems((prev) => [...prev, ...inputs]);
+              agent.run(inputs);
               return {};
             }}
             items={items}
@@ -573,10 +495,7 @@ export default function TerminalChat({
         {overlayMode === "model" && (
           <ModelOverlay
             currentModel={model}
-            providers={config.providers}
-            currentProvider={provider}
-            hasLastResponse={Boolean(lastResponseId)}
-            onSelect={(allModels, newModel) => {
+            onSelect={(newModel) => {
               log(
                 "TerminalChat: interruptAgent invoked – calling agent.cancel()",
               );
@@ -586,93 +505,24 @@ export default function TerminalChat({
               agent?.cancel();
               setLoading(false);
 
-              if (!allModels?.includes(newModel)) {
-                // eslint-disable-next-line no-console
-                console.error(
-                  chalk.bold.red(
-                    `Model "${chalk.yellow(
-                      newModel,
-                    )}" is not available for provider "${chalk.yellow(
-                      provider,
-                    )}".`,
-                  ),
-                );
-                return;
-              }
-
               setModel(newModel);
-              setLastResponseId((prev) =>
-                prev && newModel !== model ? null : prev,
-              );
 
               // Save model to config
               saveConfig({
                 ...config,
                 model: newModel,
-                provider: provider,
               });
 
               setItems((prev) => [
                 ...prev,
                 {
                   id: `switch-model-${Date.now()}`,
-                  type: "message",
                   role: "system",
-                  content: [
-                    {
-                      type: "input_text",
-                      text: `Switched model to ${newModel}`,
-                    },
-                  ],
+                  content: `Switched model to ${newModel}`,
                 },
               ]);
 
               setOverlayMode("none");
-            }}
-            onSelectProvider={(newProvider) => {
-              log(
-                "TerminalChat: interruptAgent invoked – calling agent.cancel()",
-              );
-              if (!agent) {
-                log("TerminalChat: agent is not ready yet");
-              }
-              agent?.cancel();
-              setLoading(false);
-
-              // Select default model for the new provider.
-              const defaultModel = model;
-
-              // Save provider to config.
-              const updatedConfig = {
-                ...config,
-                provider: newProvider,
-                model: defaultModel,
-              };
-              saveConfig(updatedConfig);
-
-              setProvider(newProvider);
-              setModel(defaultModel);
-              setLastResponseId((prev) =>
-                prev && newProvider !== provider ? null : prev,
-              );
-
-              setItems((prev) => [
-                ...prev,
-                {
-                  id: `switch-provider-${Date.now()}`,
-                  type: "message",
-                  role: "system",
-                  content: [
-                    {
-                      type: "input_text",
-                      text: `Switched provider to ${newProvider} with model ${defaultModel}`,
-                    },
-                  ],
-                },
-              ]);
-
-              // Don't close the overlay so user can select a model for the new provider
-              // setOverlayMode("none");
             }}
             onExit={() => setOverlayMode("none")}
           />
@@ -699,14 +549,8 @@ export default function TerminalChat({
                 ...prev,
                 {
                   id: `switch-approval-${Date.now()}`,
-                  type: "message",
                   role: "system",
-                  content: [
-                    {
-                      type: "input_text",
-                      text: `Switched approval mode to ${newMode}`,
-                    },
-                  ],
+                  content: `Switched approval mode to ${newMode}`,
                 },
               ]);
 

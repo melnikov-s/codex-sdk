@@ -1,10 +1,11 @@
-import type { ResponseItem } from "openai/resources/responses/responses.mjs";
+import type { CoreMessage } from "ai";
 
 import { Box, Text, useInput } from "ink";
 import React, { useMemo, useState } from "react";
+import { getMessageType, getTextContent, getToolCall } from "src/utils/ai";
 
 type Props = {
-  items: Array<ResponseItem>;
+  items: Array<CoreMessage>;
   onExit: () => void;
 };
 
@@ -98,7 +99,7 @@ export default function HistoryOverlay({ items, onExit }: Props): JSX.Element {
   );
 }
 
-function formatHistoryForDisplay(items: Array<ResponseItem>): {
+function formatHistoryForDisplay(items: Array<CoreMessage>): {
   commands: Array<string>;
   files: Array<string>;
 } {
@@ -115,36 +116,13 @@ function formatHistoryForDisplay(items: Array<ResponseItem>): {
     // ------------------------------------------------------------------
     // We are interested in tool calls which – for the OpenAI client – are
     // represented as `function_call` response items. Skip everything else.
-    if (item.type !== "function_call") {
+    if (getMessageType(item) !== "function_call") {
       continue;
     }
 
-    const { name: toolName, arguments: argsString } = item as unknown as {
-      name: unknown;
-      arguments: unknown;
-    };
+    const { toolName, args } = getToolCall(item)!;
 
-    if (typeof argsString !== "string") {
-      // Malformed – still record the tool name to give users maximal context.
-      if (typeof toolName === "string" && toolName.length > 0) {
-        commands.push(toolName);
-      }
-      continue;
-    }
-
-    // Best‑effort attempt to parse the JSON arguments. We never throw on parse
-    // failure – the history view must be resilient to bad data.
-    let argsJson: unknown = undefined;
-    try {
-      argsJson = JSON.parse(argsString);
-    } catch {
-      argsJson = undefined;
-    }
-
-    // 1) Shell / exec‑like tool calls expose a `cmd` or `command` property
-    //    that is an array of strings. These are rendered as the joined command
-    //    line for familiarity with traditional shells.
-    const argsObj = argsJson as Record<string, unknown> | undefined;
+    const argsObj = args as Record<string, unknown> | undefined;
     const cmdArray: Array<string> | undefined = Array.isArray(argsObj?.["cmd"])
       ? (argsObj!["cmd"] as Array<string>)
       : Array.isArray(argsObj?.["command"])
@@ -160,41 +138,23 @@ function formatHistoryForDisplay(items: Array<ResponseItem>): {
     //    short argument representation to give users an idea of what
     //    happened.
     if (typeof toolName === "string" && toolName.length > 0) {
-      commands.push(processNonExecTool(toolName, argsJson, filesSet));
+      commands.push(processNonExecTool(toolName, args, filesSet));
     }
   }
 
   return { commands, files: Array.from(filesSet) };
 }
 
-function processUserMessage(item: ResponseItem): string | null {
-  if (
-    item.type === "message" &&
-    (item as unknown as { role?: string }).role === "user"
-  ) {
+function processUserMessage(item: CoreMessage): string | null {
+  if (item.role === "user") {
     // TODO: We're ignoring images/files here.
-    const parts =
-      (item as unknown as { content?: Array<unknown> }).content ?? [];
-    const texts: Array<string> = [];
-    if (Array.isArray(parts)) {
-      for (const part of parts) {
-        if (part && typeof part === "object" && "text" in part) {
-          const t = (part as unknown as { text?: string }).text;
-          if (typeof t === "string" && t.length > 0) {
-            texts.push(t);
-          }
-        }
-      }
-    }
-
-    if (texts.length > 0) {
-      const fullPrompt = texts.join(" ");
-      // Truncate very long prompts so the history view stays legible.
-      return fullPrompt.length > 120
-        ? `> ${fullPrompt.slice(0, 117)}…`
-        : `> ${fullPrompt}`;
-    }
+    const fullPrompt = getTextContent(item);
+    // Truncate very long prompts so the history view stays legible.
+    return fullPrompt.length > 120
+      ? `> ${fullPrompt.slice(0, 117)}…`
+      : `> ${fullPrompt}`;
   }
+
   return null;
 }
 
