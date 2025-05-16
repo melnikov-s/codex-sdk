@@ -113,6 +113,8 @@ export function getEnvKey(provider: Provider = "openai"): string | undefined {
   if (providerInfo) {
     return providerInfo.envKey;
   }
+
+  return undefined;
 }
 
 export function getApiKey(provider: Provider = "openai"): string | undefined {
@@ -166,6 +168,16 @@ export type StoredConfig = {
   };
   /** User-defined safe commands */
   safeCommands?: Array<string>;
+  /** MCP server configuration */
+  mcp?: {
+    [serverName: string]: {
+      command?: string;
+      args?: Array<string>;
+      url?: string;
+      type?: "stdio" | "sse";
+      enabled?: boolean;
+    };
+  };
 };
 
 // Minimal config written on first run.  An *empty* model string ensures that
@@ -196,6 +208,16 @@ export type AppConfig = {
     maxSize: number;
     saveHistory: boolean;
     sensitivePatterns: Array<string>;
+  };
+  /** MCP server configuration */
+  mcp?: {
+    [serverName: string]: {
+      command?: string;
+      args?: Array<string>;
+      url?: string;
+      type?: "stdio" | "sse";
+      enabled?: boolean;
+    };
   };
   tools?: {
     shell?: {
@@ -467,6 +489,11 @@ export const loadConfig = (
   // fixtures) that don't include a "memory" section.
   if (storedConfig.memory !== undefined) {
     config.memory = storedConfig.memory;
+  }
+
+  // Copy MCP configuration if it exists
+  if (storedConfig.mcp !== undefined) {
+    config.mcp = storedConfig.mcp;
   }
 
   if (storedConfig.fullAutoErrorMode) {

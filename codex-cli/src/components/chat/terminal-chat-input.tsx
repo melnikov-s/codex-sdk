@@ -56,6 +56,7 @@ export default function TerminalChatInput({
   active,
   thinkingSeconds,
   items = [],
+  openMCPOverlay,
 }: {
   isNew: boolean;
   loading: boolean;
@@ -73,6 +74,7 @@ export default function TerminalChatInput({
   openApprovalOverlay: () => void;
   openHelpOverlay: () => void;
   openDiffOverlay: () => void;
+  openMCPOverlay: () => void;
   onCompact: () => void;
   interruptAgent: () => void;
   active: boolean;
@@ -487,6 +489,10 @@ export default function TerminalChatInput({
         setInput("");
         openDiffOverlay();
         return;
+      } else if (inputValue === "/mcp") {
+        setInput("");
+        openMCPOverlay();
+        return;
       } else if (inputValue === "/compact") {
         setInput("");
         onCompact();
@@ -526,10 +532,7 @@ export default function TerminalChatInput({
             ) {
               return false;
             }
-            if (
-              type === "function_call" ||
-              type === "function_call_output"
-            ) {
+            if (type === "function_call" || type === "function_call_output") {
               return false;
             }
             return true; // keep developer/system and other meta entries
@@ -608,7 +611,12 @@ export default function TerminalChatInput({
               id: `bugreport-error-${Date.now()}`,
               role: "system",
               content: `⚠️ Failed to create bug report URL: ${error}`,
-              parts: [{ type: "text", text: `⚠️ Failed to create bug report URL: ${error}` }],
+              parts: [
+                {
+                  type: "text",
+                  text: `⚠️ Failed to create bug report URL: ${error}`,
+                },
+              ],
             },
           ]);
         }
@@ -629,7 +637,12 @@ export default function TerminalChatInput({
               id: `invalidcommand-${Date.now()}`,
               role: "system",
               content: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
-              parts: [{ type: "text", text: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.` }],
+              parts: [
+                {
+                  type: "text",
+                  text: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
+                },
+              ],
             },
           ]);
 
@@ -705,6 +718,7 @@ export default function TerminalChatInput({
       openModelOverlay,
       openHelpOverlay,
       openDiffOverlay,
+      openMCPOverlay,
       history,
       onCompact,
       skipNextSubmit,

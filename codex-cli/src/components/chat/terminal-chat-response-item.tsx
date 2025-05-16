@@ -1,5 +1,5 @@
 import type { OverlayModeType } from "./terminal-chat";
-import type { CoreMessage, CoreToolMessage } from "ai";
+import type { CoreAssistantMessage, CoreMessage, CoreToolMessage } from "ai";
 import type { TerminalRendererOptions } from "marked-terminal";
 import type { ExecOutputMetadata } from "src/utils/agent/sandbox/interface";
 
@@ -8,6 +8,7 @@ import {
   getMessageType,
   getReasoning,
   getTextContent,
+  getToolCall,
   getToolCallResult,
 } from "../../utils/ai";
 import { parseToolCall } from "../../utils/parsers";
@@ -42,6 +43,14 @@ export default function TerminalChatResponseItem({
           message={item as CoreToolMessage}
           fullStdout={fullStdout}
         />
+      );
+    case "mcp_call":
+      return (
+        <TerminalChatResponseMcpCall message={item as CoreAssistantMessage} />
+      );
+    case "mcp_output":
+      return (
+        <TerminalChatResponseMcpOutput message={item as CoreToolMessage} />
       );
     default:
       break;
@@ -135,6 +144,35 @@ function TerminalChatResponseToolCall({ message }: { message: CoreMessage }) {
       </Text>
       <Text>
         <Text dimColor>$</Text> {details?.cmdReadableText}
+      </Text>
+    </Box>
+  );
+}
+
+function TerminalChatResponseMcpOutput({ message }: { message: CoreMessage }) {
+  const toolCallResult = getToolCallResult(message);
+  const content = toolCallResult?.result;
+  if (!content) {
+    return null;
+  }
+  const contentStr =
+    typeof content === "string" ? content : JSON.stringify(content);
+  return <Text>Received response (length: {contentStr.length})</Text>;
+}
+
+function TerminalChatResponseMcpCall({
+  message,
+}: {
+  message: CoreAssistantMessage;
+}) {
+  const details = getToolCall(message);
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Text color="magentaBright" bold>
+        calling mcp:
+      </Text>
+      <Text>
+        <Text dimColor>$</Text> {details?.toolName}
       </Text>
     </Box>
   );

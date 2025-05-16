@@ -8,7 +8,8 @@ import type { CoreMessage, LanguageModel, ToolCallPart } from "ai";
 import { log } from "../logger/log.js";
 import { getSessionId, setCurrentModel, setSessionId } from "../session.js";
 import { handleExecCommand } from "./handle-exec-command.js";
-import { getToolCall } from "../ai.js";
+import { getToolCall, isNativeTool } from "../ai.js";
+import { MCPClientManager } from "../mcp/client-manager.js";
 import { getLanguageModel } from "../providers.js";
 import { tool, generateText } from "ai";
 import { randomUUID } from "node:crypto";
@@ -64,6 +65,7 @@ export class AgentLoop {
   private approvalPolicy: ApprovalPolicy;
   private config: AppConfig;
   private additionalWritableRoots: ReadonlyArray<string>;
+  private mcpClientManager: MCPClientManager;
 
   private onItem: (item: CoreMessage) => void;
   private onLoading: (loading: boolean) => void;
@@ -163,6 +165,11 @@ export class AgentLoop {
 
     this.hardAbort.abort();
 
+    // Close MCP clients
+    this.mcpClientManager.closeAll().catch((error) => {
+      log(`Error closing MCP clients: ${error}`);
+    });
+
     this.cancel();
   }
 
@@ -195,6 +202,12 @@ export class AgentLoop {
     this.sessionId = getSessionId() || randomUUID().replaceAll("-", "");
     setSessionId(this.sessionId);
     setCurrentModel(this.model);
+
+    // Initialize MCP client manager
+    this.mcpClientManager = new MCPClientManager(this.config);
+    this.mcpClientManager.initialize().catch((error) => {
+      log(`Error initializing MCP clients: ${error}`);
+    });
 
     this.hardAbort = new AbortController();
 
@@ -273,7 +286,7 @@ export class AgentLoop {
     const additionalItems: Array<CoreMessage> = [];
 
     // TODO: allow arbitrary function calls (beyond shell/container.exec)
-    if (name === "container.exec" || name === "shell") {
+    if (isNativeTool(name)) {
       const {
         outputText,
         metadata,
@@ -324,15 +337,23 @@ export class AgentLoop {
       currentTurn++;
 
       try {
+        // Get MCP tools
+        const mcpTools = await this.mcpClientManager.getAllTools();
+
         // Call the language model with current messages and tools
         const response = await generateText({
+          maxSteps: 1,
           model: this.model,
           messages: [
             { role: "system", content: prefix },
             { role: "user", content: this.instructions ?? "" },
             ...this.transcript,
           ],
-          tools: { shell: shellTool },
+          tools: {
+            shell: shellTool,
+            apply_patch: shellTool,
+            ...mcpTools,
+          },
         });
 
         // Get new messages and finish reason directly from the response
@@ -355,7 +376,7 @@ export class AgentLoop {
 
             // Check for tool calls
             const toolCall = getToolCall(message);
-            if (toolCall) {
+            if (toolCall && isNativeTool(toolCall.toolName)) {
               hasToolCalls = true;
 
               // Execute the tool call

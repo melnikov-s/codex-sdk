@@ -23,6 +23,7 @@ import { extractAppliedPatches as _extractAppliedPatches } from "../../utils/ext
 import { getGitDiff } from "../../utils/get-diff.js";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
+import { MCPClientManager } from "../../utils/mcp/client-manager.js";
 import { getLanguageModel } from "../../utils/providers.js";
 import { CLI_VERSION } from "../../utils/session.js";
 import { shortCwd } from "../../utils/short-path.js";
@@ -31,6 +32,7 @@ import ApprovalModeOverlay from "../approval-mode-overlay.js";
 import DiffOverlay from "../diff-overlay.js";
 import HelpOverlay from "../help-overlay.js";
 import HistoryOverlay from "../history-overlay.js";
+import MCPOverlay from "../mcp-overlay.js";
 import ModelOverlay from "../model-overlay.js";
 import { generateText } from "ai";
 import { Box, Text } from "ink";
@@ -44,7 +46,8 @@ export type OverlayModeType =
   | "model"
   | "approval"
   | "help"
-  | "diff";
+  | "diff"
+  | "mcp";
 
 type Props = {
   config: AppConfig;
@@ -138,6 +141,13 @@ export default function TerminalChat({
   );
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const [items, setItems] = useState<Array<CoreMessage>>([]);
+  const [mcpServerStatus, setMcpServerStatus] = useState<
+    Array<{ name: string; connected: boolean }>
+  >([]);
+  const mcpClientManager = useMemo(
+    () => new MCPClientManager(config),
+    [config],
+  );
 
   const handleCompact = async () => {
     setLoading(true);
@@ -197,6 +207,28 @@ export default function TerminalChat({
       items.length
     }`,
   );
+
+  // Initialize MCP client manager on mount
+  useEffect(() => {
+    mcpClientManager.initialize().catch((error) => {
+      log(`Error initializing MCP clients: ${error}`);
+    });
+
+    return () => {
+      mcpClientManager.closeAll().catch((error) => {
+        log(`Error closing MCP clients: ${error}`);
+      });
+    };
+  }, [mcpClientManager]);
+
+  // Handle MCP command
+  const handleMCPCommand = () => {
+    // Get current MCP server status
+    setMcpServerStatus(mcpClientManager.getStatus());
+
+    // Show the overlay
+    setOverlayMode("mcp");
+  };
 
   useEffect(() => {
     // Skip recreating the agent if awaiting a decision on a pending confirmation.
@@ -457,6 +489,7 @@ export default function TerminalChat({
               // Ensure no overlay is shown.
               setOverlayMode("none");
             }}
+            openMCPOverlay={handleMCPCommand}
             onCompact={handleCompact}
             active={overlayMode === "none"}
             interruptAgent={() => {
@@ -567,6 +600,13 @@ export default function TerminalChat({
         {overlayMode === "diff" && (
           <DiffOverlay
             diffText={diffText}
+            onExit={() => setOverlayMode("none")}
+          />
+        )}
+
+        {overlayMode === "mcp" && (
+          <MCPOverlay
+            serversStatus={mcpServerStatus}
             onExit={() => setOverlayMode("none")}
           />
         )}

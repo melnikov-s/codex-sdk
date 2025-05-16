@@ -11,11 +11,17 @@ export function getId(message: CoreMessage): string {
   return idMap.get(message)!;
 }
 
+export function isNativeTool(toolName: string | undefined) {
+  return toolName === "shell" || toolName === "apply_patch";
+}
+
 export type MessageType =
   | "message"
   | "function_call"
   | "function_call_output"
-  | "reasoning";
+  | "reasoning"
+  | "mcp_call"
+  | "mcp_output";
 
 export function getMessageType(item: CoreMessage): MessageType {
   if (item.role === "user") {
@@ -26,7 +32,11 @@ export function getMessageType(item: CoreMessage): MessageType {
     Array.isArray(item.content) &&
     item.content.find((part) => part.type === "tool-call")
   ) {
-    return "function_call";
+    const toolCall = item.content.find((part) => part.type === "tool-call");
+    if (isNativeTool(toolCall?.toolName)) {
+      return "function_call";
+    }
+    return "mcp_call";
   }
   if (
     item.role === "assistant" &&
@@ -37,7 +47,12 @@ export function getMessageType(item: CoreMessage): MessageType {
   }
 
   if (item.role === "tool") {
-    return "function_call_output";
+    const result = item.content.find((part) => part.type === "tool-result");
+    if (isNativeTool(result?.toolName)) {
+      return "function_call_output";
+    }
+
+    return "mcp_output";
   }
 
   return "message";

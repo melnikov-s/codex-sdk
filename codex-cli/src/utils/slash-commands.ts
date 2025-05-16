@@ -32,4 +32,5 @@ export const SLASH_COMMANDS: Array<SlashCommand> = [
     description:
       "Show git diff of the working directory (or applied patches if not in git)",
   },
+  { command: "/mcp", description: "View MCP servers status and configuration" },
 ];
