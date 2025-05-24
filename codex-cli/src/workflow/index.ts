@@ -117,6 +117,12 @@ export interface WorkflowHooks {
     items: Array<SelectItem>,
     options?: SelectOptions,
   ) => Promise<string>;
+
+  /**
+   * Enable or disable the input box
+   * @param disabled Whether the input should be disabled
+   */
+  setInputDisabled: (disabled: boolean) => void;
 }
 
 export type WorkflowFactory = (hooks: WorkflowHooks) => Workflow;

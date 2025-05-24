@@ -459,6 +459,44 @@ Keep the summary concise but comprehensive.`,
           }
         },
       },
+      disable: {
+        description: "Demo command to test input disable/enable functionality",
+        handler: async (args?: string) => {
+          try {
+            hooks.logger("Executing /disable demo command");
+
+            const action = args?.trim() || "toggle";
+
+            if (action === "true" || action === "on") {
+              hooks.setInputDisabled(true);
+              hooks.onSystemMessage("Input disabled by workflow");
+              hooks.onCommandExecuted?.("disable", "Input disabled");
+            } else if (action === "false" || action === "off") {
+              hooks.setInputDisabled(false);
+              hooks.onSystemMessage("Input enabled by workflow");
+              hooks.onCommandExecuted?.("disable", "Input enabled");
+            } else {
+              // Toggle demo: disable for 3 seconds then re-enable
+              hooks.setInputDisabled(true);
+              hooks.onSystemMessage("Input disabled for 3 seconds...");
+
+              setTimeout(() => {
+                hooks.setInputDisabled(false);
+                hooks.onSystemMessage("Input re-enabled!");
+              }, 3000);
+
+              hooks.onCommandExecuted?.(
+                "disable",
+                "Input disabled temporarily",
+              );
+            }
+          } catch (error) {
+            const errorMsg = `Error executing /disable command: ${(error as Error).message}`;
+            hooks.logger(errorMsg);
+            hooks.onSystemMessage(errorMsg);
+          }
+        },
+      },
     },
   };
 }

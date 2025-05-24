@@ -137,6 +137,9 @@ export default function TerminalChat({
     reject: (reason?: Error) => void;
   } | null>(null);
 
+  // Input disabled state for workflows to control input availability
+  const [inputDisabled, setInputDisabled] = useState<boolean>(false);
+
   const PWD = React.useMemo(() => shortCwd(), []);
 
   // Workflow reference
@@ -255,6 +258,9 @@ export default function TerminalChat({
           setSelectionState({ items, options, resolve, reject });
           setOverlayMode("selection");
         });
+      },
+      setInputDisabled: (disabled: boolean) => {
+        setInputDisabled(disabled);
       },
       handleToolCall: async (message) => {
         // Extract the tool call from the message
@@ -494,7 +500,7 @@ export default function TerminalChat({
               setOverlayMode("none");
             }}
             workflow={workflowRef.current}
-            active={overlayMode === "none"}
+            active={overlayMode === "none" && !inputDisabled}
             interruptAgent={() => {
               if (!workflow) {
                 return;
