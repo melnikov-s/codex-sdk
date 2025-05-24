@@ -1,5 +1,15 @@
 import type { CoreMessage } from "ai";
 
+export interface SelectItem {
+  label: string;
+  value: string;
+}
+
+export interface SelectOptions {
+  required?: boolean;
+  default?: string;
+}
+
 export interface Workflow {
   /**
    * Initialize the workflow
@@ -96,6 +106,17 @@ export interface WorkflowHooks {
    * @param result Optional result message
    */
   onCommandExecuted?: (command: string, result?: string) => void;
+
+  /**
+   * Show a selection dialog to the user
+   * @param items Array of items to select from
+   * @param options Selection options (required, default)
+   * @returns Promise that resolves with the selected value
+   */
+  onSelect: (
+    items: Array<SelectItem>,
+    options?: SelectOptions,
+  ) => Promise<string>;
 }
 
 export type WorkflowFactory = (hooks: WorkflowHooks) => Workflow;

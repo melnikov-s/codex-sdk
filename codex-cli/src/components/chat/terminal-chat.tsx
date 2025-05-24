@@ -1,11 +1,18 @@
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
 import type { LibraryConfig } from "../../lib.js";
 import type { CommandConfirmation } from "../../utils/agent/review.js";
-import type { Workflow, WorkflowFactory, WorkflowHooks } from "../../workflow";
+import type {
+  Workflow,
+  WorkflowFactory,
+  WorkflowHooks,
+  SelectItem,
+  SelectOptions,
+} from "../../workflow";
 import type { CoreMessage } from "ai";
 import type { ColorName } from "chalk";
 
 import TerminalChatInput from "./terminal-chat-input.js";
+import { TerminalChatSelect } from "./terminal-chat-select.js";
 import { TerminalChatToolCallCommand } from "./terminal-chat-tool-call-command.js";
 import TerminalMessageHistory from "./terminal-message-history.js";
 import { formatCommandForDisplay } from "../../format-command.js";
@@ -33,7 +40,13 @@ import { spawn } from "node:child_process";
 import React, { useEffect, useRef, useState } from "react";
 import { inspect } from "util";
 
-export type OverlayModeType = "none" | "history" | "approval" | "help" | "diff";
+export type OverlayModeType =
+  | "none"
+  | "history"
+  | "approval"
+  | "help"
+  | "diff"
+  | "selection";
 
 type Props = {
   prompt?: string;
@@ -76,7 +89,7 @@ export default function TerminalChat({
     const workflow = workflowRef.current;
     if (workflow?.commands?.[command]) {
       try {
-        await workflow.commands[command](args);
+        await workflow.commands[command].handler(args);
       } catch (error) {
         setItems((prev) => [
           ...prev,
@@ -115,6 +128,14 @@ export default function TerminalChat({
   const [initialPrompt, setInitialPrompt] = useState(_initialPrompt);
   const [initialImagePaths, setInitialImagePaths] =
     useState(_initialImagePaths);
+
+  // Selection state for onSelect hook
+  const [selectionState, setSelectionState] = useState<{
+    items: Array<SelectItem>;
+    options?: SelectOptions;
+    resolve: (value: string) => void;
+    reject: (reason?: Error) => void;
+  } | null>(null);
 
   const PWD = React.useMemo(() => shortCwd(), []);
 
@@ -228,6 +249,12 @@ export default function TerminalChat({
             },
           ]);
         }
+      },
+      onSelect: (items: Array<SelectItem>, options?: SelectOptions) => {
+        return new Promise<string>((resolve, reject) => {
+          setSelectionState({ items, options, resolve, reject });
+          setOverlayMode("selection");
+        });
       },
       handleToolCall: async (message) => {
         // Extract the tool call from the message
@@ -542,6 +569,24 @@ export default function TerminalChat({
           <DiffOverlay
             diffText={diffText}
             onExit={() => setOverlayMode("none")}
+          />
+        )}
+
+        {overlayMode === "selection" && selectionState && (
+          <TerminalChatSelect
+            items={selectionState.items}
+            options={selectionState.options}
+            onSelect={(value: string) => {
+              selectionState.resolve(value);
+              setSelectionState(null);
+              setOverlayMode("none");
+            }}
+            onCancel={() => {
+              selectionState.reject(new Error("Selection cancelled"));
+              setSelectionState(null);
+              setOverlayMode("none");
+            }}
+            isActive={overlayMode === "selection"}
           />
         )}
       </Box>

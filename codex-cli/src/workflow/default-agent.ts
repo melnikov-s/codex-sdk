@@ -436,6 +436,29 @@ Keep the summary concise but comprehensive.`,
           }
         },
       },
+      select: {
+        description: "Demo command to test selection functionality",
+        handler: async () => {
+          try {
+            hooks.logger("Executing /select demo command");
+
+            const items = [
+              { label: "Option A - First choice", value: "a" },
+              { label: "Option B - Second choice", value: "b" },
+              { label: "Option C - Third choice", value: "c" },
+            ];
+
+            const selected = await hooks.onSelect(items, { default: "b" });
+
+            hooks.onSystemMessage(`You selected: ${selected}`);
+            hooks.onCommandExecuted?.("select", `Selected option: ${selected}`);
+          } catch (error) {
+            const errorMsg = `Error executing /select command: ${(error as Error).message}`;
+            hooks.logger(errorMsg);
+            hooks.onSystemMessage(errorMsg);
+          }
+        },
+      },
     },
   };
 }
