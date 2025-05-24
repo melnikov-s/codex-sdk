@@ -62,21 +62,21 @@ async function type(
  */
 function stubProps(): any {
   return {
-    isNew: true,
+    isNew: false,
     loading: false,
-    submitInput: vi.fn(),
+    submitInput: () => {},
     confirmationPrompt: null,
-    submitConfirmation: vi.fn(),
-    setLastResponseId: vi.fn(),
-    // Cast to any to satisfy the generic React.Dispatch signature without
-    // pulling the ResponseItem type into the test bundle.
-    setItems: (() => {}) as any,
-    contextLeftPercent: 100,
-    openOverlay: vi.fn(),
-    openModelOverlay: vi.fn(),
-    openHelpOverlay: vi.fn(),
-    interruptAgent: vi.fn(),
+    explanation: undefined,
+    submitConfirmation: () => {},
+    setItems: () => {},
+    openOverlay: () => {},
+    openApprovalOverlay: () => {},
+    openHelpOverlay: () => {},
+    openDiffOverlay: () => {},
+    onCompact: () => {},
+    interruptAgent: () => {},
     active: true,
+    thinkingSeconds: 0,
   };
 }
 

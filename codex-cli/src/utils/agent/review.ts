@@ -1,3 +1,5 @@
+import type { ApplyPatchCommand } from "../../approvals.js";
+
 export enum ReviewDecision {
   YES = "yes",
   NO_CONTINUE = "no-continue",
@@ -12,3 +14,14 @@ export enum ReviewDecision {
    */
   EXPLAIN = "explain",
 }
+
+/**
+ * Represents the result of command confirmation, indicating how to proceed
+ * with command execution.
+ */
+export type CommandConfirmation = {
+  review: ReviewDecision;
+  applyPatch?: ApplyPatchCommand | undefined;
+  customDenyMessage?: string;
+  explanation?: string;
+};

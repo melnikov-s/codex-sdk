@@ -1,5 +1,5 @@
 import type { ExecResult } from "./interface.js";
-import type { AppConfig } from "../../config.js";
+import type { LibraryConfig } from "../../../lib.js";
 import type { SpawnOptions } from "child_process";
 
 import { exec } from "./raw-exec.js";
@@ -25,7 +25,7 @@ export function execWithSeatbelt(
   cmd: Array<string>,
   opts: SpawnOptions,
   writableRoots: ReadonlyArray<string>,
-  config: AppConfig,
+  config: LibraryConfig,
   abortSignal?: AbortSignal,
 ): Promise<ExecResult> {
   let scopedWritePolicy: string;

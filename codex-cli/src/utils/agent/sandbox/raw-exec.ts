@@ -1,5 +1,5 @@
 import type { ExecResult } from "./interface";
-import type { AppConfig } from "../../config";
+import type { LibraryConfig } from "../../../lib.js";
 import type {
   ChildProcess,
   SpawnOptions,
@@ -21,7 +21,7 @@ import * as os from "os";
 export function exec(
   command: Array<string>,
   options: SpawnOptions,
-  config: AppConfig,
+  config: LibraryConfig,
   abortSignal?: AbortSignal,
 ): Promise<ExecResult> {
   // Adapt command for the current platform (e.g., convert 'ls' to 'dir' on Windows)

@@ -1,5 +1,5 @@
 import type { ExecResult } from "./interface.js";
-import type { AppConfig } from "../../config.js";
+import type { LibraryConfig } from "../../../lib.js";
 import type { SpawnOptions } from "child_process";
 
 import { exec } from "./raw-exec.js";
@@ -20,7 +20,7 @@ export async function execWithLandlock(
   cmd: Array<string>,
   opts: SpawnOptions,
   userProvidedWritableRoots: ReadonlyArray<string>,
-  config: AppConfig,
+  config: LibraryConfig,
   abortSignal?: AbortSignal,
 ): Promise<ExecResult> {
   const sandboxExecutable = await getSandboxExecutable();

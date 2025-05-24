@@ -5,7 +5,7 @@ import TerminalChatInput from "../src/components/chat/terminal-chat-input.js";
 import { describe, it, expect } from "vitest";
 
 describe("TerminalChatInput compact command", () => {
-  it("shows /compact hint when context is low", async () => {
+  it("shows statusLine when provided", async () => {
     const props: ComponentProps<typeof TerminalChatInput> = {
       isNew: false,
       loading: false,
@@ -14,10 +14,9 @@ describe("TerminalChatInput compact command", () => {
       explanation: undefined,
       submitConfirmation: () => {},
       setItems: () => {},
-      contextLeftPercent: 10,
+      statusLine: "Custom status message",
       openOverlay: () => {},
       openDiffOverlay: () => {},
-      openModelOverlay: () => {},
       openApprovalOverlay: () => {},
       openHelpOverlay: () => {},
       onCompact: () => {},
@@ -27,6 +26,6 @@ describe("TerminalChatInput compact command", () => {
     };
     const { lastFrameStripped } = renderTui(<TerminalChatInput {...props} />);
     const frame = lastFrameStripped();
-    expect(frame).toContain("/compact");
+    expect(frame).toContain("Custom status message");
   });
 });

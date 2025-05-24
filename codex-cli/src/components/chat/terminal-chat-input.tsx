@@ -45,9 +45,7 @@ export default function TerminalChatInput({
   explanation,
   submitConfirmation,
   setItems,
-  contextLeftPercent,
   openOverlay,
-  openModelOverlay,
   openApprovalOverlay,
   openHelpOverlay,
   openDiffOverlay,
@@ -56,7 +54,7 @@ export default function TerminalChatInput({
   active,
   thinkingSeconds,
   items = [],
-  openMCPOverlay,
+  statusLine,
 }: {
   isNew: boolean;
   loading: boolean;
@@ -68,19 +66,17 @@ export default function TerminalChatInput({
     customDenyMessage?: string,
   ) => void;
   setItems: React.Dispatch<React.SetStateAction<Array<CoreMessage>>>;
-  contextLeftPercent: number;
   openOverlay: () => void;
-  openModelOverlay: () => void;
   openApprovalOverlay: () => void;
   openHelpOverlay: () => void;
   openDiffOverlay: () => void;
-  openMCPOverlay: () => void;
   onCompact: () => void;
   interruptAgent: () => void;
   active: boolean;
   thinkingSeconds: number;
   // New: current conversation items so we can include them in bug reports
   items?: Array<CoreMessage>;
+  statusLine?: string;
 }): React.ReactElement {
   // Slash command suggestion index
   const [selectedSlashSuggestion, setSelectedSlashSuggestion] =
@@ -284,9 +280,7 @@ export default function TerminalChatInput({
                 case "/compact":
                   onCompact();
                   break;
-                case "/model":
-                  openModelOverlay();
-                  break;
+                // Model command removed - model selection is now handled by consumer's workflow
                 case "/approval":
                   openApprovalOverlay();
                   break;
@@ -489,18 +483,11 @@ export default function TerminalChatInput({
         setInput("");
         openDiffOverlay();
         return;
-      } else if (inputValue === "/mcp") {
-        setInput("");
-        openMCPOverlay();
-        return;
       } else if (inputValue === "/compact") {
         setInput("");
         onCompact();
         return;
-      } else if (inputValue.startsWith("/model")) {
-        setInput("");
-        openModelOverlay();
-        return;
+      // Model command removed - model selection is now handled by consumer's workflow
       } else if (inputValue.startsWith("/approval")) {
         setInput("");
         openApprovalOverlay();
@@ -706,24 +693,7 @@ export default function TerminalChatInput({
       setFsSuggestions([]);
       setSelectedCompletion(-1);
     },
-    [
-      setInput,
-      submitInput,
-      setItems,
-      app,
-      setHistory,
-      setHistoryIndex,
-      openOverlay,
-      openApprovalOverlay,
-      openModelOverlay,
-      openHelpOverlay,
-      openDiffOverlay,
-      openMCPOverlay,
-      history,
-      onCompact,
-      skipNextSubmit,
-      items,
-    ],
+    [setInput, submitInput, setItems, app, setHistory, setHistoryIndex, openOverlay, openApprovalOverlay, openHelpOverlay, openDiffOverlay, history, onCompact, skipNextSubmit, items],
   );
 
   if (confirmationPrompt) {
@@ -835,22 +805,11 @@ export default function TerminalChatInput({
           />
         ) : (
           <Text dimColor>
-            ctrl+c to exit | "/" to see commands | enter to send
-            {contextLeftPercent > 25 && (
+            ctrl+c to exit | "/" to see commands |
+            {statusLine && (
               <>
                 {" — "}
-                <Text color={contextLeftPercent > 40 ? "green" : "yellow"}>
-                  {Math.round(contextLeftPercent)}% context left
-                </Text>
-              </>
-            )}
-            {contextLeftPercent <= 25 && (
-              <>
-                {" — "}
-                <Text color="red">
-                  {Math.round(contextLeftPercent)}% context left — send
-                  "/compact" to condense context
-                </Text>
+                <Text>{statusLine}</Text>
               </>
             )}
           </Text>

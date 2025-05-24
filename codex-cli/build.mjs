@@ -69,14 +69,15 @@ if (isDevBuild) {
   plugins.push(devShebangPlugin);
 }
 
+// Build the library entry point
 esbuild
   .build({
-    entryPoints: ["src/cli.tsx"],
+    entryPoints: ["src/lib.tsx"],
     bundle: true,
     format: "esm",
     platform: "node",
     tsconfig: "tsconfig.json",
-    outfile: isDevBuild ? `${OUT_DIR}/cli-dev.js` : `${OUT_DIR}/cli.js`,
+    outfile: `${OUT_DIR}/lib.js`,
     minify: !isDevBuild,
     sourcemap: isDevBuild ? "inline" : true,
     plugins,

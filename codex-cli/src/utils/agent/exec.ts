@@ -1,4 +1,4 @@
-import type { AppConfig } from "../config.js";
+import type { LibraryConfig } from "../../lib.js";
 import type { ExecInput, ExecResult } from "./sandbox/interface.js";
 import type { SpawnOptions } from "child_process";
 import type { ParseEntry } from "shell-quote";
@@ -42,7 +42,7 @@ export function exec(
     additionalWritableRoots,
   }: ExecInput & { additionalWritableRoots: ReadonlyArray<string> },
   sandbox: SandboxType,
-  config: AppConfig,
+  config: LibraryConfig,
   abortSignal?: AbortSignal,
 ): Promise<ExecResult> {
   const opts: SpawnOptions = {

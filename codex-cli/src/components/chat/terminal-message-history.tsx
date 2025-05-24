@@ -1,4 +1,3 @@
-import type { OverlayModeType } from "./terminal-chat.js";
 import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
 import type { CoreMessage } from "ai";
@@ -23,7 +22,6 @@ type TerminalMessageHistoryProps = {
   thinkingSeconds: number;
   headerProps: TerminalHeaderProps;
   fullStdout: boolean;
-  setOverlayMode: React.Dispatch<React.SetStateAction<OverlayModeType>>;
 };
 
 const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
@@ -33,7 +31,6 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
   loading: _loading,
   thinkingSeconds: _thinkingSeconds,
   fullStdout,
-  setOverlayMode,
 }) => {
   // Flatten batch entries to response items.
   const messages = useMemo(() => batch.map(({ item }) => item!), [batch]);
@@ -69,7 +66,6 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
               <TerminalChatResponseItem
                 item={message}
                 fullStdout={fullStdout}
-                setOverlayMode={setOverlayMode}
               />
             </Box>
           );

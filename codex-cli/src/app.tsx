@@ -1,5 +1,6 @@
 import type { ApprovalPolicy } from "./approvals";
-import type { AppConfig } from "./utils/config";
+import type { LibraryConfig } from "./lib.js";
+import type { WorkflowFactory } from "./workflow";
 import type { CoreMessage } from "ai";
 
 import TerminalChat from "./components/chat/terminal-chat";
@@ -18,22 +19,24 @@ export type AppRollout = {
 
 type Props = {
   prompt?: string;
-  config: AppConfig;
   imagePaths?: Array<string>;
   rollout?: AppRollout;
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
+  workflowFactory?: WorkflowFactory;
+  uiConfig?: LibraryConfig;
 };
 
 export default function App({
   prompt,
-  config,
   rollout,
   imagePaths,
   approvalPolicy,
   additionalWritableRoots,
   fullStdout,
+  workflowFactory,
+  uiConfig,
 }: Props): JSX.Element {
   const app = useApp();
   const [accepted, setAccepted] = useState(() => false);
@@ -95,12 +98,13 @@ export default function App({
 
   return (
     <TerminalChat
-      config={config}
       prompt={prompt}
       imagePaths={imagePaths}
       approvalPolicy={approvalPolicy}
       additionalWritableRoots={additionalWritableRoots}
       fullStdout={fullStdout}
+      workflowFactory={workflowFactory}
+      uiConfig={uiConfig}
     />
   );
 }

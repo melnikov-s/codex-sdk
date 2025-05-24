@@ -2,10 +2,12 @@
   "name": "@openai/codex",
   "version": "0.1.2504301751",
   "license": "Apache-2.0",
-  "bin": {
-    "codex": "bin/codex.js"
-  },
   "type": "module",
+  "main": "./dist/lib.js",
+  "module": "./dist/lib.js",
+  "exports": {
+    ".": "./dist/lib.js"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -19,7 +21,6 @@
     "test:watch": "vitest --watch",
     "typecheck": "tsc --noEmit",
     "build": "node build.mjs",
-    "build:dev": "NODE_ENV=development node build.mjs --dev && NODE_OPTIONS=--enable-source-maps node dist/cli-dev.js",
     "stage-release": "./scripts/stage_release.sh"
   },
   "files": [

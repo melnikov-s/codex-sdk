@@ -1,9 +1,9 @@
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
-import type { CommandConfirmation } from "../../utils/agent/agent-loop.js";
-import type { AppConfig } from "../../utils/config.js";
+import type { LibraryConfig } from "../../lib.js";
+import type { CommandConfirmation} from "../../utils/agent/review.js";
+import type { Workflow, WorkflowFactory, WorkflowHooks } from "../../workflow";
 import type { CoreMessage } from "ai";
 import type { ColorName } from "chalk";
-import type { Model } from "src/utils/providers.js";
 
 import TerminalChatInput from "./terminal-chat-input.js";
 import { TerminalChatToolCallCommand } from "./terminal-chat-tool-call-command.js";
@@ -11,51 +11,49 @@ import TerminalMessageHistory from "./terminal-message-history.js";
 import { formatCommandForDisplay } from "../../format-command.js";
 import { useConfirmation } from "../../hooks/use-confirmation.js";
 import { useTerminalSize } from "../../hooks/use-terminal-size.js";
-import { AgentLoop } from "../../utils/agent/agent-loop.js";
+import { execToolCall } from "../../tools/runtime.js";
 import { ReviewDecision } from "../../utils/agent/review.js";
 import {
-  calculateContextPercentRemaining,
+  getToolCall,
+  isNativeTool,
   getTextContent,
 } from "../../utils/ai.js";
-import { generateCompactSummary } from "../../utils/compact-summary.js";
-import { saveConfig } from "../../utils/config.js";
+// Import removed - compact summary is now handled by consumer's workflow
 import { extractAppliedPatches as _extractAppliedPatches } from "../../utils/extract-applied-patches.js";
 import { getGitDiff } from "../../utils/get-diff.js";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
-import { MCPClientManager } from "../../utils/mcp/client-manager.js";
-import { getLanguageModel } from "../../utils/providers.js";
 import { CLI_VERSION } from "../../utils/session.js";
 import { shortCwd } from "../../utils/short-path.js";
 import { saveRollout } from "../../utils/storage/save-rollout.js";
+import { defaultWorkflow } from "../../workflow/default-agent.js";
 import ApprovalModeOverlay from "../approval-mode-overlay.js";
 import DiffOverlay from "../diff-overlay.js";
 import HelpOverlay from "../help-overlay.js";
 import HistoryOverlay from "../history-overlay.js";
-import MCPOverlay from "../mcp-overlay.js";
-import ModelOverlay from "../model-overlay.js";
-import { generateText } from "ai";
+// Model overlay removed - model selection is handled by consumer's workflow
 import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { inspect } from "util";
 
 export type OverlayModeType =
   | "none"
   | "history"
-  | "model"
   | "approval"
   | "help"
-  | "diff"
-  | "mcp";
+  | "diff";
+
+
 
 type Props = {
-  config: AppConfig;
   prompt?: string;
   imagePaths?: Array<string>;
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
+  workflowFactory?: WorkflowFactory;
+  uiConfig?: LibraryConfig;
 };
 
 const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
@@ -64,113 +62,34 @@ const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
   "full-auto": "green",
 };
 
-/**
- * Generates an explanation for a shell command using the OpenAI API.
- *
- * @param command The command to explain
- * @param model The model to use for generating the explanation
- * @param config The configuration object
- * @returns A human-readable explanation of what the command does
- */
-async function generateCommandExplanation(
-  command: Array<string>,
-  model: Model,
-): Promise<string> {
-  try {
-    // Format the command for display
-    const commandForDisplay = formatCommandForDisplay(command);
-
-    // Use the Vercel AI SDK's generateText function
-    const result = await generateText({
-      model: getLanguageModel(model),
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert in shell commands and terminal operations. Your task is to provide detailed, accurate explanations of shell commands that users are considering executing. Break down each part of the command, explain what it does, identify any potential risks or side effects, and explain why someone might want to run it. Be specific about what files or systems will be affected. If the command could potentially be harmful, make sure to clearly highlight those risks.",
-        },
-        {
-          role: "user",
-          content: `Please explain this shell command in detail: \`${commandForDisplay}\`\n\nProvide a structured explanation that includes:\n1. A brief overview of what the command does\n2. A breakdown of each part of the command (flags, arguments, etc.)\n3. What files, directories, or systems will be affected\n4. Any potential risks or side effects\n5. Why someone might want to run this command\n\nBe specific and technical - this explanation will help the user decide whether to approve or reject the command.`,
-        },
-      ],
-    });
-
-    // Extract the explanation from the response
-    return result.text || "Unable to generate explanation.";
-  } catch (error) {
-    log(`Error generating command explanation: ${error}`);
-
-    let errorMessage = "Unable to generate explanation due to an error.";
-    if (error instanceof Error) {
-      errorMessage = `Unable to generate explanation: ${error.message}`;
-
-      // If it's an API error, check for more specific information
-      if ("status" in error && typeof error.status === "number") {
-        // Handle API-specific errors
-        if (error.status === 401) {
-          errorMessage =
-            "Unable to generate explanation: API key is invalid or expired.";
-        } else if (error.status === 429) {
-          errorMessage =
-            "Unable to generate explanation: Rate limit exceeded. Please try again later.";
-        } else if (error.status >= 500) {
-          errorMessage =
-            "Unable to generate explanation: Service is currently unavailable. Please try again later.";
-        }
-      }
-    }
-
-    return errorMessage;
-  }
-}
+// Command explanation functionality removed - should be handled by the consumer's workflow
 
 export default function TerminalChat({
-  config,
   prompt: _initialPrompt,
   imagePaths: _initialImagePaths,
   approvalPolicy: initialApprovalPolicy,
   additionalWritableRoots,
   fullStdout,
+  workflowFactory,
+  uiConfig = {}, // Default to empty object if not provided
 }: Props): React.ReactElement {
-  const notify = Boolean(config.notify);
-  const [model, setModel] = useState<Model>(config.model);
+  const notify = Boolean(uiConfig?.notify);
+  // Model state removed - model selection is now handled by consumer's workflow
   const [loading, setLoading] = useState<boolean>(false);
   const [approvalPolicy, setApprovalPolicy] = useState<ApprovalPolicy>(
     initialApprovalPolicy,
   );
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const [items, setItems] = useState<Array<CoreMessage>>([]);
-  const [mcpServerStatus, setMcpServerStatus] = useState<
-    Array<{ name: string; connected: boolean }>
-  >([]);
-  const mcpClientManager = useMemo(
-    () => new MCPClientManager(config),
-    [config],
-  );
 
   const handleCompact = async () => {
-    setLoading(true);
-    try {
-      const summary = await generateCompactSummary(items, model);
-      setItems([
-        {
-          role: "assistant",
-          content: summary,
-        },
-      ]);
-    } catch (err) {
-      setItems((prev) => [
-        ...prev,
-        {
-          id: `compact-error-${Date.now()}`,
-          role: "system",
-          content: `Failed to compact context: ${err}`,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    // Context summarization should be handled by the consumer's workflow
+    setItems([
+      {
+        role: "system",
+        content: "Context summarization is now the responsibility of the consumer's workflow implementation.",
+      },
+    ]);
   };
 
   const {
@@ -181,7 +100,7 @@ export default function TerminalChat({
   } = useConfirmation();
   const [overlayMode, setOverlayMode] = useState<OverlayModeType>("none");
 
-  // Store the diff text when opening the diff overlay so the view isn’t
+  // Store the diff text when opening the diff overlay so the view isn't
   // recomputed on every re‑render while it is open.
   // diffText is passed down to the DiffOverlay component. The setter is
   // currently unused but retained for potential future updates. Prefix with
@@ -194,128 +113,153 @@ export default function TerminalChat({
 
   const PWD = React.useMemo(() => shortCwd(), []);
 
-  // Keep a single AgentLoop instance alive across renders;
-  // recreate only when model/instructions/approvalPolicy change.
-  const agentRef = React.useRef<AgentLoop>();
+  // Workflow reference
+  const workflowRef = React.useRef<Workflow | null>(null);
   const [, forceUpdate] = React.useReducer((c) => c + 1, 0); // trigger re‑render
 
   // ────────────────────────────────────────────────────────────────
   // DEBUG: log every render w/ key bits of state
   // ────────────────────────────────────────────────────────────────
   log(
-    `render - agent? ${Boolean(agentRef.current)} loading=${loading} items=${
+    `render - workflow? ${Boolean(workflowRef.current)} loading=${loading} items=${
       items.length
     }`,
   );
 
-  // Initialize MCP client manager on mount
-  useEffect(() => {
-    mcpClientManager.initialize().catch((error) => {
-      log(`Error initializing MCP clients: ${error}`);
-    });
+  // MCP functionality removed - now handled by consumer's workflow
 
-    return () => {
-      mcpClientManager.closeAll().catch((error) => {
-        log(`Error closing MCP clients: ${error}`);
-      });
-    };
-  }, [mcpClientManager]);
+  // Command confirmation handler for the workflow
+  const getCommandConfirmation = async (
+    command: Array<string>,
+    applyPatch: ApplyPatchCommand | undefined,
+  ): Promise<CommandConfirmation> => {
+    log(`getCommandConfirmation: ${command}`);
+    const commandForDisplay = formatCommandForDisplay(command);
 
-  // Handle MCP command
-  const handleMCPCommand = () => {
-    // Get current MCP server status
-    setMcpServerStatus(mcpClientManager.getStatus());
+    // First request for confirmation
+    let { decision: review, customDenyMessage } = await requestConfirmation(
+      <TerminalChatToolCallCommand commandForDisplay={commandForDisplay} />,
+    );
 
-    // Show the overlay
-    setOverlayMode("mcp");
+    // If the user wants an explanation, inform them this needs to be handled by the consumer's workflow
+    if (review === ReviewDecision.EXPLAIN) {
+      log(`Command explanation requested for: ${commandForDisplay}`);
+      // Simple fallback explanation since consumers should implement their own explanation
+      const explanation = "Command explanation is now handled by the consumer's workflow implementation.";
+      log(`Using fallback explanation: ${explanation}`);
+
+      // Ask for confirmation again with basic information
+      const confirmResult = await requestConfirmation(
+        <TerminalChatToolCallCommand
+          commandForDisplay={commandForDisplay}
+          explanation={explanation}
+        />,
+      );
+
+      // Update the decision based on the second confirmation.
+      review = confirmResult.decision;
+      customDenyMessage = confirmResult.customDenyMessage;
+
+      // Return the final decision with the explanation.
+      return { review, customDenyMessage, applyPatch, explanation };
+    }
+
+    return { review, customDenyMessage, applyPatch };
   };
 
   useEffect(() => {
-    // Skip recreating the agent if awaiting a decision on a pending confirmation.
+    // Skip recreating the workflow if awaiting a decision on a pending confirmation.
     if (confirmationPrompt != null) {
-      log("skip AgentLoop recreation due to pending confirmationPrompt");
+      log("skip workflow recreation due to pending confirmationPrompt");
       return;
     }
 
-    log("creating NEW AgentLoop");
+    log("creating NEW workflow");
     log(
-      `model=${model} instructions=${Boolean(
-        config.instructions,
-      )} approvalPolicy=${approvalPolicy}`,
+      `approvalPolicy=${approvalPolicy}`
     );
 
-    // Tear down any existing loop before creating a new one.
-    agentRef.current?.terminate();
+    // Tear down any existing workflow before creating a new one.
+    workflowRef.current?.terminate();
 
     const sessionId = crypto.randomUUID();
-    agentRef.current = new AgentLoop({
-      model,
-      config,
-      instructions: config.instructions,
-      approvalPolicy,
-      additionalWritableRoots,
-      onItem: (item) => {
-        log(`onItem: ${JSON.stringify(item)}`);
+
+    // Create the workflow hooks
+    const workflowHooks: WorkflowHooks = {
+      tools: {},
+      toolPrompt: "",
+      logger: (message) => {
+        log(message);
+      },
+      onMessage: (item) => {
+        log(`onMessage: ${JSON.stringify(item)}`);
         setItems((prev) => {
           const updated = [...prev, item];
           saveRollout(sessionId, updated);
           return updated;
         });
       },
-      onLoading: setLoading,
-      getCommandConfirmation: async (
-        command: Array<string>,
-        applyPatch: ApplyPatchCommand | undefined,
-      ): Promise<CommandConfirmation> => {
-        log(`getCommandConfirmation: ${command}`);
-        const commandForDisplay = formatCommandForDisplay(command);
-
-        // First request for confirmation
-        let { decision: review, customDenyMessage } = await requestConfirmation(
-          <TerminalChatToolCallCommand commandForDisplay={commandForDisplay} />,
-        );
-
-        // If the user wants an explanation, generate one and ask again.
-        if (review === ReviewDecision.EXPLAIN) {
-          log(`Generating explanation for command: ${commandForDisplay}`);
-          const explanation = await generateCommandExplanation(command, model);
-          log(`Generated explanation: ${explanation}`);
-
-          // Ask for confirmation again, but with the explanation.
-          const confirmResult = await requestConfirmation(
-            <TerminalChatToolCallCommand
-              commandForDisplay={commandForDisplay}
-              explanation={explanation}
-            />,
-          );
-
-          // Update the decision based on the second confirmation.
-          review = confirmResult.decision;
-          customDenyMessage = confirmResult.customDenyMessage;
-
-          // Return the final decision with the explanation.
-          return { review, customDenyMessage, applyPatch, explanation };
+      onSystemMessage: (feedback) => {
+        log(`onSystemMessage: ${feedback}`);
+        // Potentially add to a different part of the UI or handle differently
+        // For now, just logging it similar to other debug messages.
+      },
+      setLoading,
+      onError: (error) => {
+        log(`Workflow error: ${(error as Error).message}`);
+        // Error is already handled in the workflow's run method
+      },
+      confirm: async (_msg: string) => {
+        // Simple confirmation implementation
+        return true;
+      },
+      handleToolCall: async (message) => {
+        // Extract the tool call from the message
+        const toolCall = getToolCall(message);
+        if (!toolCall || !isNativeTool(toolCall.toolName)) {
+          return null;
         }
 
-        return { review, customDenyMessage, applyPatch };
-      },
-    });
+        // Create an abort controller for this tool call
+        const abortController = new AbortController();
 
-    // Force a render so JSX below can "see" the freshly created agent.
+        // Handle the tool call
+        const toolResults = await execToolCall(
+          toolCall,
+          uiConfig,
+          approvalPolicy,
+          additionalWritableRoots,
+          getCommandConfirmation,
+          abortController.signal,
+        );
+
+        // Return the first tool result or null if none
+        return toolResults[0] || null;
+      },
+    };
+
+    // Create the workflow using the provided factory or default
+    const factory = workflowFactory || defaultWorkflow;
+    workflowRef.current = factory(workflowHooks);
+
+    // Initialize the workflow
+    workflowRef.current.initialize?.();
+
+    // Force a render so JSX below can "see" the freshly created workflow.
     forceUpdate();
 
-    log(`AgentLoop created: ${inspect(agentRef.current, { depth: 1 })}`);
+    log(`Workflow created: ${inspect(workflowRef.current, { depth: 1 })}`);
 
     return () => {
-      log("terminating AgentLoop");
-      agentRef.current?.terminate();
-      agentRef.current = undefined;
+      // Clean up any workflows.
+      workflowRef.current?.terminate();
+      workflowRef.current = null;
       forceUpdate(); // re‑render after teardown too
     };
     // We intentionally omit 'approvalPolicy' and 'confirmationPrompt' from the deps
-    // so switching modes or showing confirmation dialogs doesn’t tear down the loop.
+    // so switching modes or showing confirmation dialogs doesn't tear down the loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, config, requestConfirmation, additionalWritableRoots]);
+  }, [uiConfig, requestConfirmation, additionalWritableRoots]);
 
   // Whenever loading starts/stops, reset or start a timer — but pause the
   // timer while a confirmation overlay is displayed so we don't trigger a
@@ -378,10 +322,10 @@ export default function TerminalChat({
   }, [notify, loading, confirmationPrompt, items, PWD]);
 
   // Let's also track whenever the ref becomes available.
-  const agent = agentRef.current;
+  const workflow = workflowRef.current;
   useEffect(() => {
-    log(`agentRef.current is now ${Boolean(agent)}`);
-  }, [agent]);
+    log(`workflowRef.current is now ${Boolean(workflow)}`);
+  }, [workflow]);
 
   // ---------------------------------------------------------------------
   // Dynamic layout constraints – keep total rendered rows <= terminal rows
@@ -403,27 +347,41 @@ export default function TerminalChat({
       // Clear them to prevent subsequent runs.
       setInitialPrompt("");
       setInitialImagePaths([]);
-      agent?.run(inputItems);
+      if (workflow != null) {
+        workflow.run(inputItems);
+      }
     };
     processInitialInputItems();
-  }, [agent, initialPrompt, initialImagePaths]);
+  }, [workflow, initialPrompt, initialImagePaths]);
 
   // Just render every item in order, no grouping/collapse.
   const lastMessageBatch = items.map((item) => ({ item }));
   const groupCounts: Record<string, number> = {};
   const userMsgCount = items.filter((i) => i.role === "user").length;
 
-  const contextLeftPercent = useMemo(
-    () => calculateContextPercentRemaining(items, model),
-    [items, model],
-  );
+  // Get headers from config - either static array or function result
+  const headers = React.useMemo(() => {
+    const configHeaders = uiConfig?.headers;
+    if (!configHeaders) {
+      return [];
+    }
+    return typeof configHeaders === 'function' ? configHeaders() : configHeaders;
+  }, [uiConfig?.headers]);
+
+  // Get status line from config - either static string or function result
+  const statusLine = React.useMemo(() => {
+    const configStatusLine = uiConfig?.statusLine;
+    if (!configStatusLine) {
+      return "";
+    }
+    return typeof configStatusLine === 'function' ? configStatusLine() : configStatusLine;
+  }, [uiConfig?.statusLine]);
 
   return (
     <Box flexDirection="column">
       <Box flexDirection="column">
-        {agent ? (
+        {workflow ? (
           <TerminalMessageHistory
-            setOverlayMode={setOverlayMode}
             batch={lastMessageBatch}
             groupCounts={groupCounts}
             items={items}
@@ -436,23 +394,23 @@ export default function TerminalChat({
               terminalRows,
               version: CLI_VERSION,
               PWD,
-              model,
               approvalPolicy,
               colorsByPolicy,
-              agent,
               initialImagePaths,
+              headers,
+              statusLine,
             }}
           />
         ) : (
           <Box>
-            <Text color="gray">Initializing agent…</Text>
+            <Text color="gray">Initializing workflow…</Text>
           </Box>
         )}
-        {overlayMode === "none" && agent && (
+        {overlayMode === "none" && workflow && (
           <TerminalChatInput
             loading={loading}
             setItems={setItems}
-            isNew={Boolean(items.length === 0)}
+            isNew={workflowRef.current != null && items.length === 0}
             confirmationPrompt={confirmationPrompt}
             explanation={explanation}
             submitConfirmation={(
@@ -464,9 +422,8 @@ export default function TerminalChat({
                 customDenyMessage,
               })
             }
-            contextLeftPercent={contextLeftPercent}
+            statusLine={statusLine}
             openOverlay={() => setOverlayMode("history")}
-            openModelOverlay={() => setOverlayMode("model")}
             openApprovalOverlay={() => setOverlayMode("approval")}
             openHelpOverlay={() => setOverlayMode("help")}
             openDiffOverlay={() => {
@@ -489,17 +446,16 @@ export default function TerminalChat({
               // Ensure no overlay is shown.
               setOverlayMode("none");
             }}
-            openMCPOverlay={handleMCPCommand}
             onCompact={handleCompact}
             active={overlayMode === "none"}
             interruptAgent={() => {
-              if (!agent) {
+              if (!workflow) {
                 return;
               }
               log(
-                "TerminalChat: interruptAgent invoked – calling agent.cancel()",
+                "TerminalChat: interruptAgent invoked – calling workflow.stop()",
               );
-              agent.cancel();
+              workflow.stop();
               setLoading(false);
 
               // Add a system message to indicate the interruption
@@ -515,7 +471,9 @@ export default function TerminalChat({
             }}
             submitInput={(inputs) => {
               setItems((prev) => [...prev, ...inputs]);
-              agent.run(inputs);
+              if (workflow != null) {
+                workflow.run(inputs);
+              }
               return {};
             }}
             items={items}
@@ -525,42 +483,7 @@ export default function TerminalChat({
         {overlayMode === "history" && (
           <HistoryOverlay items={items} onExit={() => setOverlayMode("none")} />
         )}
-        {overlayMode === "model" && (
-          <ModelOverlay
-            currentModel={model}
-            onSelect={(newModel) => {
-              log(
-                "TerminalChat: interruptAgent invoked – calling agent.cancel()",
-              );
-              if (!agent) {
-                log("TerminalChat: agent is not ready yet");
-              }
-              agent?.cancel();
-              setLoading(false);
-
-              setModel(newModel);
-
-              // Save model to config
-              saveConfig({
-                ...config,
-                model: newModel,
-              });
-
-              setItems((prev) => [
-                ...prev,
-                {
-                  id: `switch-model-${Date.now()}`,
-                  role: "system",
-                  content: `Switched model to ${newModel}`,
-                },
-              ]);
-
-              setOverlayMode("none");
-            }}
-            onExit={() => setOverlayMode("none")}
-          />
-        )}
-
+        {/* Model overlay removed - model is now handled by consumer's workflow */}
         {overlayMode === "approval" && (
           <ApprovalModeOverlay
             currentMode={approvalPolicy}
@@ -571,13 +494,8 @@ export default function TerminalChat({
               }
 
               setApprovalPolicy(newMode as ApprovalPolicy);
-              if (agentRef.current) {
-                (
-                  agentRef.current as unknown as {
-                    approvalPolicy: ApprovalPolicy;
-                  }
-                ).approvalPolicy = newMode as ApprovalPolicy;
-              }
+              // We can't dynamically update the approval policy with the new workflow architecture
+              // We'll recreate the workflow with the new approval policy when needed
               setItems((prev) => [
                 ...prev,
                 {
@@ -600,13 +518,6 @@ export default function TerminalChat({
         {overlayMode === "diff" && (
           <DiffOverlay
             diffText={diffText}
-            onExit={() => setOverlayMode("none")}
-          />
-        )}
-
-        {overlayMode === "mcp" && (
-          <MCPOverlay
-            serversStatus={mcpServerStatus}
             onExit={() => setOverlayMode("none")}
           />
         )}

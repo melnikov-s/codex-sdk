@@ -150,7 +150,7 @@ export type StoredConfig = {
   approvalMode?: AutoApprovalMode;
   fullAutoErrorMode?: FullAutoErrorMode;
   memory?: MemoryConfig;
-  /** Whether to enable desktop notifications for responses */
+  /** Whether to enable desktop notifications for responses (defaults to false) */
   notify?: boolean;
   /** Disable server-side response storage (send full transcript each request) */
   disableResponseStorage?: boolean;
@@ -196,11 +196,11 @@ export type MemoryConfig = {
 export type AppConfig = {
   apiKey?: string;
   model: Model;
-  instructions: string;
+  instructions?: string;
   approvalMode?: AutoApprovalMode;
   fullAutoErrorMode?: FullAutoErrorMode;
   memory?: MemoryConfig;
-  /** Whether to enable desktop notifications for responses */
+  /** Whether to enable desktop notifications for responses (defaults to false) */
   notify?: boolean;
 
   providers?: Record<string, { name: string; baseURL: string; envKey: string }>;
@@ -582,8 +582,8 @@ export const saveConfig = (
   }
 
   // Take everything before the first PROJECT_DOC_SEPARATOR (or the whole string if none).
-  const [userInstructions = ""] = config.instructions.split(
+  const [userInstructions = ""] = config.instructions?.split(
     PROJECT_DOC_SEPARATOR,
-  );
+  ) ?? [];
   writeFileSync(instructionsPath, userInstructions, "utf-8");
 };

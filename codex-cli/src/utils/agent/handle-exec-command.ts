@@ -1,18 +1,18 @@
-import type { CommandConfirmation } from "./agent-loop.js";
+import type { CommandConfirmation} from "./review.js";
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
 import type { ExecInput } from "./sandbox/interface.js";
 
-
-import { canAutoApprove } from "../../approvals.js";
-import { formatCommandForDisplay } from "../../format-command.js";
-import { FullAutoErrorMode } from "../auto-approval-mode.js";
-import { CODEX_UNSAFE_ALLOW_NO_SANDBOX, type AppConfig } from "../config.js";
 import { exec, execApplyPatch } from "./exec.js";
 import { ReviewDecision } from "./review.js";
+import { canAutoApprove } from "../../approvals.js";
+import { formatCommandForDisplay } from "../../format-command.js";
+import { type LibraryConfig } from "../../lib.js";
+import { FullAutoErrorMode } from "../auto-approval-mode.js";
+import { CODEX_UNSAFE_ALLOW_NO_SANDBOX } from "../config.js";
 import { isLoggingEnabled, log } from "../logger/log.js";
 import { SandboxType } from "./sandbox/interface.js";
 import { PATH_TO_SEATBELT_EXECUTABLE } from "./sandbox/macos-seatbelt.js";
-import { type CoreMessage} from "ai";
+import { type CoreMessage } from "ai";
 import fs from "fs/promises";
 
 // ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ type HandleExecCommandResult = {
 
 export async function handleExecCommand(
   args: ExecInput,
-  config: AppConfig,
+  config: LibraryConfig,
   policy: ApprovalPolicy,
   additionalWritableRoots: ReadonlyArray<string>,
   getCommandConfirmation: (
@@ -164,7 +164,6 @@ export async function handleExecCommand(
     //
     // Otherwise, if they selected "ask-user", then we should ask the user
     // for permission to re-run the command outside of the sandbox.
-    config.fullAutoErrorMode &&
     config.fullAutoErrorMode === FullAutoErrorMode.ASK_USER
   ) {
     const review = await askUserPermission(
@@ -217,7 +216,7 @@ async function execCommand(
   applyPatchCommand: ApplyPatchCommand | undefined,
   runInSandbox: boolean,
   additionalWritableRoots: ReadonlyArray<string>,
-  config: AppConfig,
+  config: LibraryConfig,
   abortSignal?: AbortSignal,
 ): Promise<ExecCommandSummary> {
   let { workdir } = execInput;
