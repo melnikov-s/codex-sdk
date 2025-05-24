@@ -367,6 +367,76 @@ export function defaultWorkflow(
       hooks.setLoading(false);
       return newMessages;
     },
+
+    commands: {
+      compact: {
+        description:
+          "Clear conversation history but keep a summary in context. Optional: /compact [instructions for summarization]",
+        handler: async (args?: string) => {
+          try {
+            hooks.logger("Executing /compact command");
+            hooks.setLoading(true);
+
+            const customInstructions = args?.trim();
+
+            // Create system message for compact operation
+            const summaryRequest = customInstructions
+              ? `Create a concise summary of the conversation following these instructions: ${customInstructions}`
+              : "Create a concise summary of the conversation focusing on key decisions, outcomes, and current state.";
+
+            // Generate summary using the model
+            const response = await generateText({
+              maxSteps: 1,
+              model,
+              messages: [
+                {
+                  role: "system",
+                  content: `You are tasked with creating a concise summary of a coding conversation. ${summaryRequest} Focus on:
+1. Main objectives and goals
+2. Key decisions made
+3. Current progress/state
+4. Important technical details
+5. Any outstanding issues
+
+Keep the summary concise but comprehensive.`,
+                },
+                ...transcript,
+                {
+                  role: "user",
+                  content:
+                    "Please provide a summary of our conversation so far.",
+                },
+              ],
+            });
+
+            const summary = response.text;
+
+            // Clear the transcript but keep the summary
+            transcript.length = 0;
+            transcript.push({
+              role: "system",
+              content: `[Context Summary] ${summary}`,
+            });
+
+            // Notify the hooks
+            hooks.onSystemMessage(
+              "Conversation context compacted successfully.",
+            );
+            hooks.onCommandExecuted?.(
+              "compact",
+              "Context summarized and conversation history cleared",
+            );
+
+            hooks.setLoading(false);
+          } catch (error) {
+            const errorMsg = `Error executing /compact command: ${(error as Error).message}`;
+            hooks.logger(errorMsg);
+            hooks.onSystemMessage(errorMsg);
+            hooks.setLoading(false);
+          }
+        },
+      },
+    },
   };
 }
 
@@ -375,6 +445,6 @@ export function defaultWorkflow(
  */
 export const createDefaultWorkflow = (
   agentConfig?: DefaultAgentWorkflowConfig,
-): (hooks: WorkflowHooks) => Workflow => {
+): ((hooks: WorkflowHooks) => Workflow) => {
   return (hooks: WorkflowHooks) => defaultWorkflow(hooks, agentConfig);
 };

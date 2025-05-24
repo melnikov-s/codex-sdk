@@ -2,6 +2,7 @@ import type { MultilineTextEditorHandle } from "./multiline-editor";
 import type { ReviewDecision } from "../../utils/agent/review.js";
 import type { FileSystemSuggestion } from "../../utils/file-system-suggestions.js";
 import type { HistoryEntry } from "../../utils/storage/command-history.js";
+import type { Workflow } from "../../workflow";
 import type { CoreMessage } from "ai";
 
 import MultilineTextEditor from "./multiline-editor";
@@ -13,7 +14,10 @@ import { expandFileTags } from "../../utils/file-tag-utils";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
 import { setSessionId } from "../../utils/session.js";
-import { SLASH_COMMANDS, type SlashCommand } from "../../utils/slash-commands";
+import {
+  getAllAvailableCommands,
+  type SlashCommand,
+} from "../../utils/slash-commands.js";
 import {
   loadCommandHistory,
   addToHistory,
@@ -27,6 +31,7 @@ import React, {
   Fragment,
   useEffect,
   useRef,
+  useMemo,
 } from "react";
 import { getMessageType } from "src/utils/ai";
 import { useInterval } from "use-interval";
@@ -49,12 +54,12 @@ export default function TerminalChatInput({
   openApprovalOverlay,
   openHelpOverlay,
   openDiffOverlay,
-  onCompact,
   interruptAgent,
   active,
   thinkingSeconds,
   items = [],
   statusLine,
+  workflow,
 }: {
   isNew: boolean;
   loading: boolean;
@@ -70,13 +75,12 @@ export default function TerminalChatInput({
   openApprovalOverlay: () => void;
   openHelpOverlay: () => void;
   openDiffOverlay: () => void;
-  onCompact: () => void;
   interruptAgent: () => void;
   active: boolean;
   thinkingSeconds: number;
-  // New: current conversation items so we can include them in bug reports
   items?: Array<CoreMessage>;
   statusLine?: string;
+  workflow?: Workflow | null;
 }): React.ReactElement {
   // Slash command suggestion index
   const [selectedSlashSuggestion, setSelectedSlashSuggestion] =
@@ -102,6 +106,11 @@ export default function TerminalChatInput({
   // Track the caret row across keystrokes
   const prevCursorRow = useRef<number | null>(null);
   const prevCursorWasAtLastRow = useRef<boolean>(false);
+
+  // Get all available commands (UI + workflow commands)
+  const availableCommands = useMemo(() => {
+    return getAllAvailableCommands(workflow?.commands || {});
+  }, [workflow?.commands]);
 
   // --- Helper for updating input, remounting editor, and moving cursor to end ---
   const applyFsSuggestion = useCallback((newInputText: string) => {
@@ -223,7 +232,7 @@ export default function TerminalChatInput({
       // Slash command navigation: up/down to select, enter to fill
       if (!confirmationPrompt && !loading && input.trim().startsWith("/")) {
         const prefix = input.trim();
-        const matches = SLASH_COMMANDS.filter((cmd: SlashCommand) =>
+        const matches = availableCommands.filter((cmd: SlashCommand) =>
           cmd.command.startsWith(prefix),
         );
         if (matches.length > 0) {
@@ -270,34 +279,52 @@ export default function TerminalChatInput({
               setInput("");
               setDraftInput("");
               setSelectedSlashSuggestion(0);
-              switch (cmd) {
-                case "/history":
-                  openOverlay();
-                  break;
-                case "/help":
-                  openHelpOverlay();
-                  break;
-                case "/compact":
-                  onCompact();
-                  break;
-                // Model command removed - model selection is now handled by consumer's workflow
-                case "/approval":
-                  openApprovalOverlay();
-                  break;
-                case "/diff":
-                  openDiffOverlay();
-                  break;
-                case "/bug":
-                  onSubmit(cmd);
-                  break;
-                case "/clear":
-                  onSubmit(cmd);
-                  break;
-                case "/clearhistory":
-                  onSubmit(cmd);
-                  break;
-                default:
-                  break;
+
+              // Handle UI commands
+              if (cmdObj.source === "ui") {
+                switch (cmd) {
+                  case "/history":
+                    openOverlay();
+                    break;
+                  case "/help":
+                    openHelpOverlay();
+                    break;
+                  case "/approval":
+                    openApprovalOverlay();
+                    break;
+                  case "/diff":
+                    openDiffOverlay();
+                    break;
+                  case "/clear":
+                  case "/clearhistory":
+                    onSubmit(cmd);
+                    break;
+                  default:
+                    break;
+                }
+              } else if (cmdObj.source === "workflow") {
+                // Handle workflow commands
+                const commandName = cmd.slice(1); // Remove the "/" prefix
+                const workflowCommands = workflow?.commands;
+                if (workflowCommands?.[commandName]) {
+                  try {
+                    // Execute the command (might be sync or async)
+                    const result = workflowCommands[commandName].handler();
+                    // If it's a promise, handle errors
+                    if (result && typeof result.then === "function") {
+                      result.catch((error: Error) => {
+                        log(
+                          `Error executing workflow command ${cmd}: ${error.message}`,
+                        );
+                      });
+                    }
+                  } catch (error) {
+                    // Handle synchronous errors
+                    log(
+                      `Error executing workflow command ${cmd}: ${(error as Error).message}`,
+                    );
+                  }
+                }
               }
             }
             return;
@@ -483,11 +510,6 @@ export default function TerminalChatInput({
         setInput("");
         openDiffOverlay();
         return;
-      } else if (inputValue === "/compact") {
-        setInput("");
-        onCompact();
-        return;
-      // Model command removed - model selection is now handled by consumer's workflow
       } else if (inputValue.startsWith("/approval")) {
         setInput("");
         openApprovalOverlay();
@@ -693,7 +715,21 @@ export default function TerminalChatInput({
       setFsSuggestions([]);
       setSelectedCompletion(-1);
     },
-    [setInput, submitInput, setItems, app, setHistory, setHistoryIndex, openOverlay, openApprovalOverlay, openHelpOverlay, openDiffOverlay, history, onCompact, skipNextSubmit, items],
+    [
+      setInput,
+      submitInput,
+      setItems,
+      app,
+      setHistory,
+      setHistoryIndex,
+      openOverlay,
+      openApprovalOverlay,
+      openHelpOverlay,
+      openDiffOverlay,
+      history,
+      skipNextSubmit,
+      items,
+    ],
   );
 
   if (confirmationPrompt) {
@@ -764,20 +800,20 @@ export default function TerminalChatInput({
       {/* Slash command autocomplete suggestions */}
       {input.trim().startsWith("/") && (
         <Box flexDirection="column" paddingX={2} marginBottom={1}>
-          {SLASH_COMMANDS.filter((cmd: SlashCommand) =>
-            cmd.command.startsWith(input.trim()),
-          ).map((cmd: SlashCommand, idx: number) => (
-            <Box key={cmd.command}>
-              <Text
-                backgroundColor={
-                  idx === selectedSlashSuggestion ? "blackBright" : undefined
-                }
-              >
-                <Text color="blueBright">{cmd.command}</Text>
-                <Text> {cmd.description}</Text>
-              </Text>
-            </Box>
-          ))}
+          {availableCommands
+            .filter((cmd: SlashCommand) => cmd.command.startsWith(input.trim()))
+            .map((cmd: SlashCommand, idx: number) => (
+              <Box key={cmd.command}>
+                <Text
+                  backgroundColor={
+                    idx === selectedSlashSuggestion ? "blackBright" : undefined
+                  }
+                >
+                  <Text color="blueBright">{cmd.command}</Text>
+                  <Text> {cmd.description}</Text>
+                </Text>
+              </Box>
+            ))}
         </Box>
       )}
       <Box paddingX={2} marginBottom={1}>

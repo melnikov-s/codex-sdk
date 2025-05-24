@@ -1,3 +1,9 @@
+import type { Workflow } from "../workflow";
+
+import {
+  getAllAvailableCommands,
+  type SlashCommand,
+} from "../utils/slash-commands.js";
 import { Box, Text, useInput } from "ink";
 import React from "react";
 
@@ -9,14 +15,22 @@ import React from "react";
  */
 export default function HelpOverlay({
   onExit,
+  workflow,
 }: {
   onExit: () => void;
+  workflow?: Workflow | null;
 }): JSX.Element {
   useInput((input, key) => {
     if (key.escape || input === "q") {
       onExit();
     }
   });
+
+  const allCommands = getAllAvailableCommands(workflow?.commands || {});
+  const uiCommands = allCommands.filter((cmd) => cmd.source === "ui");
+  const workflowCommands = allCommands.filter(
+    (cmd) => cmd.source === "workflow",
+  );
 
   return (
     <Box
@@ -31,37 +45,28 @@ export default function HelpOverlay({
 
       <Box flexDirection="column" paddingX={1} paddingTop={1}>
         <Text bold dimColor>
-          Slash‑commands
+          System commands
         </Text>
-        <Text>
-          <Text color="cyan">/help</Text> – show this help overlay
-        </Text>
-        <Text>
-          <Text color="cyan">/model</Text> – switch the LLM model in‑session
-        </Text>
-        <Text>
-          <Text color="cyan">/approval</Text> – switch auto‑approval mode
-        </Text>
-        <Text>
-          <Text color="cyan">/history</Text> – show command &amp; file history
-          for this session
-        </Text>
-        <Text>
-          <Text color="cyan">/clear</Text> – clear screen &amp; context
-        </Text>
-        <Text>
-          <Text color="cyan">/clearhistory</Text> – clear command history
-        </Text>
-        <Text>
-          <Text color="cyan">/bug</Text> – generate a prefilled GitHub issue URL
-          with session log
-        </Text>
-        <Text>
-          <Text color="cyan">/diff</Text> – view working tree git diff
-        </Text>
-        <Text>
-          <Text color="cyan">/compact</Text> – condense context into a summary
-        </Text>
+        {uiCommands.map((cmd: SlashCommand) => (
+          <Text key={cmd.command}>
+            <Text color="cyan">{cmd.command}</Text> – {cmd.description}
+          </Text>
+        ))}
+
+        {workflowCommands.length > 0 && (
+          <>
+            <Box marginTop={1}>
+              <Text bold dimColor>
+                Workflow commands
+              </Text>
+            </Box>
+            {workflowCommands.map((cmd: SlashCommand) => (
+              <Text key={cmd.command}>
+                <Text color="magenta">{cmd.command}</Text> – {cmd.description}
+              </Text>
+            ))}
+          </>
+        )}
 
         <Box marginTop={1}>
           <Text bold dimColor>

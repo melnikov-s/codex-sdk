@@ -1,6 +1,6 @@
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
 import type { LibraryConfig } from "../../lib.js";
-import type { CommandConfirmation} from "../../utils/agent/review.js";
+import type { CommandConfirmation } from "../../utils/agent/review.js";
 import type { Workflow, WorkflowFactory, WorkflowHooks } from "../../workflow";
 import type { CoreMessage } from "ai";
 import type { ColorName } from "chalk";
@@ -13,11 +13,7 @@ import { useConfirmation } from "../../hooks/use-confirmation.js";
 import { useTerminalSize } from "../../hooks/use-terminal-size.js";
 import { execToolCall } from "../../tools/runtime.js";
 import { ReviewDecision } from "../../utils/agent/review.js";
-import {
-  getToolCall,
-  isNativeTool,
-  getTextContent,
-} from "../../utils/ai.js";
+import { getToolCall, isNativeTool, getTextContent } from "../../utils/ai.js";
 // Import removed - compact summary is now handled by consumer's workflow
 import { extractAppliedPatches as _extractAppliedPatches } from "../../utils/extract-applied-patches.js";
 import { getGitDiff } from "../../utils/get-diff.js";
@@ -37,14 +33,7 @@ import { spawn } from "node:child_process";
 import React, { useEffect, useRef, useState } from "react";
 import { inspect } from "util";
 
-export type OverlayModeType =
-  | "none"
-  | "history"
-  | "approval"
-  | "help"
-  | "diff";
-
-
+export type OverlayModeType = "none" | "history" | "approval" | "help" | "diff";
 
 type Props = {
   prompt?: string;
@@ -82,14 +71,30 @@ export default function TerminalChat({
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const [items, setItems] = useState<Array<CoreMessage>>([]);
 
-  const handleCompact = async () => {
-    // Context summarization should be handled by the consumer's workflow
-    setItems([
-      {
-        role: "system",
-        content: "Context summarization is now the responsibility of the consumer's workflow implementation.",
-      },
-    ]);
+  // Handle workflow commands
+  const _handleWorkflowCommand = async (command: string, args?: string) => {
+    const workflow = workflowRef.current;
+    if (workflow?.commands?.[command]) {
+      try {
+        await workflow.commands[command](args);
+      } catch (error) {
+        setItems((prev) => [
+          ...prev,
+          {
+            role: "system",
+            content: `Error executing /${command}: ${(error as Error).message}`,
+          },
+        ]);
+      }
+    } else {
+      setItems((prev) => [
+        ...prev,
+        {
+          role: "system",
+          content: `Command /${command} is not available in the current workflow.`,
+        },
+      ]);
+    }
   };
 
   const {
@@ -145,7 +150,8 @@ export default function TerminalChat({
     if (review === ReviewDecision.EXPLAIN) {
       log(`Command explanation requested for: ${commandForDisplay}`);
       // Simple fallback explanation since consumers should implement their own explanation
-      const explanation = "Command explanation is now handled by the consumer's workflow implementation.";
+      const explanation =
+        "Command explanation is now handled by the consumer's workflow implementation.";
       log(`Using fallback explanation: ${explanation}`);
 
       // Ask for confirmation again with basic information
@@ -175,9 +181,7 @@ export default function TerminalChat({
     }
 
     log("creating NEW workflow");
-    log(
-      `approvalPolicy=${approvalPolicy}`
-    );
+    log(`approvalPolicy=${approvalPolicy}`);
 
     // Tear down any existing workflow before creating a new one.
     workflowRef.current?.terminate();
@@ -212,6 +216,18 @@ export default function TerminalChat({
       confirm: async (_msg: string) => {
         // Simple confirmation implementation
         return true;
+      },
+      onCommandExecuted: (command: string, result?: string) => {
+        log(`Command executed: ${command}${result ? ` - ${result}` : ""}`);
+        if (result) {
+          setItems((prev) => [
+            ...prev,
+            {
+              role: "system",
+              content: result,
+            },
+          ]);
+        }
       },
       handleToolCall: async (message) => {
         // Extract the tool call from the message
@@ -365,7 +381,9 @@ export default function TerminalChat({
     if (!configHeaders) {
       return [];
     }
-    return typeof configHeaders === 'function' ? configHeaders() : configHeaders;
+    return typeof configHeaders === "function"
+      ? configHeaders()
+      : configHeaders;
   }, [uiConfig?.headers]);
 
   // Get status line from config - either static string or function result
@@ -374,7 +392,9 @@ export default function TerminalChat({
     if (!configStatusLine) {
       return "";
     }
-    return typeof configStatusLine === 'function' ? configStatusLine() : configStatusLine;
+    return typeof configStatusLine === "function"
+      ? configStatusLine()
+      : configStatusLine;
   }, [uiConfig?.statusLine]);
 
   return (
@@ -446,7 +466,7 @@ export default function TerminalChat({
               // Ensure no overlay is shown.
               setOverlayMode("none");
             }}
-            onCompact={handleCompact}
+            workflow={workflowRef.current}
             active={overlayMode === "none"}
             interruptAgent={() => {
               if (!workflow) {
@@ -512,7 +532,10 @@ export default function TerminalChat({
         )}
 
         {overlayMode === "help" && (
-          <HelpOverlay onExit={() => setOverlayMode("none")} />
+          <HelpOverlay
+            onExit={() => setOverlayMode("none")}
+            workflow={workflowRef.current}
+          />
         )}
 
         {overlayMode === "diff" && (

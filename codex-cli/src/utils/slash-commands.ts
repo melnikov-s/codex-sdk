@@ -3,34 +3,65 @@
 export interface SlashCommand {
   command: string;
   description: string;
+  source?: "ui" | "workflow";
 }
 
-export const SLASH_COMMANDS: Array<SlashCommand> = [
+// Default commands handled by the UI layer
+export const DEFAULT_UI_COMMANDS: Array<SlashCommand> = [
   {
     command: "/clear",
     description: "Clear conversation history and free up context",
+    source: "ui",
   },
   {
     command: "/clearhistory",
     description: "Clear command history",
+    source: "ui",
   },
   {
-    command: "/compact",
-    description:
-      "Clear conversation history but keep a summary in context. Optional: /compact [instructions for summarization]",
+    command: "/history",
+    description: "Open command history",
+    source: "ui",
   },
-  { command: "/history", description: "Open command history" },
-  { command: "/help", description: "Show list of commands" },
-  { command: "/model", description: "Open model selection panel" },
-  { command: "/approval", description: "Open approval mode selection panel" },
   {
-    command: "/bug",
-    description: "Generate a prefilled GitHub issue URL with session log",
+    command: "/help",
+    description: "Show list of commands",
+    source: "ui",
+  },
+  {
+    command: "/approval",
+    description: "Open approval mode selection panel",
+    source: "ui",
   },
   {
     command: "/diff",
     description:
       "Show git diff of the working directory (or applied patches if not in git)",
+    source: "ui",
   },
-  { command: "/mcp", description: "View MCP servers status and configuration" },
 ];
+
+/**
+ * Combine default UI commands with workflow-provided commands
+ * @param workflowCommands Commands provided by the current workflow
+ * @returns Combined list of all available commands
+ */
+export function getAllAvailableCommands(
+  workflowCommands: Record<
+    string,
+    { description: string; handler: (args?: string) => Promise<void> | void }
+  > = {},
+): Array<SlashCommand> {
+  const workflowSlashCommands: Array<SlashCommand> = Object.entries(
+    workflowCommands,
+  ).map(([commandName, commandConfig]) => ({
+    command: `/${commandName}`,
+    description: commandConfig.description,
+    source: "workflow" as const,
+  }));
+
+  return [...DEFAULT_UI_COMMANDS, ...workflowSlashCommands];
+}
+
+// Legacy export for backward compatibility
+export const SLASH_COMMANDS = DEFAULT_UI_COMMANDS;
