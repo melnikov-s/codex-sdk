@@ -452,6 +452,7 @@ export default function TerminalChat({
               initialImagePaths,
               headers,
               statusLine,
+              workflowHeader: workflow?.header || "Codex (Default workflow)",
             }}
           />
         ) : (
@@ -463,7 +464,6 @@ export default function TerminalChat({
           <TerminalChatInput
             loading={loading}
             setItems={setItems}
-            isNew={workflowRef.current != null && items.length === 0}
             confirmationPrompt={confirmationPrompt}
             explanation={explanation}
             submitConfirmation={(
@@ -501,6 +501,7 @@ export default function TerminalChat({
             }}
             workflow={workflowRef.current}
             active={overlayMode === "none" && !inputDisabled}
+            inputDisabled={inputDisabled}
             interruptAgent={() => {
               if (!workflow) {
                 return;

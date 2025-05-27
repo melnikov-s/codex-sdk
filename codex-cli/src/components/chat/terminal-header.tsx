@@ -14,6 +14,7 @@ export interface TerminalHeaderProps {
   flexModeEnabled?: boolean;
   headers?: Array<HeaderConfig>;
   statusLine?: string;
+  workflowHeader?: string;
 }
 
 const TerminalHeader: React.FC<TerminalHeaderProps> = ({
@@ -26,6 +27,7 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   flexModeEnabled = false,
   headers = [],
   statusLine = "",
+  workflowHeader,
 }) => {
   return (
     <>
@@ -33,22 +35,30 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         // Compact header for small terminal windows
         <>
           <Text>
-            ● Codex v{version} - {PWD} -{" "}
+            ● {workflowHeader || "Codex (Default workflow)"} v{version} - {PWD}{" "}
+            -{" "}
             <Text color={colorsByPolicy[approvalPolicy]}>{approvalPolicy}</Text>
             {flexModeEnabled ? " - flex-mode" : ""}
-            {headers.length > 0 && " - " + headers.map(h => `${h.label}: ${h.value}`).join(" - ")}
+            {headers.length > 0 &&
+              " - " + headers.map((h) => `${h.label}: ${h.value}`).join(" - ")}
           </Text>
-          {statusLine && (
-            <Text dimColor>{statusLine}</Text>
-          )}
+          {statusLine && <Text dimColor>{statusLine}</Text>}
         </>
       ) : (
         <>
           <Box borderStyle="round" paddingX={1} width={64}>
             <Text>
-              ● OpenAI <Text bold>Codex</Text>{" "}
+              ●{" "}
+              {workflowHeader ? (
+                <Text bold>{workflowHeader}</Text>
+              ) : (
+                <>
+                  OpenAI <Text bold>Codex</Text>{" "}
+                  <Text dimColor>(research preview)</Text>
+                </>
+              )}{" "}
               <Text dimColor>
-                (research preview) <Text color="blueBright">v{version}</Text>
+                <Text color="blueBright">v{version}</Text>
               </Text>
             </Text>
           </Box>
@@ -88,9 +98,7 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
               </Text>
             ))}
           </Box>
-          {statusLine && (
-            <Text dimColor>{statusLine}</Text>
-          )}
+          {statusLine && <Text dimColor>{statusLine}</Text>}
         </>
       )}
     </>

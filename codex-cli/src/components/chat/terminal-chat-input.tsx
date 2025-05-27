@@ -28,7 +28,6 @@ import { fileURLToPath } from "node:url";
 import React, {
   useCallback,
   useState,
-  Fragment,
   useEffect,
   useRef,
   useMemo,
@@ -36,14 +35,7 @@ import React, {
 import { getMessageType } from "src/utils/ai";
 import { useInterval } from "use-interval";
 
-const suggestions = [
-  "explain this codebase to me",
-  "fix any build errors",
-  "are there any bugs in my code?",
-];
-
 export default function TerminalChatInput({
-  isNew,
   loading,
   submitInput,
   confirmationPrompt,
@@ -60,8 +52,8 @@ export default function TerminalChatInput({
   items = [],
   statusLine,
   workflow,
+  inputDisabled,
 }: {
-  isNew: boolean;
   loading: boolean;
   submitInput: (input: Array<CoreMessage>) => void;
   confirmationPrompt: React.ReactNode | null;
@@ -81,12 +73,9 @@ export default function TerminalChatInput({
   items?: Array<CoreMessage>;
   statusLine?: string;
   workflow?: Workflow | null;
+  inputDisabled?: boolean;
 }): React.ReactElement {
-  // Slash command suggestion index
-  const [selectedSlashSuggestion, setSelectedSlashSuggestion] =
-    useState<number>(0);
   const app = useApp();
-  const [selectedSuggestion, setSelectedSuggestion] = useState<number>(0);
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<Array<HistoryEntry>>([]);
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
@@ -106,6 +95,9 @@ export default function TerminalChatInput({
   // Track the caret row across keystrokes
   const prevCursorRow = useRef<number | null>(null);
   const prevCursorWasAtLastRow = useRef<boolean>(false);
+  // Slash command suggestion index
+  const [selectedSlashSuggestion, setSelectedSlashSuggestion] =
+    useState<number>(0);
 
   // Get all available commands (UI + workflow commands)
   const availableCommands = useMemo(() => {
@@ -453,23 +445,7 @@ export default function TerminalChatInput({
           editorRef.current?.isCursorAtLastRow?.() ?? true;
       }, 1);
 
-      if (input.trim() === "" && isNew) {
-        if (_key.tab) {
-          setSelectedSuggestion(
-            (s) => (s + (_key.shift ? -1 : 1)) % (suggestions.length + 1),
-          );
-        } else if (selectedSuggestion && _key.return) {
-          const suggestion = suggestions[selectedSuggestion - 1] || "";
-          setInput("");
-          setSelectedSuggestion(0);
-          submitInput([
-            {
-              role: "user",
-              content: suggestion,
-            },
-          ]);
-        }
-      } else if (_input === "\u0003" || (_input === "c" && _key.ctrl)) {
+      if (_input === "\u0003" || (_input === "c" && _key.ctrl)) {
         setTimeout(() => {
           app.exit();
           onExit();
@@ -710,10 +686,9 @@ export default function TerminalChatInput({
       setHistory(updatedHistory);
       setHistoryIndex(null);
       setDraftInput("");
-      setSelectedSuggestion(0);
+      setSelectedCompletion(-1);
       setInput("");
       setFsSuggestions([]);
-      setSelectedCompletion(-1);
     },
     [
       setInput,
@@ -817,23 +792,7 @@ export default function TerminalChatInput({
         </Box>
       )}
       <Box paddingX={2} marginBottom={1}>
-        {isNew && !input ? (
-          <Text dimColor>
-            try:{" "}
-            {suggestions.map((m, key) => (
-              <Fragment key={key}>
-                {key !== 0 ? " | " : ""}
-                <Text
-                  backgroundColor={
-                    key + 1 === selectedSuggestion ? "blackBright" : ""
-                  }
-                >
-                  {m}
-                </Text>
-              </Fragment>
-            ))}
-          </Text>
-        ) : fsSuggestions.length > 0 ? (
+        {fsSuggestions.length > 0 ? (
           <TextCompletions
             completions={fsSuggestions.map((suggestion) => suggestion.path)}
             selectedCompletion={selectedCompletion}
@@ -842,6 +801,13 @@ export default function TerminalChatInput({
         ) : (
           <Text dimColor>
             ctrl+c to exit | "/" to see commands |
+            {inputDisabled && (
+              <>
+                {" "}
+                <Text color="red">Input disabled</Text>
+                {" |"}
+              </>
+            )}
             {statusLine && (
               <>
                 {" — "}

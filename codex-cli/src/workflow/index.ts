@@ -37,6 +37,12 @@ export interface Workflow {
   terminate(): void;
 
   /**
+   * Custom header for the workflow
+   * If not provided, defaults to "Codex (Default workflow)"
+   */
+  header?: string;
+
+  /**
    * Commands that this workflow provides
    * These will be available as slash commands in the UI (e.g., /compact)
    */
