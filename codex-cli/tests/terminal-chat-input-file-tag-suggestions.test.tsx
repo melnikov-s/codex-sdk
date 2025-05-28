@@ -62,7 +62,6 @@ vi.mock("../src/utils/input-utils.js", () => ({
 describe("TerminalChatInput file tag suggestions", () => {
   // Standard props for all tests
   const baseProps: ComponentProps<typeof TerminalChatInput> = {
-    isNew: false,
     loading: false,
     submitInput: () => {},
     confirmationPrompt: null,
@@ -73,7 +72,6 @@ describe("TerminalChatInput file tag suggestions", () => {
     openApprovalOverlay: () => {},
     openHelpOverlay: () => {},
     openDiffOverlay: () => {},
-    onCompact: () => {},
     interruptAgent: () => {},
     active: true,
     thinkingSeconds: 0,

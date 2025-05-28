@@ -28,7 +28,6 @@ describe("TerminalChatInput multiline functionality", () => {
     const submitInput = vi.fn();
 
     const props: ComponentProps<typeof TerminalChatInput> = {
-      isNew: false,
       loading: false,
       submitInput,
       confirmationPrompt: null,
@@ -39,7 +38,6 @@ describe("TerminalChatInput multiline functionality", () => {
       openApprovalOverlay: () => {},
       openHelpOverlay: () => {},
       openDiffOverlay: () => {},
-      onCompact: () => {},
       interruptAgent: () => {},
       active: true,
       thinkingSeconds: 0,
@@ -76,7 +74,6 @@ describe("TerminalChatInput multiline functionality", () => {
     const submitInput = vi.fn();
 
     const props: ComponentProps<typeof TerminalChatInput> = {
-      isNew: false,
       loading: false,
       submitInput,
       confirmationPrompt: null,
@@ -87,7 +84,6 @@ describe("TerminalChatInput multiline functionality", () => {
       openApprovalOverlay: () => {},
       openHelpOverlay: () => {},
       openDiffOverlay: () => {},
-      onCompact: () => {},
       interruptAgent: () => {},
       active: true,
       thinkingSeconds: 0,

@@ -1,8 +1,9 @@
 import * as esbuild from "esbuild";
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "node:child_process";
 
-const OUT_DIR = 'dist'
+const OUT_DIR = "dist";
 /**
  * ink attempts to import react-devtools-core in an ESM-unfriendly way:
  *
@@ -57,7 +58,9 @@ if (isDevBuild) {
     name: "dev-shebang",
     setup(build) {
       build.onEnd(async () => {
-        const outFile = path.resolve(isDevBuild ? `${OUT_DIR}/cli-dev.js` : `${OUT_DIR}/cli.js`);
+        const outFile = path.resolve(
+          isDevBuild ? `${OUT_DIR}/cli-dev.js` : `${OUT_DIR}/cli.js`,
+        );
         let code = await fs.promises.readFile(outFile, "utf8");
         if (code.startsWith("#!")) {
           code = code.replace(/^#!.*\n/, devShebangLine);
@@ -82,5 +85,16 @@ esbuild
     sourcemap: isDevBuild ? "inline" : true,
     plugins,
     inject: ["./require-shim.js"],
+  })
+  .then(() => {
+    // After esbuild, run tsc to generate declaration files
+    try {
+      console.log("Generating declaration files...");
+      execSync("tsc --emitDeclarationOnly --outDir dist", { stdio: "inherit" });
+      console.log("Declaration files generated successfully.");
+    } catch (error) {
+      console.error("Failed to generate declaration files:", error);
+      process.exit(1);
+    }
   })
   .catch(() => process.exit(1));

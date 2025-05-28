@@ -26,11 +26,7 @@ export default function TerminalChatResponseItem({
 }): React.ReactElement {
   switch (getMessageType(item)) {
     case "message":
-      return (
-        <TerminalChatResponseMessage
-          message={item}
-        />
-      );
+      return <TerminalChatResponseMessage message={item} />;
     case "function_call":
       return <TerminalChatResponseToolCall message={item} />;
     case "function_call_output":
@@ -104,11 +100,7 @@ const colorsByRole: Record<string, ForegroundColorName> = {
   user: "blueBright",
 };
 
-function TerminalChatResponseMessage({
-  message,
-}: {
-  message: CoreMessage;
-}) {
+function TerminalChatResponseMessage({ message }: { message: CoreMessage }) {
   return (
     <Box flexDirection="column">
       <Text bold color={colorsByRole[message.role] || "gray"}>
@@ -121,15 +113,19 @@ function TerminalChatResponseMessage({
 
 function TerminalChatResponseToolCall({ message }: { message: CoreMessage }) {
   const details = parseToolCall(message);
+  const text = getTextContent(message);
   return (
-    <Box flexDirection="column" gap={1}>
-      <Text color="magentaBright" bold>
-        command
-      </Text>
-      <Text>
-        <Text dimColor>$</Text> {details?.cmdReadableText}
-      </Text>
-    </Box>
+    <>
+      {text ? <TerminalChatResponseMessage message={message} /> : null}
+      <Box flexDirection="column" gap={1}>
+        <Text color="magentaBright" bold>
+          command
+        </Text>
+        <Text>
+          <Text dimColor>$</Text> {details?.cmdReadableText}
+        </Text>
+      </Box>
+    </>
   );
 }
 

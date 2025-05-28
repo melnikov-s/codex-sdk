@@ -7,7 +7,6 @@ import { describe, it, expect } from "vitest";
 describe("TerminalChatInput compact command", () => {
   it("shows statusLine when provided", async () => {
     const props: ComponentProps<typeof TerminalChatInput> = {
-      isNew: false,
       loading: false,
       submitInput: () => {},
       confirmationPrompt: null,
@@ -19,7 +18,6 @@ describe("TerminalChatInput compact command", () => {
       openDiffOverlay: () => {},
       openApprovalOverlay: () => {},
       openHelpOverlay: () => {},
-      onCompact: () => {},
       interruptAgent: () => {},
       active: true,
       thinkingSeconds: 0,

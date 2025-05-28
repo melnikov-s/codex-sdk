@@ -36,7 +36,7 @@ export function TerminalChatSelect({
   }, [items]);
 
   useInput(
-    (input, key) => {
+    (_input, key) => {
       if (key.return) {
         // Get the currently selected item (Select component handles this internally)
         // We'll rely on the Select component's onChange for the actual selection

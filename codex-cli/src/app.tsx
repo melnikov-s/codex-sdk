@@ -18,8 +18,6 @@ export type AppRollout = {
 };
 
 type Props = {
-  prompt?: string;
-  imagePaths?: Array<string>;
   rollout?: AppRollout;
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
@@ -29,9 +27,7 @@ type Props = {
 };
 
 export default function App({
-  prompt,
   rollout,
-  imagePaths,
   approvalPolicy,
   additionalWritableRoots,
   fullStdout,
@@ -98,8 +94,6 @@ export default function App({
 
   return (
     <TerminalChat
-      prompt={prompt}
-      imagePaths={imagePaths}
       approvalPolicy={approvalPolicy}
       additionalWritableRoots={additionalWritableRoots}
       fullStdout={fullStdout}

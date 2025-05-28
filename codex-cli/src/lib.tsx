@@ -2,7 +2,12 @@
 // Simple export API for custom workflow integration
 
 // Export the core workflow types and interfaces
-export { Workflow, WorkflowHooks, WorkflowFactory, createAgentWorkflow } from "./workflow/index.js";
+export {
+  Workflow,
+  WorkflowHooks,
+  WorkflowFactory,
+  createAgentWorkflow,
+} from "./workflow/index.js";
 export { createDefaultWorkflow } from "./workflow/default-agent.js";
 
 // Re-export approval mode constants for use by consumers
@@ -52,7 +57,7 @@ export interface LibraryConfig {
 export interface CliOptions {
   /** User prompt (optional, defaults to command line args if not provided) */
   prompt?: string;
-  /** 
+  /**
    * Approval policy for commands (optional, defaults to "suggest")
    * Controls how tool executions are approved in the UI
    */
@@ -72,35 +77,32 @@ export interface CliOptions {
 
 /**
  * Run the CLI with a custom workflow factory
- * 
+ *
  * The library handles the UI and common tools, while your custom workflow
  * implements the agent logic and LLM interactions.
- * 
+ *
  * @param workflowFactory The factory function to create your custom workflow
  * @param options Optional configuration for the CLI
  */
 export function run(
   workflowFactory: WorkflowFactory,
-  options: CliOptions = {}
+  options: CliOptions = {},
 ): void {
   // Use provided prompt or get from command line arguments
-  const prompt = options.prompt ?? process.argv.slice(2).join(" ");
-  
+
   // Create minimal UI config
   const uiConfig = options.config || {};
-  
+
   // Render the App with the custom workflow
   // LLM behavior is handled by the consumer's workflow
   const inkInstance = render(
     <App
-      prompt={prompt}
       uiConfig={uiConfig}
-      imagePaths={options.imagePaths || []}
       approvalPolicy={options.approvalPolicy || AutoApprovalMode.SUGGEST}
       additionalWritableRoots={options.additionalWritableRoots || []}
       fullStdout={options.fullStdout || false}
       workflowFactory={workflowFactory}
-    />
+    />,
   );
   setInkRenderer(inkInstance);
 
@@ -118,8 +120,11 @@ export function run(
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true); // Ensure raw mode is explicitly set if not already
     const onRawData = (data: Buffer | string): void => {
-      const str = Buffer.isBuffer(data) ? data.toString("utf8") : data.toString();
-      if (str === "\u0003") { // ETX, Ctrl+C
+      const str = Buffer.isBuffer(data)
+        ? data.toString("utf8")
+        : data.toString();
+      if (str === "\u0003") {
+        // ETX, Ctrl+C
         handleProcessExit();
       }
     };
@@ -137,4 +142,3 @@ export function run(
   // `process.exit()` directly. This is a safety net.
   process.once("exit", onExit);
 }
-
