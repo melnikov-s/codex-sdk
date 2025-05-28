@@ -24,7 +24,6 @@ import { getToolCall, isNativeTool, getTextContent } from "../../utils/ai.js";
 // Import removed - compact summary is now handled by consumer's workflow
 import { extractAppliedPatches as _extractAppliedPatches } from "../../utils/extract-applied-patches.js";
 import { getGitDiff } from "../../utils/get-diff.js";
-import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
 import { CLI_VERSION } from "../../utils/session.js";
 import { shortCwd } from "../../utils/short-path.js";
@@ -35,10 +34,12 @@ import DiffOverlay from "../diff-overlay.js";
 import HelpOverlay from "../help-overlay.js";
 import HistoryOverlay from "../history-overlay.js";
 // Model overlay removed - model selection is handled by consumer's workflow
+import { tool } from "ai";
 import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
 import React, { useEffect, useRef, useState } from "react";
 import { inspect } from "util";
+import { z } from "zod";
 
 export type OverlayModeType =
   | "none"
@@ -49,8 +50,6 @@ export type OverlayModeType =
   | "selection";
 
 type Props = {
-  prompt?: string;
-  imagePaths?: Array<string>;
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
@@ -67,8 +66,6 @@ const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
 // Command explanation functionality removed - should be handled by the consumer's workflow
 
 export default function TerminalChat({
-  prompt: _initialPrompt,
-  imagePaths: _initialImagePaths,
   approvalPolicy: initialApprovalPolicy,
   additionalWritableRoots,
   fullStdout,
@@ -84,32 +81,6 @@ export default function TerminalChat({
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const [items, setItems] = useState<Array<CoreMessage>>([]);
 
-  // Handle workflow commands
-  const _handleWorkflowCommand = async (command: string, args?: string) => {
-    const workflow = workflowRef.current;
-    if (workflow?.commands?.[command]) {
-      try {
-        await workflow.commands[command].handler(args);
-      } catch (error) {
-        setItems((prev) => [
-          ...prev,
-          {
-            role: "system",
-            content: `Error executing /${command}: ${(error as Error).message}`,
-          },
-        ]);
-      }
-    } else {
-      setItems((prev) => [
-        ...prev,
-        {
-          role: "system",
-          content: `Command /${command} is not available in the current workflow.`,
-        },
-      ]);
-    }
-  };
-
   const {
     requestConfirmation,
     confirmationPrompt,
@@ -124,10 +95,6 @@ export default function TerminalChat({
   // currently unused but retained for potential future updates. Prefix with
   // an underscore so eslint ignores the unused variable.
   const [diffText, _setDiffText] = useState<string>("");
-
-  const [initialPrompt, setInitialPrompt] = useState(_initialPrompt);
-  const [initialImagePaths, setInitialImagePaths] =
-    useState(_initialImagePaths);
 
   // Selection state for onSelect hook
   const [selectionState, setSelectionState] = useState<{
@@ -210,12 +177,34 @@ export default function TerminalChat({
     // Tear down any existing workflow before creating a new one.
     workflowRef.current?.terminate();
 
+    const ShellToolParametersSchema = z.object({
+      cmd: z
+        .array(z.string())
+        .describe("The command and its arguments to execute."),
+      workdir: z.string().describe("The working directory for the command."),
+      timeout: z
+        .number()
+        .describe(
+          "The maximum time to wait for the command to complete in milliseconds.",
+        ),
+    });
+
+    // Vercel AI SDK compatible tool definition
+    const shellTool = tool({
+      description: "Runs a shell command, and returns its output.",
+      parameters: ShellToolParametersSchema,
+    });
+
     const sessionId = crypto.randomUUID();
 
     // Create the workflow hooks
     const workflowHooks: WorkflowHooks = {
-      tools: {},
-      toolPrompt: "",
+      tools: {
+        shell: shellTool,
+        apply_patch: shellTool,
+      },
+      toolPrompt:
+        'Use `apply_patch` to edit files: {"cmd":["apply_patch","*** Begin Patch\\n*** Update File: path/to/file.py\\n@@ def example():\\n-  pass\\n+  return 123\\n*** End Patch"]}.\nUse `shell` to run shell commands: { "description": "Runs a shell command, and returns its output.", "parameters": { "cmd": "array of strings (command and arguments)", "workdir": "string (working directory)", "timeout": "number (milliseconds)" }}',
       logger: (message) => {
         log(message);
       },
@@ -382,27 +371,6 @@ export default function TerminalChat({
 
   const { rows: terminalRows } = useTerminalSize();
 
-  useEffect(() => {
-    const processInitialInputItems = async () => {
-      if (
-        (!initialPrompt || initialPrompt.trim() === "") &&
-        (!initialImagePaths || initialImagePaths.length === 0)
-      ) {
-        return;
-      }
-      const inputItems = [
-        await createInputItem(initialPrompt || "", initialImagePaths || []),
-      ];
-      // Clear them to prevent subsequent runs.
-      setInitialPrompt("");
-      setInitialImagePaths([]);
-      if (workflow != null) {
-        workflow.run(inputItems);
-      }
-    };
-    processInitialInputItems();
-  }, [workflow, initialPrompt, initialImagePaths]);
-
   // Just render every item in order, no grouping/collapse.
   const lastMessageBatch = items.map((item) => ({ item }));
   const groupCounts: Record<string, number> = {};
@@ -449,7 +417,6 @@ export default function TerminalChat({
               PWD,
               approvalPolicy,
               colorsByPolicy,
-              initialImagePaths,
               headers,
               statusLine,
               workflowHeader: workflow?.header || "Codex (Default workflow)",
