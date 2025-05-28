@@ -89,8 +89,8 @@ esbuild
   .then(() => {
     // After esbuild, run tsc to generate declaration files
     try {
-      console.log("Generating declaration files...");
-      execSync("tsc --emitDeclarationOnly --outDir dist", { stdio: "inherit" });
+      console.log("Generating declaration files using tsconfig.json...");
+      execSync("tsc -p . --emitDeclarationOnly", { stdio: "inherit" });
       console.log("Declaration files generated successfully.");
     } catch (error) {
       console.error("Failed to generate declaration files:", error);

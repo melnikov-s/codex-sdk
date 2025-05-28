@@ -11,6 +11,8 @@
     ],
     "types": ["node"],
     "baseUrl": "./",
+    "rootDir": "src",
+    "declarationDir": "dist",
     "resolveJsonModule": true, // ESM doesn't yet support JSON modules.
     "jsx": "react",
     "declaration": true,
@@ -30,5 +32,5 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src", "tests", "bin"]
+  "include": ["src"]
 }
