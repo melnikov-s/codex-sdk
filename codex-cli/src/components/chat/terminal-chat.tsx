@@ -33,6 +33,7 @@ import ApprovalModeOverlay from "../approval-mode-overlay.js";
 import DiffOverlay from "../diff-overlay.js";
 import HelpOverlay from "../help-overlay.js";
 import HistoryOverlay from "../history-overlay.js";
+import PromptOverlay from "../prompt-overlay.js";
 // Model overlay removed - model selection is handled by consumer's workflow
 import { tool } from "ai";
 import { Box, Text } from "ink";
@@ -47,7 +48,8 @@ export type OverlayModeType =
   | "approval"
   | "help"
   | "diff"
-  | "selection";
+  | "selection"
+  | "prompt";
 
 type Props = {
   approvalPolicy: ApprovalPolicy;
@@ -100,6 +102,13 @@ export default function TerminalChat({
   const [selectionState, setSelectionState] = useState<{
     items: Array<SelectItem>;
     options?: SelectOptions;
+    resolve: (value: string) => void;
+    reject: (reason?: Error) => void;
+  } | null>(null);
+
+  // Prompt state for onPromptUser hook
+  const [promptState, setPromptState] = useState<{
+    message: string;
     resolve: (value: string) => void;
     reject: (reason?: Error) => void;
   } | null>(null);
@@ -226,9 +235,59 @@ export default function TerminalChat({
         log(`Workflow error: ${(error as Error).message}`);
         // Error is already handled in the workflow's run method
       },
-      confirm: async (_msg: string) => {
-        // Simple confirmation implementation
-        return true;
+      onConfirm: async (msg: string) => {
+        // Show confirmation dialog using the selection overlay
+        return new Promise<boolean>((resolve) => {
+          const items: Array<SelectItem> = [
+            { label: "Yes", value: "yes" },
+            { label: "No", value: "no" },
+          ];
+
+          // First show the message as a system message
+          setItems((prev) => [
+            ...prev,
+            {
+              id: `confirm-prompt-${Date.now()}`,
+              role: "system",
+              content: msg,
+            },
+          ]);
+
+          // Then show the selection dialog
+          setSelectionState({
+            items,
+            options: { required: true, default: "no" },
+            resolve: (value: string) => {
+              resolve(value === "yes");
+            },
+            reject: () => {
+              resolve(false); // Default to false on cancel
+            },
+          });
+          setOverlayMode("selection");
+        });
+      },
+      onPromptUser: async (msg: string) => {
+        // Show text input prompt
+        return new Promise<string>((resolve, reject) => {
+          // First show the message as a system message
+          setItems((prev) => [
+            ...prev,
+            {
+              id: `user-prompt-${Date.now()}`,
+              role: "system",
+              content: msg,
+            },
+          ]);
+
+          // Then show the prompt overlay
+          setPromptState({
+            message: msg,
+            resolve,
+            reject,
+          });
+          setOverlayMode("prompt");
+        });
       },
       onCommandExecuted: (command: string, result?: string) => {
         log(`Command executed: ${command}${result ? ` - ${result}` : ""}`);
@@ -561,6 +620,22 @@ export default function TerminalChat({
               setOverlayMode("none");
             }}
             isActive={overlayMode === "selection"}
+          />
+        )}
+
+        {overlayMode === "prompt" && promptState && (
+          <PromptOverlay
+            message={promptState.message}
+            onSubmit={(value: string) => {
+              promptState.resolve(value);
+              setPromptState(null);
+              setOverlayMode("none");
+            }}
+            onCancel={() => {
+              promptState.reject(new Error("Prompt cancelled"));
+              setPromptState(null);
+              setOverlayMode("none");
+            }}
           />
         )}
       </Box>

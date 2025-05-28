@@ -67,7 +67,14 @@ export interface WorkflowHooks {
    * @param msg The confirmation message
    * @returns Whether the user confirmed or not
    */
-  confirm: (msg: string) => Promise<boolean>;
+  onConfirm: (msg: string) => Promise<boolean>;
+
+  /**
+   * Send a prompt to the user and get their response
+   * @param msg The prompt message
+   * @returns The user's response as a string
+   */
+  onPromptUser: (msg: string) => Promise<string>;
 
   /**
    * Set the loading state
