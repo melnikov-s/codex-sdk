@@ -56,13 +56,21 @@ export function FilePathInput({
           if (wasReplaced) {
             onChange(newText);
             if (suggestion?.isDirectory) {
-              updateFsSuggestions(newText, true);
+              // Keep suggestions active for directories
+              setTimeout(() => updateFsSuggestions(newText, true), 0);
             } else {
+              // Clear suggestions for files
               clearSuggestions();
             }
           }
         }
         return; // Always return to prevent tab from being inserted as text
+      }
+
+      // Clear suggestions on escape
+      if (key.escape && fsSuggestions.length > 0) {
+        clearSuggestions();
+        return;
       }
 
       if (fsSuggestions.length > 0) {
@@ -92,8 +100,6 @@ export function FilePathInput({
 
   const handleChange = (newValue: string) => {
     onChange(newValue);
-    // Update file suggestions based on the input
-    updateFsSuggestions(newValue);
   };
 
   return (

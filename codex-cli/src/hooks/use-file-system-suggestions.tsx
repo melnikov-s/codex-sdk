@@ -55,13 +55,15 @@ export function useFileSystemSuggestions(): UseFileSystemSuggestionsReturn {
           } else {
             setSelectedCompletion(-1);
           }
-        } else if (fsSuggestions.length > 0) {
-          setFsSuggestions([]);
+        } else {
+          setFsSuggestions((currentSuggestions) =>
+            currentSuggestions.length > 0 ? [] : currentSuggestions,
+          );
           setSelectedCompletion(-1);
         }
       }
     },
-    [fsSuggestions.length],
+    [],
   );
 
   const getFileSystemSuggestion = useCallback(
