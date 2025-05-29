@@ -227,8 +227,13 @@ export default function TerminalChat({
       },
       onSystemMessage: (feedback) => {
         log(`onSystemMessage: ${feedback}`);
-        // Potentially add to a different part of the UI or handle differently
-        // For now, just logging it similar to other debug messages.
+        setItems((prev) => {
+          const updated = [
+            ...prev,
+            { role: "system", content: feedback } as const,
+          ];
+          return updated;
+        });
       },
       setLoading,
       onError: (error) => {
@@ -270,17 +275,6 @@ export default function TerminalChat({
       onPromptUser: async (msg: string) => {
         // Show text input prompt
         return new Promise<string>((resolve, reject) => {
-          // First show the message as a system message
-          setItems((prev) => [
-            ...prev,
-            {
-              id: `user-prompt-${Date.now()}`,
-              role: "system",
-              content: msg,
-            },
-          ]);
-
-          // Then show the prompt overlay
           setPromptState({
             message: msg,
             resolve,

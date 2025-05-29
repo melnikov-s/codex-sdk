@@ -559,7 +559,6 @@ export default function TerminalChatInput({
         );
 
         return;
-      } else if (inputValue === "/bug") {
         // Generate a GitHub bug report URL pre‑filled with session details.
         setInput("");
 
@@ -607,32 +606,6 @@ export default function TerminalChatInput({
         }
 
         return;
-      } else if (inputValue.startsWith("/")) {
-        // Handle invalid/unrecognized commands. Only single-word inputs starting with '/'
-        // (e.g., /command) that are not recognized are caught here. Any other input, including
-        // those starting with '/' but containing spaces (e.g., "/command arg"), will fall through
-        // and be treated as a regular prompt.
-        const trimmed = inputValue.trim();
-
-        if (/^\/\S+$/.test(trimmed)) {
-          setInput("");
-          setItems((prev) => [
-            ...prev,
-            {
-              id: `invalidcommand-${Date.now()}`,
-              role: "system",
-              content: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
-              parts: [
-                {
-                  type: "text",
-                  text: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
-                },
-              ],
-            },
-          ]);
-
-          return;
-        }
       }
 
       // detect image file paths for dynamic inclusion
