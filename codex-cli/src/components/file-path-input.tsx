@@ -40,22 +40,13 @@ export function FilePathInput({
         return;
       }
 
-      if (fsSuggestions.length > 0) {
-        if (key.upArrow) {
-          setSelectedCompletion((prev) =>
-            prev <= 0 ? fsSuggestions.length - 1 : prev - 1,
-          );
-          return;
-        }
-
-        if (key.downArrow) {
-          setSelectedCompletion((prev) =>
-            prev >= fsSuggestions.length - 1 ? 0 : prev + 1,
-          );
-          return;
-        }
-
-        if (key.tab && selectedCompletion >= 0) {
+      // Handle tab key for autocompletion
+      if (key.tab) {
+        // If no suggestions visible, trigger them
+        if (fsSuggestions.length === 0) {
+          updateFsSuggestions(value, true);
+        } else if (selectedCompletion >= 0) {
+          // Apply the selected suggestion
           const {
             text: newText,
             suggestion,
@@ -70,6 +61,22 @@ export function FilePathInput({
               clearSuggestions();
             }
           }
+        }
+        return; // Always return to prevent tab from being inserted as text
+      }
+
+      if (fsSuggestions.length > 0) {
+        if (key.upArrow) {
+          setSelectedCompletion((prev) =>
+            prev <= 0 ? fsSuggestions.length - 1 : prev - 1,
+          );
+          return;
+        }
+
+        if (key.downArrow) {
+          setSelectedCompletion((prev) =>
+            prev >= fsSuggestions.length - 1 ? 0 : prev + 1,
+          );
           return;
         }
       }
@@ -85,7 +92,8 @@ export function FilePathInput({
 
   const handleChange = (newValue: string) => {
     onChange(newValue);
-    updateFsSuggestions(newValue, newValue.endsWith("\t"));
+    // Update file suggestions based on the input
+    updateFsSuggestions(newValue);
   };
 
   return (

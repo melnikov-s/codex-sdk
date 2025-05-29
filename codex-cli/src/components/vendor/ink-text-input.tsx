@@ -175,7 +175,7 @@ function TextInput({
       // sequence through as raw text (without the initial ESC), so we need to
       // detect and translate it before the generic character handler below
       // treats it as literal input (e.g. "[27;2;13~").  We support both the
-      // modern *mode 2* (CSI‑u, ending in "u") and the legacy *mode 1*
+      // modern *mode 2* (CSI‑u, ending in "u") and the legacy *mode 1*
       // variant (ending in "~").
       //
       //  - Shift+Enter  → insert newline (same behaviour as Option+Enter)
@@ -240,13 +240,7 @@ function TextInput({
       if (handleEncodedEnterSequence(input)) {
         return;
       }
-      if (
-        key.upArrow ||
-        key.downArrow ||
-        (key.ctrl && input === "c") ||
-        key.tab ||
-        (key.shift && key.tab)
-      ) {
+      if (key.upArrow || key.downArrow || (key.ctrl && input === "c")) {
         return;
       }
 
