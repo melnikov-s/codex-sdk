@@ -54,7 +54,6 @@ describe("/clear command", () => {
       interruptAgent: () => {},
       active: true,
       thinkingSeconds: 0,
-      items: existingItems,
     };
 
     const { stdin, flush, cleanup } = renderTui(

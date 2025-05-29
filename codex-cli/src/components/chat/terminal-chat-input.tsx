@@ -562,11 +562,16 @@ export default function TerminalChatInput({
 
         // Check if it's a workflow command first
         if (workflow?.commands) {
-          const commandName = trimmed.slice(1); // Remove the "/" prefix
-          if (workflow.commands[commandName]) {
+          const parts = trimmed.slice(1).split(/\s+/); // Remove "/" and split by whitespace
+          const commandName = parts[0];
+          const args = parts.slice(1).join(" "); // Rest of the input as arguments
+
+          if (commandName && workflow.commands[commandName]) {
             setInput("");
             try {
-              const result = workflow.commands[commandName].handler();
+              const result = workflow.commands[commandName].handler(
+                args || undefined,
+              );
               if (result && typeof result.then === "function") {
                 result.catch((error: Error) => {
                   log(
