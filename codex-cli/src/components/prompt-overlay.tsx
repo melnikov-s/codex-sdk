@@ -1,4 +1,4 @@
-import TextInput from "./vendor/ink-text-input.js";
+import { FilePathInput } from "./file-path-input.js";
 import { Box, Text, useInput } from "ink";
 import React, { useState } from "react";
 
@@ -11,8 +11,8 @@ interface Props {
 export default function PromptOverlay({ message, onSubmit, onCancel }: Props) {
   const [value, setValue] = useState("");
 
-  const handleSubmit = () => {
-    onSubmit(value);
+  const handleSubmit = (finalValue: string) => {
+    onSubmit(finalValue);
   };
 
   // Handle escape key to cancel
@@ -31,7 +31,7 @@ export default function PromptOverlay({ message, onSubmit, onCancel }: Props) {
     >
       <Text color="cyan">{message}</Text>
       <Box marginTop={1}>
-        <TextInput
+        <FilePathInput
           value={value}
           onChange={setValue}
           onSubmit={handleSubmit}
@@ -41,7 +41,9 @@ export default function PromptOverlay({ message, onSubmit, onCancel }: Props) {
         />
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>Press Enter to submit, Esc to cancel</Text>
+        <Text dimColor>
+          Press Enter to submit, Esc to cancel, Tab to autocomplete paths
+        </Text>
       </Box>
     </Box>
   );

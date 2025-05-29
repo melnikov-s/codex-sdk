@@ -1,6 +1,5 @@
 import type { MultilineTextEditorHandle } from "./multiline-editor";
 import type { ReviewDecision } from "../../utils/agent/review.js";
-import type { FileSystemSuggestion } from "../../utils/file-system-suggestions.js";
 import type { HistoryEntry } from "../../utils/storage/command-history.js";
 import type { Workflow } from "../../workflow";
 import type { CoreMessage } from "ai";
@@ -8,8 +7,8 @@ import type { CoreMessage } from "ai";
 import MultilineTextEditor from "./multiline-editor";
 import { TerminalChatCommandReview } from "./terminal-chat-command-review.js";
 import TextCompletions from "./terminal-chat-completions.js";
+import { useFileSystemSuggestions } from "../../hooks/use-file-system-suggestions.js";
 import { loadConfig } from "../../utils/config.js";
-import { getFileSystemSuggestions } from "../../utils/file-system-suggestions.js";
 import { expandFileTags } from "../../utils/file-tag-utils";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
@@ -79,10 +78,16 @@ export default function TerminalChatInput({
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [draftInput, setDraftInput] = useState<string>("");
   const [skipNextSubmit, setSkipNextSubmit] = useState<boolean>(false);
-  const [fsSuggestions, setFsSuggestions] = useState<
-    Array<FileSystemSuggestion>
-  >([]);
-  const [selectedCompletion, setSelectedCompletion] = useState<number>(-1);
+  const {
+    fsSuggestions,
+    selectedCompletion,
+    updateFsSuggestions,
+    getFileSystemSuggestion,
+    setSelectedCompletion,
+    clearSuggestions,
+  } = useFileSystemSuggestions();
+  const [selectedSlashSuggestion, setSelectedSlashSuggestion] =
+    useState<number>(0);
   // Multiline text editor key to force remount after submission
   const [editorState, setEditorState] = useState<{
     key: number;
@@ -93,9 +98,6 @@ export default function TerminalChatInput({
   // Track the caret row across keystrokes
   const prevCursorRow = useRef<number | null>(null);
   const prevCursorWasAtLastRow = useRef<boolean>(false);
-  // Slash command suggestion index
-  const [selectedSlashSuggestion, setSelectedSlashSuggestion] =
-    useState<number>(0);
 
   // Get all available commands (UI + workflow commands)
   const availableCommands = useMemo(() => {
@@ -110,96 +112,6 @@ export default function TerminalChatInput({
       initialCursorOffset: newInputText.length,
     }));
   }, []);
-
-  // --- Helper for updating file system suggestions ---
-  function updateFsSuggestions(
-    txt: string,
-    alwaysUpdateSelection: boolean = false,
-  ) {
-    // Clear file system completions if a space is typed
-    if (txt.endsWith(" ")) {
-      setFsSuggestions([]);
-      setSelectedCompletion(-1);
-    } else {
-      // Determine the current token (last whitespace-separated word)
-      const words = txt.trim().split(/\s+/);
-      const lastWord = words[words.length - 1] ?? "";
-
-      const shouldUpdateSelection =
-        lastWord.startsWith("@") || alwaysUpdateSelection;
-
-      // Strip optional leading '@' for the path prefix
-      let pathPrefix: string;
-      if (lastWord.startsWith("@")) {
-        pathPrefix = lastWord.slice(1);
-        // If only '@' is typed, list everything in the current directory
-        pathPrefix = pathPrefix.length === 0 ? "./" : pathPrefix;
-      } else {
-        pathPrefix = lastWord;
-      }
-
-      if (shouldUpdateSelection) {
-        const completions = getFileSystemSuggestions(pathPrefix);
-        setFsSuggestions(completions);
-        if (completions.length > 0) {
-          setSelectedCompletion((prev) =>
-            prev < 0 || prev >= completions.length ? 0 : prev,
-          );
-        } else {
-          setSelectedCompletion(-1);
-        }
-      } else if (fsSuggestions.length > 0) {
-        // Token cleared → clear menu
-        setFsSuggestions([]);
-        setSelectedCompletion(-1);
-      }
-    }
-  }
-
-  /**
-   * Result of replacing text with a file system suggestion
-   */
-  interface ReplacementResult {
-    /** The new text with the suggestion applied */
-    text: string;
-    /** The selected suggestion if a replacement was made */
-    suggestion: FileSystemSuggestion | null;
-    /** Whether a replacement was actually made */
-    wasReplaced: boolean;
-  }
-
-  // --- Helper for replacing input with file system suggestion ---
-  function getFileSystemSuggestion(
-    txt: string,
-    requireAtPrefix: boolean = false,
-  ): ReplacementResult {
-    if (fsSuggestions.length === 0 || selectedCompletion < 0) {
-      return { text: txt, suggestion: null, wasReplaced: false };
-    }
-
-    const words = txt.trim().split(/\s+/);
-    const lastWord = words[words.length - 1] ?? "";
-
-    // Check if @ prefix is required and the last word doesn't have it
-    if (requireAtPrefix && !lastWord.startsWith("@")) {
-      return { text: txt, suggestion: null, wasReplaced: false };
-    }
-
-    const selected = fsSuggestions[selectedCompletion];
-    if (!selected) {
-      return { text: txt, suggestion: null, wasReplaced: false };
-    }
-
-    const replacement = lastWord.startsWith("@")
-      ? `@${selected.path}`
-      : selected.path;
-    words[words.length - 1] = replacement;
-    return {
-      text: words.join(" "),
-      suggestion: selected,
-      wasReplaced: true,
-    };
-  }
 
   // Load command history on component mount
   useEffect(() => {
@@ -344,8 +256,7 @@ export default function TerminalChatInput({
             // Only proceed if the text was actually changed
             if (wasReplaced) {
               applyFsSuggestion(newText);
-              setFsSuggestions([]);
-              setSelectedCompletion(-1);
+              clearSuggestions();
             }
             return;
           }
@@ -690,7 +601,7 @@ export default function TerminalChatInput({
       setDraftInput("");
       setSelectedCompletion(-1);
       setInput("");
-      setFsSuggestions([]);
+      clearSuggestions();
     },
     [
       setInput,
@@ -706,6 +617,8 @@ export default function TerminalChatInput({
       history,
       skipNextSubmit,
       workflow,
+      clearSuggestions,
+      setSelectedCompletion,
     ],
   );
 

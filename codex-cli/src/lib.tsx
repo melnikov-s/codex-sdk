@@ -87,7 +87,7 @@ export interface CliOptions {
 export function run(
   workflowFactory: WorkflowFactory,
   options: CliOptions = {},
-): void {
+) {
   // Use provided prompt or get from command line arguments
 
   // Create minimal UI config
@@ -141,4 +141,5 @@ export function run(
   // Ensure terminal clean-up always runs, even when other code calls
   // `process.exit()` directly. This is a safety net.
   process.once("exit", onExit);
+  return inkInstance;
 }
