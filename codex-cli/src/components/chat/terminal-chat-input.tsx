@@ -49,7 +49,6 @@ export default function TerminalChatInput({
   interruptAgent,
   active,
   thinkingSeconds,
-  items = [],
   statusLine,
   workflow,
   inputDisabled,
@@ -70,7 +69,6 @@ export default function TerminalChatInput({
   interruptAgent: () => void;
   active: boolean;
   thinkingSeconds: number;
-  items?: Array<CoreMessage>;
   statusLine?: string;
   workflow?: Workflow | null;
   inputDisabled?: boolean;
@@ -559,53 +557,79 @@ export default function TerminalChatInput({
         );
 
         return;
-        // Generate a GitHub bug report URL pre‑filled with session details.
-        setInput("");
+      } else if (inputValue.startsWith("/")) {
+        const trimmed = inputValue.trim();
 
-        try {
-          const os = await import("node:os");
-          const { CLI_VERSION } = await import("../../utils/session.js");
-          const { buildBugReportUrl } = await import(
-            "../../utils/bug-report.js"
-          );
+        // Check if it's a workflow command first
+        if (workflow?.commands) {
+          const commandName = trimmed.slice(1); // Remove the "/" prefix
+          if (workflow.commands[commandName]) {
+            setInput("");
+            try {
+              const result = workflow.commands[commandName].handler();
+              if (result && typeof result.then === "function") {
+                result.catch((error: Error) => {
+                  log(
+                    `Error executing workflow command ${trimmed}: ${error.message}`,
+                  );
+                  setItems((prev) => [
+                    ...prev,
+                    {
+                      id: `workflowcommand-error-${Date.now()}`,
+                      role: "system",
+                      content: `Error executing command "${trimmed}": ${error.message}`,
+                      parts: [
+                        {
+                          type: "text",
+                          text: `Error executing command "${trimmed}": ${error.message}`,
+                        },
+                      ],
+                    },
+                  ]);
+                });
+              }
+            } catch (error) {
+              log(
+                `Error executing workflow command ${trimmed}: ${(error as Error).message}`,
+              );
+              setItems((prev) => [
+                ...prev,
+                {
+                  id: `workflowcommand-error-${Date.now()}`,
+                  role: "system",
+                  content: `Error executing command "${trimmed}": ${(error as Error).message}`,
+                  parts: [
+                    {
+                      type: "text",
+                      text: `Error executing command "${trimmed}": ${(error as Error).message}`,
+                    },
+                  ],
+                },
+              ]);
+            }
+            return;
+          }
+        }
 
-          const url = buildBugReportUrl({
-            items: items ?? [],
-            cliVersion: CLI_VERSION,
-            model: loadConfig().model ?? "unknown",
-            platform: [os.platform(), os.arch(), os.release()]
-              .map((s) => `\`${s}\``)
-              .join(" | "),
-          });
-
+        if (/^\/\S+$/.test(trimmed)) {
+          setInput("");
           setItems((prev) => [
             ...prev,
             {
-              id: `bugreport-${Date.now()}`,
+              id: `invalidcommand-${Date.now()}`,
               role: "system",
-              content: `🔗 Bug report URL: ${url}`,
-              parts: [{ type: "text", text: `🔗 Bug report URL: ${url}` }],
-            },
-          ]);
-        } catch (error) {
-          // If anything went wrong, notify the user.
-          setItems((prev) => [
-            ...prev,
-            {
-              id: `bugreport-error-${Date.now()}`,
-              role: "system",
-              content: `⚠️ Failed to create bug report URL: ${error}`,
+              content: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
               parts: [
                 {
                   type: "text",
-                  text: `⚠️ Failed to create bug report URL: ${error}`,
+                  text: `Invalid command "${trimmed}". Use /help to retrieve the list of commands.`,
                 },
               ],
             },
           ]);
-        }
 
-        return;
+          return;
+        }
       }
 
       // detect image file paths for dynamic inclusion
@@ -676,7 +700,7 @@ export default function TerminalChatInput({
       openDiffOverlay,
       history,
       skipNextSubmit,
-      items,
+      workflow,
     ],
   );
 
