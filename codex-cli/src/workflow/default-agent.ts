@@ -201,7 +201,7 @@ export function defaultWorkflow(
       }
     },
 
-    async run(input: Array<CoreMessage>): Promise<Array<CoreMessage>> {
+    async message(input: CoreMessage) {
       // Reset canceled state for new run
       canceled = false;
 
@@ -211,7 +211,7 @@ export function defaultWorkflow(
       }
 
       // Add input messages to transcript
-      transcript.push(...input);
+      transcript.push(input);
 
       // Set up loop control variables
       let isRunning = true;

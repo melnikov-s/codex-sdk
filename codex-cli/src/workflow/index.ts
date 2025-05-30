@@ -22,7 +22,7 @@ export interface Workflow {
    * @param input The input messages to process
    * @returns Promise that resolves with any messages produced after the call
    */
-  run(input: Array<CoreMessage>): void;
+  message(input: CoreMessage): void;
 
   /**
    * Stop the current workflow processing

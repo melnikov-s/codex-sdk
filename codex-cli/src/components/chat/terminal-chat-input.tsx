@@ -9,7 +9,7 @@ import { TerminalChatCommandReview } from "./terminal-chat-command-review.js";
 import TextCompletions from "./terminal-chat-completions.js";
 import { useFileSystemSuggestions } from "../../hooks/use-file-system-suggestions.js";
 import { loadConfig } from "../../utils/config.js";
-import { expandFileTags } from "../../utils/file-tag-utils";
+import { processFileTokens } from "../../utils/file-tag-utils";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
 import { setSessionId } from "../../utils/session.js";
@@ -23,7 +23,6 @@ import {
 } from "../../utils/storage/command-history.js";
 import { clearTerminal, onExit } from "../../utils/terminal.js";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
-import { fileURLToPath } from "node:url";
 import React, {
   useCallback,
   useState,
@@ -53,7 +52,7 @@ export default function TerminalChatInput({
   inputDisabled,
 }: {
   loading: boolean;
-  submitInput: (input: Array<CoreMessage>) => void;
+  submitInput: (input: CoreMessage) => void;
   confirmationPrompt: React.ReactNode | null;
   explanation?: string;
   submitConfirmation: (
@@ -548,43 +547,12 @@ export default function TerminalChatInput({
         }
       }
 
-      // detect image file paths for dynamic inclusion
-      const images: Array<string> = [];
-      let text = inputValue;
+      // Process @file tokens (handles both text and binary files)
+      const { text: processedText, attachments } =
+        await processFileTokens(inputValue);
 
-      // markdown-style image syntax: ![alt](path)
-      text = text.replace(/!\[[^\]]*?\]\(([^)]+)\)/g, (_m, p1: string) => {
-        images.push(p1.startsWith("file://") ? fileURLToPath(p1) : p1);
-        return "";
-      });
-
-      // quoted file paths ending with common image extensions (e.g. '/path/to/img.png')
-      text = text.replace(
-        /['"]([^'"]+?\.(?:png|jpe?g|gif|bmp|webp|svg))['"]/gi,
-        (_m, p1: string) => {
-          images.push(p1.startsWith("file://") ? fileURLToPath(p1) : p1);
-          return "";
-        },
-      );
-
-      // bare file paths ending with common image extensions
-      text = text.replace(
-        // eslint-disable-next-line no-useless-escape
-        /\b(?:\.[\/\\]|[\/\\]|[A-Za-z]:[\/\\])?[\w-]+(?:[\/\\][\w-]+)*\.(?:png|jpe?g|gif|bmp|webp|svg)\b/gi,
-        (match: string) => {
-          images.push(
-            match.startsWith("file://") ? fileURLToPath(match) : match,
-          );
-          return "";
-        },
-      );
-      text = text.trim();
-
-      // Expand @file tokens into XML blocks for the model
-      const expandedText = await expandFileTags(text);
-
-      const inputItem = await createInputItem(expandedText, images);
-      submitInput([inputItem]);
+      const inputItem = await createInputItem(processedText, [], attachments);
+      submitInput(inputItem);
 
       // Get config for history persistence.
       const config = loadConfig();

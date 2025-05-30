@@ -543,10 +543,10 @@ export default function TerminalChat({
                 },
               ]);
             }}
-            submitInput={(inputs) => {
-              setItems((prev) => [...prev, ...inputs]);
+            submitInput={(input) => {
+              setItems((prev) => [...prev, input]);
               if (workflow != null) {
-                workflow.run(inputs);
+                workflow.message(input);
               }
               return {};
             }}
