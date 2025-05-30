@@ -43,6 +43,15 @@ export interface Workflow {
   header?: string;
 
   /**
+   * Optional function to format role names for display
+   * @param role The role to format
+   * @returns The formatted display name for the role
+   */
+  formatRole?: (
+    role: "user" | "system" | "assistant" | "tool" | "ui",
+  ) => string;
+
+  /**
    * Commands that this workflow provides
    * These will be available as slash commands in the UI (e.g., /compact)
    */
@@ -89,10 +98,10 @@ export interface WorkflowHooks {
   onMessage: (message: CoreMessage) => void;
 
   /**
-   * Handle system messages (e.g. logs, status, non-CoreMessage errors)
-   * @param message The system message string
+   * Handle UI messages (e.g. logs, status, non-CoreMessage messages)
+   * @param message The UI message string
    */
-  onSystemMessage: (message: string) => void;
+  onUIMessage: (message: string) => void;
 
   /**
    * Handler for tool calls

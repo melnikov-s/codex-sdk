@@ -122,6 +122,12 @@ export default function TerminalChat({
   const workflowRef = React.useRef<Workflow | null>(null);
   const [, forceUpdate] = React.useReducer((c) => c + 1, 0); // trigger re‑render
 
+  // Store formatRole function
+  const [formatRole, setFormatRole] = useState<
+    | ((role: "user" | "system" | "assistant" | "tool" | "ui") => string)
+    | undefined
+  >(undefined);
+
   // ────────────────────────────────────────────────────────────────
   // DEBUG: log every render w/ key bits of state
   // ────────────────────────────────────────────────────────────────
@@ -225,8 +231,8 @@ export default function TerminalChat({
           return updated;
         });
       },
-      onSystemMessage: (feedback) => {
-        log(`onSystemMessage: ${feedback}`);
+      onUIMessage: (feedback) => {
+        log(`onUIMessage: ${feedback}`);
         setItems((prev) => {
           const updated = [
             ...prev,
@@ -332,6 +338,9 @@ export default function TerminalChat({
     // Create the workflow using the provided factory or default
     const factory = workflowFactory || defaultWorkflow;
     workflowRef.current = factory(workflowHooks);
+
+    // Store formatRole function from workflow (not workflowHooks)
+    setFormatRole(() => workflowRef.current?.formatRole);
 
     // Initialize the workflow
     workflowRef.current.initialize?.();
@@ -464,6 +473,7 @@ export default function TerminalChat({
             loading={loading}
             thinkingSeconds={thinkingSeconds}
             fullStdout={fullStdout}
+            formatRole={formatRole}
             headerProps={{
               terminalRows,
               version: CLI_VERSION,

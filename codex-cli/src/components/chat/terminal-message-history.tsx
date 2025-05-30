@@ -22,6 +22,9 @@ type TerminalMessageHistoryProps = {
   thinkingSeconds: number;
   headerProps: TerminalHeaderProps;
   fullStdout: boolean;
+  formatRole?: (
+    role: "user" | "system" | "assistant" | "tool" | "ui",
+  ) => string;
 };
 
 const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
@@ -31,6 +34,7 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
   loading: _loading,
   thinkingSeconds: _thinkingSeconds,
   fullStdout,
+  formatRole,
 }) => {
   // Flatten batch entries to response items.
   const messages = useMemo(() => batch.map(({ item }) => item!), [batch]);
@@ -56,16 +60,14 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
             <Box
               key={`${getId(message)}-${index}`}
               flexDirection="column"
-              marginLeft={
-                message.role === "user" ? 0 : 4
-              }
-              marginTop={
-                message.role === "user" ? 0 : 1
-              }
+              marginLeft={message.role === "user" ? 0 : 4}
+              marginTop={message.role === "user" ? 1 : 2}
+              marginBottom={1}
             >
               <TerminalChatResponseItem
                 item={message}
                 fullStdout={fullStdout}
+                formatRole={formatRole}
               />
             </Box>
           );

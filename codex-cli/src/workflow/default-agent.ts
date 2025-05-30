@@ -85,6 +85,9 @@ export interface DefaultAgentWorkflowConfig {
   mcp?: Record<string, Omit<MCPServerConfig, "name"> & { enabled?: boolean }>;
   model?: Model;
   instructions?: string;
+  formatRole?: (
+    role: "user" | "system" | "assistant" | "tool" | "ui",
+  ) => string;
 }
 
 /**
@@ -132,17 +135,17 @@ export function defaultWorkflow(
     if (mcpClientManager && !mcpInitialized) {
       try {
         hooks.logger("Initializing MCP Client Manager...");
-        hooks.onSystemMessage("Initializing MCP Client Manager...");
+        hooks.onUIMessage("Initializing MCP Client Manager...");
         await mcpClientManager.initialize();
         mcpTools = await mcpClientManager.getAllTools();
         mcpInitialized = true;
         const msg = `MCP Client Manager initialized. Tools found: ${Object.keys(mcpTools).join(", ") || "None"}`;
         hooks.logger(msg);
-        hooks.onSystemMessage(msg);
+        hooks.onUIMessage(msg);
       } catch (error) {
         const errorMsg = `Error initializing MCP Client Manager: ${error instanceof Error ? error.message : String(error)}`;
         hooks.logger(errorMsg);
-        hooks.onSystemMessage(errorMsg);
+        hooks.onUIMessage(errorMsg);
         // Optionally, handle this error more gracefully, e.g., by notifying the user
       }
     }
@@ -153,6 +156,8 @@ export function defaultWorkflow(
    */
   return {
     header: "Codex AI Agent",
+
+    formatRole: agentConfig?.formatRole,
 
     initialize(): void {
       // Optional initialization - default implementation does nothing
@@ -170,7 +175,7 @@ export function defaultWorkflow(
         execAbortController = new AbortController();
       }
 
-      hooks.onSystemMessage("Workflow execution stopped.");
+      hooks.onUIMessage("Workflow execution stopped.");
       hooks.setLoading(false);
       canceled = true;
     },
@@ -194,10 +199,10 @@ export function defaultWorkflow(
 
       if (mcpClientManager) {
         hooks.logger("Closing MCP Client Manager...");
-        hooks.onSystemMessage("Closing MCP Client Manager connections...");
+        hooks.onUIMessage("Closing MCP Client Manager connections...");
         await mcpClientManager.closeAll();
         hooks.logger("MCP Client Manager closed.");
-        hooks.onSystemMessage("MCP Client Manager connections closed.");
+        hooks.onUIMessage("MCP Client Manager connections closed.");
       }
     },
 
@@ -306,7 +311,7 @@ export function defaultWorkflow(
                   } catch (mcpError) {
                     const errorText = `Error calling MCP tool ${toolCall.toolName}: ${mcpError}`;
                     hooks.logger(errorText);
-                    hooks.onSystemMessage(errorText);
+                    hooks.onUIMessage(errorText);
                     const errorResult: CoreMessage = {
                       role: "tool",
                       content: [
@@ -346,7 +351,7 @@ export function defaultWorkflow(
           // Log the error and end the loop
           const runErrorMsg = `Error in workflow run: ${(error as Error).message}`;
           hooks.logger(runErrorMsg);
-          hooks.onSystemMessage(runErrorMsg);
+          hooks.onUIMessage(runErrorMsg);
 
           // Call the error handler if provided
           if (hooks.onError) {
@@ -421,9 +426,7 @@ Keep the summary concise but comprehensive.`,
             });
 
             // Notify the hooks
-            hooks.onSystemMessage(
-              "Conversation context compacted successfully.",
-            );
+            hooks.onUIMessage("Conversation context compacted successfully.");
             hooks.onCommandExecuted?.(
               "compact",
               "Context summarized and conversation history cleared",
@@ -433,7 +436,7 @@ Keep the summary concise but comprehensive.`,
           } catch (error) {
             const errorMsg = `Error executing /compact command: ${(error as Error).message}`;
             hooks.logger(errorMsg);
-            hooks.onSystemMessage(errorMsg);
+            hooks.onUIMessage(errorMsg);
             hooks.setLoading(false);
           }
         },

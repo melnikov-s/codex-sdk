@@ -20,13 +20,19 @@ import React, { useMemo } from "react";
 export default function TerminalChatResponseItem({
   item,
   fullStdout = false,
+  formatRole,
 }: {
   item: CoreMessage;
   fullStdout?: boolean;
+  formatRole?: (
+    role: "user" | "system" | "assistant" | "tool" | "ui",
+  ) => string;
 }): React.ReactElement {
   switch (getMessageType(item)) {
     case "message":
-      return <TerminalChatResponseMessage message={item} />;
+      return (
+        <TerminalChatResponseMessage message={item} formatRole={formatRole} />
+      );
     case "function_call":
       return <TerminalChatResponseToolCall message={item} />;
     case "function_call_output":
@@ -98,13 +104,30 @@ export function TerminalChatResponseReasoning({
 const colorsByRole: Record<string, ForegroundColorName> = {
   assistant: "magentaBright",
   user: "blueBright",
+  system: "gray",
+  tool: "cyan",
+  ui: "yellow",
 };
 
-function TerminalChatResponseMessage({ message }: { message: CoreMessage }) {
+function TerminalChatResponseMessage({
+  message,
+  formatRole,
+}: {
+  message: CoreMessage;
+  formatRole?: (
+    role: "user" | "system" | "assistant" | "tool" | "ui",
+  ) => string;
+}) {
+  const roleToDisplay = formatRole
+    ? formatRole(
+        message.role as "user" | "system" | "assistant" | "tool" | "ui",
+      )
+    : message.role;
+
   return (
     <Box flexDirection="column">
       <Text bold color={colorsByRole[message.role] || "gray"}>
-        {message.role === "assistant" ? "codex" : message.role}
+        {roleToDisplay}
       </Text>
       <Markdown>{getTextContent(message)}</Markdown>
     </Box>
