@@ -36,7 +36,12 @@ export default function TerminalChatResponseItem({
         <TerminalChatResponseMessage message={item} formatRole={formatRole} />
       );
     case "function_call":
-      return <TerminalChatResponseToolCall message={item as CoreMessage} />;
+      return (
+        <TerminalChatResponseToolCall
+          message={item as CoreMessage}
+          formatRole={formatRole}
+        />
+      );
     case "function_call_output":
       return (
         <TerminalChatResponseToolCallOutput
@@ -136,13 +141,26 @@ function TerminalChatResponseMessage({
   );
 }
 
-function TerminalChatResponseToolCall({ message }: { message: CoreMessage }) {
+function TerminalChatResponseToolCall({
+  message,
+  formatRole,
+}: {
+  message: CoreMessage;
+  formatRole?: (
+    role: "user" | "system" | "assistant" | "tool" | "ui",
+  ) => string;
+}) {
   const details = parseToolCall(message);
   const text = getTextContent(message);
   return (
-    <>
-      {text ? <TerminalChatResponseMessage message={message} /> : null}
-      <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column" gap={1}>
+      {text ? (
+        <TerminalChatResponseMessage
+          message={message}
+          formatRole={formatRole}
+        />
+      ) : null}
+      <Box flexDirection="column">
         <Text color="magentaBright" bold>
           command
         </Text>
@@ -150,7 +168,7 @@ function TerminalChatResponseToolCall({ message }: { message: CoreMessage }) {
           <Text dimColor>$</Text> {details?.cmdReadableText}
         </Text>
       </Box>
-    </>
+    </Box>
   );
 }
 
