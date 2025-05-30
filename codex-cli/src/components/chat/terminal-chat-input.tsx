@@ -1,5 +1,6 @@
 import type { MultilineTextEditorHandle } from "./multiline-editor";
 import type { ReviewDecision } from "../../utils/agent/review.js";
+import type { UIMessage } from "../../utils/ai";
 import type { HistoryEntry } from "../../utils/storage/command-history.js";
 import type { Workflow } from "../../workflow";
 import type { CoreMessage } from "ai";
@@ -59,7 +60,7 @@ export default function TerminalChatInput({
     decision: ReviewDecision,
     customDenyMessage?: string,
   ) => void;
-  setItems: React.Dispatch<React.SetStateAction<Array<CoreMessage>>>;
+  setItems: React.Dispatch<React.SetStateAction<Array<UIMessage>>>;
   openOverlay: () => void;
   openApprovalOverlay: () => void;
   openHelpOverlay: () => void;

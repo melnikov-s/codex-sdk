@@ -1,6 +1,7 @@
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
 import type { LibraryConfig } from "../../lib.js";
 import type { CommandConfirmation } from "../../utils/agent/review.js";
+import type { UIMessage } from "../../utils/ai.js";
 import type {
   Workflow,
   WorkflowFactory,
@@ -21,7 +22,6 @@ import { useTerminalSize } from "../../hooks/use-terminal-size.js";
 import { execToolCall } from "../../tools/runtime.js";
 import { ReviewDecision } from "../../utils/agent/review.js";
 import { getToolCall, isNativeTool, getTextContent } from "../../utils/ai.js";
-// Import removed - compact summary is now handled by consumer's workflow
 import { extractAppliedPatches as _extractAppliedPatches } from "../../utils/extract-applied-patches.js";
 import { getGitDiff } from "../../utils/get-diff.js";
 import { log } from "../../utils/logger/log.js";
@@ -81,7 +81,7 @@ export default function TerminalChat({
     initialApprovalPolicy,
   );
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
-  const [items, setItems] = useState<Array<CoreMessage>>([]);
+  const [items, setItems] = useState<Array<UIMessage>>([]);
 
   const {
     requestConfirmation,
@@ -227,17 +227,14 @@ export default function TerminalChat({
         log(`onMessage: ${JSON.stringify(item)}`);
         setItems((prev) => {
           const updated = [...prev, item];
-          saveRollout(sessionId, updated);
+          saveRollout(sessionId, updated as Array<CoreMessage>);
           return updated;
         });
       },
       onUIMessage: (feedback) => {
         log(`onUIMessage: ${feedback}`);
         setItems((prev) => {
-          const updated = [
-            ...prev,
-            { role: "system", content: feedback } as const,
-          ];
+          const updated = [...prev, { role: "ui", content: feedback } as const];
           return updated;
         });
       },

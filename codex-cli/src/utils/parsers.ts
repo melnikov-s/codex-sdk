@@ -73,7 +73,7 @@ export function parseToolCallArguments(
   }
 
   const args = toolCall.args;
-  
+
   const { cmd, command } = args as Record<string, unknown>;
   // The OpenAI model sometimes produces a single string instead of an array.
   // Accept both shapes:

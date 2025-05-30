@@ -1,3 +1,4 @@
+import type { UIMessage } from "../../utils/ai";
 import type { CoreAssistantMessage, CoreMessage, CoreToolMessage } from "ai";
 import type { TerminalRendererOptions } from "marked-terminal";
 import type { ExecOutputMetadata } from "src/utils/agent/sandbox/interface";
@@ -22,7 +23,7 @@ export default function TerminalChatResponseItem({
   fullStdout = false,
   formatRole,
 }: {
-  item: CoreMessage;
+  item: UIMessage;
   fullStdout?: boolean;
   formatRole?: (
     role: "user" | "system" | "assistant" | "tool" | "ui",
@@ -30,11 +31,12 @@ export default function TerminalChatResponseItem({
 }): React.ReactElement {
   switch (getMessageType(item)) {
     case "message":
+    case "ui":
       return (
         <TerminalChatResponseMessage message={item} formatRole={formatRole} />
       );
     case "function_call":
-      return <TerminalChatResponseToolCall message={item} />;
+      return <TerminalChatResponseToolCall message={item as CoreMessage} />;
     case "function_call_output":
       return (
         <TerminalChatResponseToolCallOutput
@@ -84,7 +86,7 @@ export default function TerminalChatResponseItem({
 export function TerminalChatResponseReasoning({
   message,
 }: {
-  message: CoreMessage & { duration_ms?: number };
+  message: UIMessage & { duration_ms?: number };
 }): React.ReactElement | null {
   const reasoning = getReasoning(message);
 
@@ -113,7 +115,7 @@ function TerminalChatResponseMessage({
   message,
   formatRole,
 }: {
-  message: CoreMessage;
+  message: UIMessage;
   formatRole?: (
     role: "user" | "system" | "assistant" | "tool" | "ui",
   ) => string;
@@ -249,7 +251,7 @@ function TerminalChatResponseToolCallOutput({
 export function TerminalChatResponseGenericMessage({
   message,
 }: {
-  message: CoreMessage;
+  message: UIMessage;
 }): React.ReactElement {
   return <Text>{JSON.stringify(message, null, 2)}</Text>;
 }

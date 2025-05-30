@@ -2,9 +2,9 @@ import type { Model } from "./providers";
 
 import { generateId, type CoreMessage } from "ai";
 
-const idMap = new WeakMap<CoreMessage, string>();
+const idMap = new WeakMap<UIMessage, string>();
 
-export function getId(message: CoreMessage): string {
+export function getId(message: UIMessage): string {
   if (!idMap.has(message)) {
     idMap.set(message, generateId());
   }
@@ -15,15 +15,23 @@ export function isNativeTool(toolName: string | undefined) {
   return toolName === "shell" || toolName === "apply_patch";
 }
 
+export type UIMessage =
+  | {
+      role: "ui";
+      content: string;
+    }
+  | CoreMessage;
+
 export type MessageType =
   | "message"
   | "function_call"
   | "function_call_output"
   | "reasoning"
   | "mcp_call"
-  | "mcp_output";
+  | "mcp_output"
+  | "ui";
 
-export function getMessageType(item: CoreMessage): MessageType {
+export function getMessageType(item: UIMessage): MessageType {
   if (item.role === "user") {
     return "message";
   }
@@ -55,10 +63,14 @@ export function getMessageType(item: CoreMessage): MessageType {
     return "mcp_output";
   }
 
+  if (item.role === "ui") {
+    return "ui";
+  }
+
   return "message";
 }
 
-export function getReasoning(item: CoreMessage) {
+export function getReasoning(item: UIMessage) {
   const type = getMessageType(item);
   if (type === "reasoning") {
     const part = Array.isArray(item.content)
@@ -69,14 +81,14 @@ export function getReasoning(item: CoreMessage) {
   return null;
 }
 
-export function getToolCall(message: CoreMessage) {
+export function getToolCall(message: UIMessage) {
   if (message.role === "assistant" && Array.isArray(message.content)) {
     return message.content.find((part) => part.type === "tool-call") ?? null;
   }
   return null;
 }
 
-export function getToolCallResult(message: CoreMessage) {
+export function getToolCallResult(message: UIMessage) {
   if (message.role === "tool" && Array.isArray(message.content)) {
     const resultPart = message.content.find(
       (part) => part.type === "tool-result",
@@ -86,7 +98,7 @@ export function getToolCallResult(message: CoreMessage) {
   return null;
 }
 
-export function getTextContent(message: CoreMessage): string {
+export function getTextContent(message: UIMessage): string {
   if (typeof message.content === "string") {
     return message.content;
   }
@@ -124,7 +136,7 @@ const contextSize: { [key in Model]: number } = {
 };
 
 export function calculateContextPercentRemaining(
-  items: Array<CoreMessage>,
+  items: Array<UIMessage>,
   model: string,
 ): number {
   const totalContentLength = items.reduce(

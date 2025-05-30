@@ -1,11 +1,11 @@
-import type { CoreMessage } from "ai";
+import type { UIMessage } from "../utils/ai";
 
 import { Box, Text, useInput } from "ink";
 import React, { useMemo, useState } from "react";
 import { getMessageType, getTextContent, getToolCall } from "src/utils/ai";
 
 type Props = {
-  items: Array<CoreMessage>;
+  items: Array<UIMessage>;
   onExit: () => void;
 };
 
@@ -99,7 +99,7 @@ export default function HistoryOverlay({ items, onExit }: Props): JSX.Element {
   );
 }
 
-function formatHistoryForDisplay(items: Array<CoreMessage>): {
+function formatHistoryForDisplay(items: Array<UIMessage>): {
   commands: Array<string>;
   files: Array<string>;
 } {
@@ -145,7 +145,7 @@ function formatHistoryForDisplay(items: Array<CoreMessage>): {
   return { commands, files: Array.from(filesSet) };
 }
 
-function processUserMessage(item: CoreMessage): string | null {
+function processUserMessage(item: UIMessage): string | null {
   if (item.role === "user") {
     // TODO: We're ignoring images/files here.
     const fullPrompt = getTextContent(item);
