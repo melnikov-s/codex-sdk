@@ -61,8 +61,8 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
               key={`${getId(message)}-${index}`}
               flexDirection="column"
               marginLeft={message.role === "user" ? 0 : 4}
-              marginTop={message.role === "user" ? 1 : 2}
-              marginBottom={1}
+              marginTop={message.role === "user" ? 1 : 1}
+              marginBottom={0}
             >
               <TerminalChatResponseItem
                 item={message}

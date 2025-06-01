@@ -160,7 +160,7 @@ function TerminalChatResponseToolCall({
           formatRole={formatRole}
         />
       ) : null}
-      <Box flexDirection="column">
+      <Box flexDirection="column" marginLeft={2}>
         <Text color="magentaBright" bold>
           command
         </Text>
@@ -190,7 +190,7 @@ function TerminalChatResponseMcpCall({
 }) {
   const details = getToolCall(message);
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column" gap={0}>
       <Text color="magentaBright" bold>
         calling mcp:
       </Text>
@@ -256,7 +256,7 @@ function TerminalChatResponseToolCallOutput({
     })
     .join("\n");
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column" gap={0} marginLeft={2}>
       <Text color="magenta" bold>
         command.stdout{" "}
         <Text dimColor>{metadataInfo ? `(${metadataInfo})` : ""}</Text>

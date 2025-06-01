@@ -227,9 +227,6 @@ export function defaultWorkflow(
       // Create an AbortController for this run
       execAbortController = new AbortController();
 
-      // Store new messages generated during this run
-      const newMessages: Array<CoreMessage> = [];
-
       // Keep calling the model until we get a finish reason of 'stop' or hit max turns
       while (isRunning && currentTurn < maxTurns && !canceled) {
         currentTurn++;
@@ -269,8 +266,6 @@ export function defaultWorkflow(
             // Add new messages to transcript and process them
             for (const message of messages) {
               // Track new messages for the return value
-              newMessages.push(message);
-
               // Add to transcript
               transcript.push(message);
               // Send to UI
@@ -307,7 +302,6 @@ export function defaultWorkflow(
                     };
                     transcript.push(toolResponseMessage);
                     hooks.onMessage(toolResponseMessage);
-                    newMessages.push(toolResponseMessage);
                   } catch (mcpError) {
                     const errorText = `Error calling MCP tool ${toolCall.toolName}: ${mcpError}`;
                     hooks.logger(errorText);
@@ -325,7 +319,6 @@ export function defaultWorkflow(
                     };
                     transcript.push(errorResult);
                     hooks.onMessage(errorResult);
-                    newMessages.push(errorResult);
                   }
                 } else {
                   // Handle as a local tool
@@ -333,7 +326,6 @@ export function defaultWorkflow(
                   if (toolResult) {
                     transcript.push(toolResult);
                     hooks.onMessage(toolResult);
-                    newMessages.push(toolResult);
                   }
                 }
               }
@@ -363,16 +355,13 @@ export function defaultWorkflow(
             content: `Error: ${(error as Error).message}`,
           };
 
-          hooks.onMessage(errorMessage);
           transcript.push(errorMessage);
-          newMessages.push(errorMessage);
 
           isRunning = false;
         }
       }
 
       hooks.setLoading(false);
-      return newMessages;
     },
 
     commands: {
