@@ -8,6 +8,7 @@ export interface SelectItem {
 export interface SelectOptions {
   required?: boolean;
   default?: string;
+  label?: string;
 }
 
 export interface Workflow {
@@ -103,9 +104,13 @@ export interface WorkflowHooks {
   /**
    * Handler for tool calls
    * @param message The message containing a tool call
+   * @param opts Optional options for the tool call
    * @returns The tool response message if a tool was called, null otherwise
    */
-  handleToolCall: (message: CoreMessage) => Promise<CoreMessage | null>;
+  handleToolCall: (
+    message: CoreMessage,
+    opts?: { abortSignal?: AbortSignal },
+  ) => Promise<CoreMessage | null>;
 
   /**
    * Optional error handler
@@ -118,13 +123,6 @@ export interface WorkflowHooks {
    * @param message The log message
    */
   logger: (message: string) => void;
-
-  /**
-   * Notify that a command was executed
-   * @param command The command that was executed
-   * @param result Optional result message
-   */
-  onCommandExecuted?: (command: string, result?: string) => void;
 
   /**
    * Show a selection dialog to the user

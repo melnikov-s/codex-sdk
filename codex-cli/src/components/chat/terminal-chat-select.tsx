@@ -63,7 +63,7 @@ export function TerminalChatSelect({
 
   return (
     <Box flexDirection="column" gap={1} borderStyle="round" marginTop={1}>
-      <Text bold>Select an option:</Text>
+      <Text bold>{options?.label || "Select an option:"}</Text>
       <Box paddingX={2} flexDirection="column" gap={1}>
         <Select
           isDisabled={!isActive}

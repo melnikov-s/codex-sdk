@@ -289,18 +289,6 @@ export default function TerminalChat({
           setOverlayMode("prompt");
         });
       },
-      onCommandExecuted: (command: string, result?: string) => {
-        log(`Command executed: ${command}${result ? ` - ${result}` : ""}`);
-        if (result) {
-          setItems((prev) => [
-            ...prev,
-            {
-              role: "system",
-              content: result,
-            },
-          ]);
-        }
-      },
       onSelect: (items: Array<SelectItem>, options?: SelectOptions) => {
         return new Promise<string>((resolve, reject) => {
           setSelectionState({ items, options, resolve, reject });
@@ -310,15 +298,12 @@ export default function TerminalChat({
       setInputDisabled: (disabled: boolean) => {
         setInputDisabled(disabled);
       },
-      handleToolCall: async (message) => {
+      handleToolCall: async (message, { abortSignal } = {}) => {
         // Extract the tool call from the message
         const toolCall = getToolCall(message);
         if (!toolCall || !isNativeTool(toolCall.toolName)) {
           return null;
         }
-
-        // Create an abort controller for this tool call
-        const abortController = new AbortController();
 
         // Handle the tool call
         const toolResults = await execToolCall(
@@ -327,7 +312,7 @@ export default function TerminalChat({
           approvalPolicy,
           additionalWritableRoots,
           getCommandConfirmation,
-          abortController.signal,
+          abortSignal,
         );
 
         // Return the first tool result or null if none

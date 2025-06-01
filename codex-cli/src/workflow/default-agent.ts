@@ -394,10 +394,6 @@ Keep the summary concise but comprehensive.`,
 
             // Notify the hooks
             hooks.onUIMessage("Conversation context compacted successfully.");
-            hooks.onCommandExecuted?.(
-              "compact",
-              "Context summarized and conversation history cleared",
-            );
 
             hooks.setLoading(false);
           } catch (error) {
