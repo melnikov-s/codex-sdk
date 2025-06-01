@@ -206,7 +206,12 @@ export default function TerminalChat({
 
     // Vercel AI SDK compatible tool definition
     const shellTool = tool({
-      description: "Runs a shell command, and returns its output.",
+      description: `Use \`shell\` to run shell commands: { "description": "Runs a shell command, and returns its output.", "parameters": { "cmd": "array of strings (command and arguments)", "workdir": "string (working directory)", "timeout": "number (milliseconds)" }}`,
+      parameters: ShellToolParametersSchema,
+    });
+
+    const applyPatchTool = tool({
+      description: `Use \`apply_patch\` to edit files: {"cmd":["apply_patch","*** Begin Patch\\n*** Update File: path/to/file.py\\n@@ def example():\\n-  pass\\n+  return 123\\n*** End Patch"]}.`,
       parameters: ShellToolParametersSchema,
     });
 
@@ -216,10 +221,8 @@ export default function TerminalChat({
     const workflowHooks: WorkflowHooks = {
       tools: {
         shell: shellTool,
-        apply_patch: shellTool,
+        apply_patch: applyPatchTool,
       },
-      toolPrompt:
-        'Use `apply_patch` to edit files: {"cmd":["apply_patch","*** Begin Patch\\n*** Update File: path/to/file.py\\n@@ def example():\\n-  pass\\n+  return 123\\n*** End Patch"]}.\nUse `shell` to run shell commands: { "description": "Runs a shell command, and returns its output.", "parameters": { "cmd": "array of strings (command and arguments)", "workdir": "string (working directory)", "timeout": "number (milliseconds)" }}',
       logger: (message) => {
         log(message);
       },

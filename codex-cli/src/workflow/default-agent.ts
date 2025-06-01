@@ -1,6 +1,6 @@
 import type { Workflow, WorkflowHooks } from "./index.js";
 import type { AppConfig } from "../utils/config.js";
-import type { CoreMessage } from "ai";
+import type { CoreMessage, ToolSet } from "ai";
 
 import { getToolCall } from "../utils/ai.js";
 import {
@@ -8,27 +8,7 @@ import {
   type MCPServerConfig,
 } from "../utils/mcp/client-manager.js";
 import { getLanguageModel, type Model } from "../utils/providers.js";
-import { generateText, tool } from "ai";
-import { z } from "zod";
-
-// Define Zod schema for shellTool parameters
-const ShellToolParametersSchema = z.object({
-  cmd: z
-    .array(z.string())
-    .describe("The command and its arguments to execute."),
-  workdir: z.string().describe("The working directory for the command."),
-  timeout: z
-    .number()
-    .describe(
-      "The maximum time to wait for the command to complete in milliseconds.",
-    ),
-});
-
-// Vercel AI SDK compatible tool definition
-const shellTool = tool({
-  description: "Runs a shell command, and returns its output.",
-  parameters: ShellToolParametersSchema,
-});
+import { generateText } from "ai";
 
 // System prompt used by the default agent
 const prefix = `You are operating as and within the Codex CLI, a terminal-based agentic coding assistant built by OpenAI. It wraps OpenAI models to enable natural language interaction with a local codebase. You are expected to be precise, safe, and helpful.
@@ -115,7 +95,7 @@ export function defaultWorkflow(
 
   // MCP client management
   let mcpClientManager: MCPClientManager | null = null;
-  let mcpTools: Record<string, unknown> = {};
+  let mcpTools: ToolSet = {};
   let mcpInitialized = false;
 
   if (config.mcp) {
@@ -242,8 +222,6 @@ export function defaultWorkflow(
               ...transcript,
             ],
             tools: {
-              shell: shellTool,
-              apply_patch: shellTool,
               ...hooks.tools,
               ...mcpTools, // Add MCP tools here
             },

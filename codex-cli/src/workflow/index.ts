@@ -1,4 +1,4 @@
-import type { CoreMessage } from "ai";
+import type { CoreMessage, ToolSet } from "ai";
 
 export interface SelectItem {
   label: string;
@@ -66,10 +66,7 @@ export interface Workflow {
 
 export interface WorkflowHooks {
   /** Tool definitions that can be used by the workflow */
-  tools: Record<string, unknown>;
-
-  /** Initial prompt/instructions for the workflow */
-  toolPrompt: string;
+  tools: ToolSet;
 
   /**
    * Send a confirmation prompt to the user
