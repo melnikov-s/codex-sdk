@@ -81,7 +81,7 @@ export function defaultWorkflow(
   const transcript: Array<CoreMessage> = [];
   const config: AppConfig = {
     model: agentConfig?.model || ("openai/gpt-4o" as Model),
-    instructions: agentConfig?.instructions || hooks.toolPrompt,
+    instructions: agentConfig?.instructions || "",
     // Integrate MCP config if provided
     mcp: agentConfig?.mcp,
   };
