@@ -13,7 +13,6 @@ import { loadConfig } from "../../utils/config.js";
 import { processFileTokens } from "../../utils/file-tag-utils";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
-import { setSessionId } from "../../utils/session.js";
 import {
   getAllAvailableCommands,
   type SlashCommand,
@@ -22,7 +21,7 @@ import {
   loadCommandHistory,
   addToHistory,
 } from "../../utils/storage/command-history.js";
-import { clearTerminal, onExit } from "../../utils/terminal.js";
+import { onExit } from "../../utils/terminal.js";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, {
   useCallback,
@@ -31,7 +30,6 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { getMessageType } from "src/utils/ai";
 import { useInterval } from "use-interval";
 
 export default function TerminalChatInput({
@@ -197,7 +195,6 @@ export default function TerminalChatInput({
                   case "/diff":
                     openDiffOverlay();
                     break;
-                  case "/clear":
                   case "/clearhistory":
                     onSubmit(cmd);
                     break;
@@ -406,43 +403,6 @@ export default function TerminalChatInput({
           onExit();
           process.exit(0);
         }, 60); // Wait one frame.
-        return;
-      } else if (inputValue === "/clear" || inputValue === "clear") {
-        setInput("");
-        setSessionId("");
-
-        // Clear the terminal screen (including scrollback) before resetting context.
-        clearTerminal();
-
-        // Emit a system message to confirm the clear action.  We *append*
-        // it so Ink's <Static> treats it as new output and actually renders it.
-        setItems((prev) => {
-          const filteredOldItems = prev.filter((item) => {
-            const type = getMessageType(item);
-            // Remove any token‑heavy entries (user/assistant turns and function calls)
-            if (
-              type === "message" &&
-              (item.role === "user" || item.role === "assistant")
-            ) {
-              return false;
-            }
-            if (type === "function_call" || type === "function_call_output") {
-              return false;
-            }
-            return true; // keep developer/system and other meta entries
-          });
-
-          return [
-            ...filteredOldItems,
-            {
-              id: `clear-${Date.now()}`,
-              role: "system",
-              content: "Terminal cleared",
-              parts: [{ type: "text", text: "Terminal cleared" }],
-            },
-          ];
-        });
-
         return;
       } else if (inputValue === "/clearhistory") {
         setInput("");

@@ -9,11 +9,6 @@ export interface SlashCommand {
 // Default commands handled by the UI layer
 export const DEFAULT_UI_COMMANDS: Array<SlashCommand> = [
   {
-    command: "/clear",
-    description: "Clear conversation history and free up context",
-    source: "ui",
-  },
-  {
     command: "/clearhistory",
     description: "Clear command history",
     source: "ui",
