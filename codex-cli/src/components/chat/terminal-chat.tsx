@@ -206,7 +206,7 @@ export default function TerminalChat({
 
     // Vercel AI SDK compatible tool definition
     const shellTool = tool({
-      description: `Use \`shell\` to run shell commands: { "description": "Runs a shell command, and returns its output.", "parameters": { "cmd": "array of strings (command and arguments)", "workdir": "string (working directory)", "timeout": "number (milliseconds)" }}`,
+      description: `Run a command in the terminal, can be git or shell, or any other command available on the system.`,
       parameters: ShellToolParametersSchema,
     });
 
