@@ -34,8 +34,7 @@ describe("TerminalChatResponseItem", () => {
     );
 
     const frame = lastFrameStripped();
-    // assistant messages are labelled "codex" in the UI
-    expect(frame.toLowerCase()).toContain("codex");
+    expect(frame.toLowerCase()).toContain("assistant");
     expect(frame).toContain("Sure thing");
   });
 });

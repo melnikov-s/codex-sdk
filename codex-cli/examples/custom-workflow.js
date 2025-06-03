@@ -1,259 +1,92 @@
-#!/usr/bin/env node
+import { run, createAgentWorkflow } from "../dist/lib.js";
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
-// Import the necessary functions from the Codex CLI library
-import { run, AutoApprovalMode } from "../dist/lib.js";
-import { streamText, generateText } from "ai";
+const workflow = createAgentWorkflow(
+  ({ onMessage, setLoading, handleToolCall, tools, onUIMessage }) => {
+    const transcript = [];
+    let state = "idle";
 
-/**
- * Create a custom workflow factory for integrating with your own LLM and MCP clients
- * This is where you implement your agent logic and LLM interactions
- *
- * @param {Object} hooks - Workflow hooks provided by Codex CLI
- * @returns {Object} - A Workflow object that implements the required interface
- */
-function createCustomWorkflow(hooks) {
-  // Your private workflow state
-  let transcript = [];
-  let canceled = false;
-  let execAbortController = null;
+    async function startAgentLoop() {
+      setLoading(true);
+      state = "running";
 
-  // You can manage your own MCP clients here
-  const mcpClients = [
-    // Example MCP client definition
-    // {
-    //   name: "mymcp",
-    //   client: createMyMCPClient(),
-    //   connected: true
-    // }
-  ];
-
-  // Create your abort controller
-  const hardAbort = new AbortController();
-  hardAbort.signal.addEventListener(
-    "abort",
-    () => execAbortController?.abort(),
-    { once: true },
-  );
-
-  // Return a workflow object that implements the required interface
-  return {
-    async initialize() {
-      await hooks.onPromptUser("Enter your prompt:");
-      instance.unmount();
-    },
-    /**
-     * Stop the current workflow execution
-     */
-    stop() {
-      execAbortController?.abort();
-      execAbortController = new AbortController();
-      hooks.logger("Workflow.stop(): execAbortController.abort() called");
-      hooks.setLoading(false);
-      canceled = true;
-    },
-
-    /**
-     * Terminate the workflow completely
-     */
-    terminate() {
-      hardAbort.abort();
-      this.stop();
-
-      // Clean up your MCP clients here
-      for (const client of mcpClients) {
-        if (client.connected && client.client) {
-          try {
-            client.client.close();
-          } catch (error) {
-            hooks.logger(`Error closing MCP client ${client.name}: ${error}`);
-          }
-        }
-      }
-    },
-
-    /**
-     * Run the workflow with input messages
-     *
-     * @param {Array} input - Array of CoreMessages from the user
-     * @param {Object} opts - Optional parameters
-     * @returns {Array} - Array of response CoreMessages
-     */
-    async run(input, opts = {}) {
-      // Reset canceled state
-      canceled = false;
-
-      // Add input to transcript
-      transcript.push(...input);
-
-      // Set up variables for the agent loop
-      let isRunning = true;
-      hooks.setLoading(true);
-      const maxTurns = 30;
-      let currentTurn = 0;
-
-      // Create abort controller for this run
-      execAbortController = new AbortController();
-
-      // Connect external abort signal if provided
-      if (opts?.signal) {
-        opts.signal.addEventListener(
-          "abort",
-          () => {
-            hooks.logger("External abort signal received");
-            execAbortController?.abort();
-            this.stop();
-          },
-          { once: true },
-        );
-      }
-
-      // Store new messages
-      const newMessages = [];
-
-      // Run the agent loop
-      while (isRunning && currentTurn < maxTurns && !canceled) {
-        currentTurn++;
+      while (state === "running") {
+        let toolCallResponseForThisTurn = null;
 
         try {
-          // You can collect MCP tools from your own clients
-          const mcpTools = {};
-
-          // Define your system prompt
-          const systemPrompt = `You are a helpful AI assistant working in a terminal environment.
-You can run shell commands and help users with coding tasks.`;
-
-          // Call your LLM using the Vercel AI SDK or any other method
           const response = await generateText({
-            maxSteps: 1,
-            model: "your-model-identifier", // Use your preferred model
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...transcript,
-            ],
-            tools: {
-              // Define your tools here
-              shell: {
-                description: "Run a shell command",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    cmd: {
-                      type: "array",
-                      items: { type: "string" },
-                      description: "The command to run",
-                    },
-                    workdir: {
-                      type: "string",
-                      description: "Working directory",
-                    },
-                  },
-                  required: ["cmd"],
-                },
-              },
-              // Add more tools from hooks.tools
-              ...hooks.tools,
-              // Add MCP tools if available
-              ...mcpTools,
-            },
-            signal: execAbortController.signal,
+            model: openai("gpt-4o"),
+            messages: transcript,
+            tools,
           });
 
-          // Process the response
-          const { messages, finishReason } = response.response;
+          const aiMessage = response.response.messages[0];
 
-          // Track if any tool calls were made
-          let hasToolCalls = false;
+          if (aiMessage) {
+            transcript.push(aiMessage);
+            onMessage(aiMessage);
 
-          // Process messages
-          if (messages && messages.length > 0) {
-            for (const message of messages) {
-              // Add to local records
-              newMessages.push(message);
-              transcript.push(message);
+            toolCallResponseForThisTurn = await handleToolCall(aiMessage);
 
-              // Send to UI
-              hooks.onItem(message);
-
-              // Check for tool calls
-              if (message.role === "assistant" && message.content) {
-                // Handle tool calls using hook
-                const toolCall = extractToolCall(message);
-                if (toolCall) {
-                  hasToolCalls = true;
-
-                  const toolResult = await hooks.handleToolCall(message);
-
-                  if (toolResult) {
-                    transcript.push(toolResult);
-                    hooks.onItem(toolResult);
-                    newMessages.push(toolResult);
-                  }
-                }
-              }
-            }
-
-            // Continue loop if we're not done
-            if (finishReason === "stop" && !hasToolCalls) {
-              isRunning = false;
+            if (toolCallResponseForThisTurn) {
+              transcript.push(toolCallResponseForThisTurn);
+              onMessage(toolCallResponseForThisTurn);
+              // currentTurn++; // Removed per user request
+            } else if (response.finishReason === "stop") {
+              state = "paused";
             }
           } else {
-            isRunning = false;
+            state = "paused";
           }
         } catch (error) {
-          hooks.logger(`Error in workflow run: ${error.message}`);
-          if (hooks.onError) {
-            hooks.onError(error);
+          onUIMessage("Error during agent processing turn.");
+          if (error && typeof error.message === "string") {
+            onUIMessage(error.message);
+          } else {
+            onUIMessage("An unknown error occurred.");
           }
-
-          const errorMessage = {
-            role: "system",
-            content: `Error: ${error.message}`,
-          };
-          newMessages.push(errorMessage);
-          hooks.onItem(errorMessage);
-          isRunning = false;
+          state = "paused";
         }
       }
 
-      // Clean up
-      hooks.setLoading(false);
+      setLoading(false);
+    }
 
-      // Return the new messages generated during this run
-      return newMessages;
-    },
-  };
-}
-
-// Helper function to extract tool calls from messages
-function extractToolCall(message) {
-  if (message.role !== "assistant" || !message.content) return null;
-
-  // If using the Vercel AI SDK format
-  if (message.tool_calls && message.tool_calls.length > 0) {
-    const toolCall = message.tool_calls[0];
     return {
-      toolName: toolCall.function.name,
-      toolCallId: toolCall.id,
-      args: JSON.parse(toolCall.function.arguments),
-    };
-  }
-
-  return null;
-}
-
-// Configure CLI options
-const options = {
-  approvalPolicy: AutoApprovalMode.SUGGEST,
-  config: {
-    notify: true,
-    tools: {
-      shell: {
-        maxBytes: 100000,
-        maxLines: 1000,
+      stop: () => {
+        state = "paused";
       },
-    },
-  },
-};
+      terminate: () => {
+        onUIMessage("Terminating agent. State reset.");
+        state = "idle";
+      },
+      initialize: async () => {
+        onUIMessage(
+          "What can I help you with? Provide as much information as possible. Use @ to attach files and images",
+        );
+      },
+      message: async (item) => {
+        if (state === "idle") {
+          const agentTaskPrompt = `You are a helpful assistant that can help with any task.`;
+          transcript.push({ role: "system", content: agentTaskPrompt }, item);
 
-// Launch the CLI with our custom workflow
-let instance = run(createCustomWorkflow, options);
+          startAgentLoop();
+          return;
+        }
+
+        if (state === "paused") {
+          transcript.push(item);
+          await startAgentLoop();
+        } else {
+          onUIMessage(
+            "Agent is already running. New input will be added to transcript.",
+          );
+          transcript.push(item);
+        }
+      },
+    };
+  },
+);
+
+run(workflow);

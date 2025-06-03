@@ -54,8 +54,7 @@ vi.mock("../src/utils/file-system-suggestions.js", () => ({
 vi.mock("../src/utils/input-utils.js", () => ({
   createInputItem: vi.fn(async (text: string) => ({
     role: "user",
-    type: "message",
-    content: [{ type: "input_text", text }],
+    content: text,
   })),
 }));
 
@@ -63,7 +62,7 @@ describe("TerminalChatInput file tag suggestions", () => {
   // Standard props for all tests
   const baseProps: ComponentProps<typeof TerminalChatInput> = {
     loading: false,
-    submitInput: () => {},
+    submitInput: vi.fn(),
     confirmationPrompt: null,
     explanation: undefined,
     submitConfirmation: () => {},
@@ -174,27 +173,18 @@ describe("TerminalChatInput file tag suggestions", () => {
       <TerminalChatInput {...baseProps} />,
     );
 
-    // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
 
-    // Press Enter to select first suggestion (file1.txt)
     await type(stdin, "\r", flush);
 
-    // Check that submitInput was called
     expect(baseProps.submitInput).toHaveBeenCalled();
 
-    // Get the arguments passed to submitInput
     const submitArgs = (baseProps.submitInput as any).mock.calls[0][0];
 
-    // Verify the first argument is an array with at least one item
-    expect(Array.isArray(submitArgs)).toBe(true);
-    expect(submitArgs.length).toBeGreaterThan(0);
-
-    // Check that the content includes the file path
-    const content = submitArgs[0].content;
-    expect(Array.isArray(content)).toBe(true);
-    expect(content.length).toBeGreaterThan(0);
-    expect(content[0].text).toContain("@file1.txt");
+    expect(submitArgs).toBeDefined();
+    expect(submitArgs.role).toBe("user");
+    expect(typeof submitArgs.content).toBe("string");
+    expect(submitArgs.content).toContain("@file1.txt");
 
     cleanup();
   });

@@ -15,6 +15,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render } from "ink-testing-library";
 import React from "react";
 import type { CoreMessage } from "ai";
+import type { UIMessage } from "../src/utils/ai";
 import HistoryOverlay from "../src/components/history-overlay";
 
 // ---------------------------------------------------------------------------
@@ -38,24 +39,23 @@ vi.mock("ink", async () => {
 // Test Helpers
 // ---------------------------------------------------------------------------
 
-function createUserMessage(content: string): CoreMessage {
+function createUserMessage(content: string): UIMessage {
   return {
     role: "user",
     content: content,
   };
 }
 
-function createFunctionCall(name: string, args: unknown): CoreMessage {
-  const toolCallId = `call_${Math.random().toString(36).slice(2)}`; // Generate unique ID
+function createFunctionCall(name: string, args: unknown): UIMessage {
+  const toolCallId = `call_${Math.random().toString(36).slice(2)}`;
   return {
     role: "assistant",
     content: [
-      // Content is an array
       {
-        type: "tool-call", // Correct type
-        toolCallId: toolCallId, // Assign generated ID
-        toolName: name, // Use 'name' parameter
-        args, // Use 'args' parameter as result
+        type: "tool-call",
+        toolCallId: toolCallId,
+        toolName: name,
+        args,
       },
     ],
   };
@@ -91,12 +91,12 @@ describe("HistoryOverlay", () => {
     });
 
     it("displays file operations", () => {
-      const items = [createFunctionCall("read_file", { path: "test.txt" })];
+      const items = [createFunctionCall("shell", { cmd: ["cat", "test.txt"] })];
       const { lastFrame } = render(
         <HistoryOverlay items={items} onExit={vi.fn()} />,
       );
       const frame = lastFrame();
-      expect(frame).toContain("read_file test.txt");
+      expect(frame).toContain("cat test.txt");
     });
 
     it("displays patch operations", () => {
@@ -191,13 +191,12 @@ describe("HistoryOverlay", () => {
 
     it("displays files from read operations", () => {
       const items = [
-        createFunctionCall("read_file", { path: "/path/to/file" }),
+        createFunctionCall("shell", { cmd: ["cat", "/path/to/file"] }),
       ];
       const { lastFrame } = render(
         <HistoryOverlay items={items} onExit={vi.fn()} />,
       );
 
-      // Switch to file mode
       keyboardHandler?.("f", {});
       const frame = lastFrame();
       expect(frame).toContain("Files touched");

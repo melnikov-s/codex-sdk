@@ -7,18 +7,16 @@ import {
 
 test("DEFAULT_UI_COMMANDS includes expected commands", () => {
   const commands = DEFAULT_UI_COMMANDS.map((c: SlashCommand) => c.command);
-  expect(commands).toContain("/clear");
   expect(commands).toContain("/history");
   expect(commands).toContain("/help");
   expect(commands).toContain("/approval");
   expect(commands).toContain("/clearhistory");
   expect(commands).toContain("/diff");
 
-  // These commands should NOT be in the default UI commands
-  expect(commands).not.toContain("/compact"); // Now a workflow command
-  expect(commands).not.toContain("/model"); // Removed
-  expect(commands).not.toContain("/bug"); // Removed
-  expect(commands).not.toContain("/mcp"); // Removed
+  expect(commands).not.toContain("/compact");
+  expect(commands).not.toContain("/model");
+  expect(commands).not.toContain("/bug");
+  expect(commands).not.toContain("/mcp");
 });
 
 test("getAllAvailableCommands combines UI and workflow commands", () => {
@@ -36,15 +34,11 @@ test("getAllAvailableCommands combines UI and workflow commands", () => {
   const allCommands = getAllAvailableCommands(workflowCommands);
   const commandNames = allCommands.map((c: SlashCommand) => c.command);
 
-  // Should include UI commands
-  expect(commandNames).toContain("/clear");
   expect(commandNames).toContain("/help");
 
-  // Should include workflow commands
   expect(commandNames).toContain("/compact");
   expect(commandNames).toContain("/custom");
 
-  // Check descriptions are set correctly
   const compactCommand = allCommands.find((c) => c.command === "/compact");
   const customCommand = allCommands.find((c) => c.command === "/custom");
 
@@ -53,7 +47,6 @@ test("getAllAvailableCommands combines UI and workflow commands", () => {
   );
   expect(customCommand?.description).toBe("A custom workflow command");
 
-  // Check sources are set correctly
   const uiCommands = allCommands.filter((c) => c.source === "ui");
   const workflowCmds = allCommands.filter((c) => c.source === "workflow");
 
@@ -75,9 +68,7 @@ test("filters commands by prefix", () => {
     c.command.startsWith(prefix),
   );
   const names = filtered.map((c: SlashCommand) => c.command);
-  expect(names).toEqual(
-    expect.arrayContaining(["/clear", "/clearhistory", "/compact"]),
-  );
+  expect(names).toEqual(expect.arrayContaining(["/clearhistory", "/compact"]));
   expect(names).not.toEqual(
     expect.arrayContaining(["/history", "/help", "/approval"]),
   );
