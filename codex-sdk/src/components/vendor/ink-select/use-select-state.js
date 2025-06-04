@@ -71,6 +71,7 @@ const reducer = (state, action) => {
         ...state,
         previousValue: state.value,
         value: state.focusedValue,
+        selectionCount: (state.selectionCount || 0) + 1,
       };
     }
     case "reset": {
@@ -112,8 +113,9 @@ const createDefaultState = ({
     focusedValue,
     visibleFromIndex,
     visibleToIndex,
-    previousValue: defaultValue,
+    previousValue: null,
     value: defaultValue,
+    selectionCount: 0,
   };
 };
 export const useSelectState = ({
@@ -128,12 +130,20 @@ export const useSelectState = ({
     createDefaultState,
   );
   const [lastOptions, setLastOptions] = useState(options);
-  if (options !== lastOptions && !isDeepStrictEqual(options, lastOptions)) {
+  const [lastDefaultValue, setLastDefaultValue] = useState(defaultValue);
+  const [lastSelectionCount, setLastSelectionCount] = useState(0);
+
+  if (
+    (options !== lastOptions && !isDeepStrictEqual(options, lastOptions)) ||
+    defaultValue !== lastDefaultValue
+  ) {
     dispatch({
       type: "reset",
       state: createDefaultState({ visibleOptionCount, defaultValue, options }),
     });
     setLastOptions(options);
+    setLastDefaultValue(defaultValue);
+    setLastSelectionCount(0);
   }
   const focusNextOption = useCallback(() => {
     dispatch({
@@ -159,10 +169,14 @@ export const useSelectState = ({
       .slice(state.visibleFromIndex, state.visibleToIndex);
   }, [options, state.visibleFromIndex, state.visibleToIndex]);
   useEffect(() => {
-    if (state.value && state.previousValue !== state.value) {
+    if (
+      state.value !== undefined &&
+      state.selectionCount !== lastSelectionCount
+    ) {
       onChange?.(state.value);
+      setLastSelectionCount(state.selectionCount);
     }
-  }, [state.previousValue, state.value, options, onChange]);
+  }, [state.value, state.selectionCount, lastSelectionCount, onChange]);
   return {
     focusedValue: state.focusedValue,
     visibleFromIndex: state.visibleFromIndex,
