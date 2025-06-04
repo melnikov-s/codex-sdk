@@ -88,12 +88,30 @@ const createDefaultState = ({
       ? Math.min(customVisibleOptionCount, options.length)
       : options.length;
   const optionMap = new OptionMap(options);
+  const defaultItem = defaultValue ? optionMap.get(defaultValue) : null;
+  const focusedValue = defaultItem ? defaultValue : optionMap.first?.value;
+
+  let visibleFromIndex = 0;
+  let visibleToIndex = visibleOptionCount;
+
+  if (defaultItem && defaultItem.index >= visibleOptionCount) {
+    visibleFromIndex = Math.max(
+      0,
+      defaultItem.index - Math.floor(visibleOptionCount / 2),
+    );
+    visibleToIndex = Math.min(
+      options.length,
+      visibleFromIndex + visibleOptionCount,
+    );
+    visibleFromIndex = visibleToIndex - visibleOptionCount;
+  }
+
   return {
     optionMap,
     visibleOptionCount,
-    focusedValue: optionMap.first?.value,
-    visibleFromIndex: 0,
-    visibleToIndex: visibleOptionCount,
+    focusedValue,
+    visibleFromIndex,
+    visibleToIndex,
     previousValue: defaultValue,
     value: defaultValue,
   };
