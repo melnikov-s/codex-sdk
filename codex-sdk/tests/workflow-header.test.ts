@@ -5,7 +5,7 @@ test("Workflow interface includes optional header property", () => {
   // Test that header is optional and accepts string values
   const workflowWithHeader: Partial<Workflow> = {
     header: "Custom Workflow Header",
-    run: async () => [],
+    message: () => {},
     stop: () => {},
     terminate: () => {},
   };
@@ -17,7 +17,7 @@ test("Workflow interface includes optional header property", () => {
 test("Workflow can exist without header property", () => {
   // Test that header is truly optional
   const workflowWithoutHeader: Partial<Workflow> = {
-    run: async () => [],
+    message: () => {},
     stop: () => {},
     terminate: () => {},
   };

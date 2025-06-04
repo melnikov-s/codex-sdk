@@ -2,7 +2,6 @@ import { ReviewDecision } from "../../utils/agent/review";
 // TODO: figure out why `cli-spinners` fails on Node v20.9.0
 // which is why we have to do this in the first place
 //
-// @ts-expect-error select.js is JavaScript and has no types
 import { Select } from "../vendor/ink-select/select";
 import TextInput from "../vendor/ink-text-input";
 import { Box, Text, useInput } from "ink";
@@ -212,6 +211,8 @@ export function TerminalChatCommandReview({
               <Select
                 isDisabled={!isActive}
                 visibleOptionCount={approvalOptions.length}
+                highlightText=""
+                defaultValue={approvalOptions[0]?.value}
                 onChange={(value: ReviewDecision | "edit" | "switch") => {
                   if (value === "edit") {
                     setMode("input");

@@ -1,6 +1,5 @@
 import type { SelectItem, SelectOptions } from "../../workflow";
 
-// @ts-expect-error select.js is JavaScript and has no types
 import { Select } from "../vendor/ink-select/select";
 import { Box, Text, useInput } from "ink";
 import React from "react";
@@ -68,7 +67,8 @@ export function TerminalChatSelect({
         <Select
           isDisabled={!isActive}
           visibleOptionCount={Math.min(selectOptions.length, 10)}
-          initialIndex={defaultIndex}
+          highlightText=""
+          defaultValue={selectOptions[defaultIndex]?.value}
           onChange={(value: string) => {
             onSelect(value);
           }}
