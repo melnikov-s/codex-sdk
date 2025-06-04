@@ -3,10 +3,7 @@ import type { FileOperation } from "../utils/singlepass/file_ops";
 
 import Spinner from "./vendor/ink-spinner"; // Third‑party / vendor components
 import TextInput from "./vendor/ink-text-input";
-import {
-  OPENAI_ORGANIZATION,
-  OPENAI_PROJECT,
-} from "../utils/config";
+import { OPENAI_ORGANIZATION, OPENAI_PROJECT } from "../utils/config";
 import {
   generateDiffSummary,
   generateEditSummary,

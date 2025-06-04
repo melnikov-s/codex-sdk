@@ -2,7 +2,7 @@ import type { Model } from "./providers";
 import type { CoreMessage } from "ai";
 
 import { getLanguageModel } from "./providers";
-import { generateText } from 'ai';
+import { generateText } from "ai";
 
 /**
  * Generate a condensed summary of the conversation items.
@@ -21,9 +21,7 @@ export async function generateCompactSummary(
 
   const conversationText = items
     .filter(
-      (
-        item,
-      ): item is CoreMessage & { content: Array<unknown>; role: string } =>
+      (item): item is CoreMessage & { content: Array<unknown>; role: string } =>
         (item.role === "user" || item.role === "assistant") &&
         Array.isArray(item.content),
     )

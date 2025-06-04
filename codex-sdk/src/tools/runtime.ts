@@ -27,7 +27,7 @@ export async function execToolCall(
     command: Array<string>,
     applyPatch: ApplyPatchCommand | undefined,
   ) => Promise<CommandConfirmation>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Array<CoreMessage>> {
   // If the processing has been aborted, don't execute the tool
   if (signal?.aborted || toolCall == null) {
@@ -41,7 +41,7 @@ export async function execToolCall(
   log(
     `execToolCall(): name=${
       name ?? "undefined"
-    } callId=${callId} args=${JSON.stringify(args)}`
+    } callId=${callId} args=${JSON.stringify(args)}`,
   );
 
   if (args == null) {
@@ -76,7 +76,7 @@ export async function execToolCall(
       approvalPolicy,
       additionalWritableRoots,
       getCommandConfirmation,
-      signal
+      signal,
     );
 
     result = JSON.stringify({ output: outputText, metadata });

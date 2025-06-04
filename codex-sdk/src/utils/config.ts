@@ -582,8 +582,7 @@ export const saveConfig = (
   }
 
   // Take everything before the first PROJECT_DOC_SEPARATOR (or the whole string if none).
-  const [userInstructions = ""] = config.instructions?.split(
-    PROJECT_DOC_SEPARATOR,
-  ) ?? [];
+  const [userInstructions = ""] =
+    config.instructions?.split(PROJECT_DOC_SEPARATOR) ?? [];
   writeFileSync(instructionsPath, userInstructions, "utf-8");
 };

@@ -16,7 +16,6 @@ export default function ModelOverlay({
   onSelect,
   onExit,
 }: Props): JSX.Element {
-
   return (
     <TypeaheadOverlay
       title="Select model"
@@ -28,13 +27,12 @@ export default function ModelOverlay({
           <Text dimColor>press tab to switch to provider selection</Text>
         </Box>
       }
-      initialItems={getAvailableModels().map((model) => ({ label: model, value: model }))}
+      initialItems={getAvailableModels().map((model) => ({
+        label: model,
+        value: model,
+      }))}
       currentValue={currentModel}
-      onSelect={(selectedModel) =>
-        onSelect(
-          selectedModel as Model,
-        )
-      }
+      onSelect={(selectedModel) => onSelect(selectedModel as Model)}
       onExit={onExit}
     />
   );

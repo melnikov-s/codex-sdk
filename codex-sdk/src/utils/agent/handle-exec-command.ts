@@ -1,4 +1,4 @@
-import type { CommandConfirmation} from "./review.js";
+import type { CommandConfirmation } from "./review.js";
 import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
 import type { ExecInput } from "./sandbox/interface.js";
 

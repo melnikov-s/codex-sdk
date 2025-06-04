@@ -1,7 +1,7 @@
 import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
 import type { CoreMessage } from "ai";
- 
+
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
 import { getId } from "../../utils/ai.js";
@@ -52,22 +52,10 @@ const MessageHistory: React.FC<MessageHistoryProps> = ({
             <Box
               key={`${getId(message)}-${index}`}
               flexDirection="column"
-              borderStyle={
-                message.role === "user"
-                  ? "round"
-                  : undefined
-              }
-              borderColor={
-                message.role === "user"
-                  ? "gray"
-                  : undefined
-              }
-              marginLeft={
-                message.role === "user" ? 0 : 4
-              }
-              marginTop={
-                message.role === "user" ? 0 : 1
-              }
+              borderStyle={message.role === "user" ? "round" : undefined}
+              borderColor={message.role === "user" ? "gray" : undefined}
+              marginLeft={message.role === "user" ? 0 : 4}
+              marginTop={message.role === "user" ? 0 : 1}
             >
               <TerminalChatResponseItem item={message} />
             </Box>
