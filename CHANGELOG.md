@@ -1,6 +1,6 @@
 # Changelog
 
-You can install any of these versions: `npm install -g codex@version`
+You can install any of these versions: `npm install -g codex-sdk@version`
 
 ## `0.1.2504301751`
 
