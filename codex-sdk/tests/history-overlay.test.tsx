@@ -14,7 +14,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render } from "ink-testing-library";
 import React from "react";
-import type { CoreMessage } from "ai";
 import type { UIMessage } from "../src/utils/ai";
 import HistoryOverlay from "../src/components/history-overlay";
 

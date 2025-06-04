@@ -31,7 +31,7 @@ importers:
         specifier: ^3.5.3
         version: 3.5.3
 
-  codex-cli:
+  codex-sdk:
     dependencies:
       '@ai-sdk/anthropic':
         specifier: ^1.2.11

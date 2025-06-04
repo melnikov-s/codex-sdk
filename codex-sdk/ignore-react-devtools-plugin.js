@@ -13,4 +13,5 @@ const ignoreReactDevToolsPlugin = {
   },
 };
 
+// eslint-disable-next-line no-undef
 module.exports = ignoreReactDevToolsPlugin;

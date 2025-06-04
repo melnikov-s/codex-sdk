@@ -45,7 +45,7 @@ jobs:
       # Run all tasks using workspace filters
 
       - name: Check TypeScript code formatting
-        working-directory: codex-cli
+        working-directory: codex-sdk
         run: pnpm run format
 
       - name: Check Markdown and config file formatting
@@ -56,7 +56,7 @@ jobs:
 
       - name: Lint
         run: |
-          pnpm --filter @openai/codex exec -- eslint src tests --ext ts --ext tsx \
+          pnpm --filter codex-sdk exec -- eslint src tests --ext ts --ext tsx \
             --report-unused-disable-directives \
             --rule "no-console:error" \
             --rule "no-debugger:error" \
@@ -69,7 +69,7 @@ jobs:
         run: pnpm run build
 
       - name: Ensure staging a release works.
-        working-directory: codex-cli
+        working-directory: codex-sdk
         env:
           GH_TOKEN: ${{ github.token }}
         run: pnpm stage-release

@@ -1,6 +1,6 @@
 import { run, createAgentWorkflow } from "../dist/lib.js";
-import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
 
 const workflow = createAgentWorkflow(
   ({ onMessage, setLoading, handleToolCall, tools, onUIMessage }) => {

@@ -1,5 +1,5 @@
 packages:
-  - codex-cli
+  - codex-sdk
   - docs
   - packages/*
 ignoredBuiltDependencies:
