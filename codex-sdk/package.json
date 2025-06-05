@@ -1,12 +1,15 @@
 {
   "name": "codex-sdk",
-  "version": "0.1.47",
+  "version": "0.1.48",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/lib.js",
   "module": "./dist/lib.js",
   "exports": {
-    ".": "./dist/lib.js"
+    ".": {
+      "types": "./dist/src/lib.d.ts",
+      "default": "./dist/lib.js"
+    }
   },
   "types": "./dist/src/lib.d.ts",
   "engines": {
