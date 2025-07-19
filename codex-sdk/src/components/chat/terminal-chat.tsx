@@ -8,8 +8,8 @@ import type {
   WorkflowHooks,
   SelectItem,
   SelectOptions,
+  WorkflowState,
 } from "../../workflow";
-import type { CoreMessage } from "ai";
 import type { ColorName } from "chalk";
 
 import TerminalChatInput from "./terminal-chat-input.js";
@@ -27,7 +27,6 @@ import { getGitDiff } from "../../utils/get-diff.js";
 import { log } from "../../utils/logger/log.js";
 import { CLI_VERSION } from "../../utils/session.js";
 import { shortCwd } from "../../utils/short-path.js";
-import { saveRollout } from "../../utils/storage/save-rollout.js";
 import { defaultWorkflow } from "../../workflow/default-agent.js";
 import ApprovalModeOverlay from "../approval-mode-overlay.js";
 import DiffOverlay from "../diff-overlay.js";
@@ -38,7 +37,7 @@ import PromptOverlay from "../prompt-overlay.js";
 import { tool } from "ai";
 import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { inspect } from "util";
 import { z } from "zod";
 
@@ -82,6 +81,40 @@ export default function TerminalChat({
   );
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const [items, setItems] = useState<Array<UIMessage>>([]);
+
+  // New workflow state management
+  const [workflowState, setWorkflowState] = useState<WorkflowState>({
+    loading: false,
+    messages: [],
+    inputDisabled: false,
+  });
+
+  // Smart setState that merges at top level only
+  const smartSetState = useCallback(
+    (
+      updater:
+        | Partial<WorkflowState>
+        | ((prev: WorkflowState) => WorkflowState),
+    ) => {
+      setWorkflowState((prev) => {
+        if (typeof updater === "function") {
+          // Function form - return as-is
+          return updater(prev);
+        }
+
+        // Object form - merge at top level only (arrays/objects are replaced)
+        return { ...prev, ...updater };
+      });
+    },
+    [],
+  );
+
+  // Sync workflowState to individual state pieces for backward compatibility
+  useEffect(() => {
+    setLoading(workflowState.loading);
+    setItems(workflowState.messages);
+    setInputDisabled(workflowState.inputDisabled);
+  }, [workflowState]);
 
   const {
     requestConfirmation,
@@ -140,44 +173,47 @@ export default function TerminalChat({
   // MCP functionality removed - now handled by consumer's workflow
 
   // Command confirmation handler for the workflow
-  const getCommandConfirmation = async (
-    command: Array<string>,
-    applyPatch: ApplyPatchCommand | undefined,
-  ): Promise<CommandConfirmation> => {
-    log(`getCommandConfirmation: ${command}`);
-    const commandForDisplay = formatCommandForDisplay(command);
+  const getCommandConfirmation = useCallback(
+    async (
+      command: Array<string>,
+      applyPatch: ApplyPatchCommand | undefined,
+    ): Promise<CommandConfirmation> => {
+      log(`getCommandConfirmation: ${command}`);
+      const commandForDisplay = formatCommandForDisplay(command);
 
-    // First request for confirmation
-    let { decision: review, customDenyMessage } = await requestConfirmation(
-      <TerminalChatToolCallCommand commandForDisplay={commandForDisplay} />,
-    );
-
-    // If the user wants an explanation, inform them this needs to be handled by the consumer's workflow
-    if (review === ReviewDecision.EXPLAIN) {
-      log(`Command explanation requested for: ${commandForDisplay}`);
-      // Simple fallback explanation since consumers should implement their own explanation
-      const explanation =
-        "Command explanation is now handled by the consumer's workflow implementation.";
-      log(`Using fallback explanation: ${explanation}`);
-
-      // Ask for confirmation again with basic information
-      const confirmResult = await requestConfirmation(
-        <TerminalChatToolCallCommand
-          commandForDisplay={commandForDisplay}
-          explanation={explanation}
-        />,
+      // First request for confirmation
+      let { decision: review, customDenyMessage } = await requestConfirmation(
+        <TerminalChatToolCallCommand commandForDisplay={commandForDisplay} />,
       );
 
-      // Update the decision based on the second confirmation.
-      review = confirmResult.decision;
-      customDenyMessage = confirmResult.customDenyMessage;
+      // If the user wants an explanation, inform them this needs to be handled by the consumer's workflow
+      if (review === ReviewDecision.EXPLAIN) {
+        log(`Command explanation requested for: ${commandForDisplay}`);
+        // Simple fallback explanation since consumers should implement their own explanation
+        const explanation =
+          "Command explanation is now handled by the consumer's workflow implementation.";
+        log(`Using fallback explanation: ${explanation}`);
 
-      // Return the final decision with the explanation.
-      return { review, customDenyMessage, applyPatch, explanation };
-    }
+        // Ask for confirmation again with basic information
+        const confirmResult = await requestConfirmation(
+          <TerminalChatToolCallCommand
+            commandForDisplay={commandForDisplay}
+            explanation={explanation}
+          />,
+        );
 
-    return { review, customDenyMessage, applyPatch };
-  };
+        // Update the decision based on the second confirmation.
+        review = confirmResult.decision;
+        customDenyMessage = confirmResult.customDenyMessage;
+
+        // Return the final decision with the explanation.
+        return { review, customDenyMessage, applyPatch, explanation };
+      }
+
+      return { review, customDenyMessage, applyPatch };
+    },
+    [requestConfirmation],
+  );
 
   useEffect(() => {
     // Skip recreating the workflow if awaiting a decision on a pending confirmation.
@@ -215,8 +251,6 @@ export default function TerminalChat({
       parameters: ShellToolParametersSchema,
     });
 
-    const sessionId = crypto.randomUUID();
-
     // Create the workflow hooks
     const workflowHooks: WorkflowHooks = {
       tools: {
@@ -226,22 +260,15 @@ export default function TerminalChat({
       logger: (message) => {
         log(message);
       },
-      onMessage: (item) => {
-        log(`onMessage: ${JSON.stringify(item)}`);
-        setItems((prev) => {
-          const updated = [...prev, item];
-          saveRollout(sessionId, updated as Array<CoreMessage>);
-          return updated;
-        });
+      setState: smartSetState,
+      getState: () => workflowState,
+      appendMessage: (message: UIMessage | Array<UIMessage>) => {
+        const messages = Array.isArray(message) ? message : [message];
+        smartSetState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, ...messages],
+        }));
       },
-      onUIMessage: (feedback) => {
-        log(`onUIMessage: ${feedback}`);
-        setItems((prev) => {
-          const updated = [...prev, { role: "ui", content: feedback } as const];
-          return updated;
-        });
-      },
-      setLoading,
       onError: (error) => {
         log(`Workflow error: ${(error as Error).message}`);
         // Error is already handled in the workflow's run method
@@ -255,14 +282,17 @@ export default function TerminalChat({
           ];
 
           // First show the message as a system message
-          setItems((prev) => [
+          smartSetState((prev) => ({
             ...prev,
-            {
-              id: `confirm-prompt-${Date.now()}`,
-              role: "system",
-              content: msg,
-            },
-          ]);
+            messages: [
+              ...prev.messages,
+              {
+                id: `confirm-prompt-${Date.now()}`,
+                role: "system",
+                content: msg,
+              } as UIMessage,
+            ],
+          }));
 
           // Then show the selection dialog
           setSelectionState({
@@ -294,9 +324,6 @@ export default function TerminalChat({
           setSelectionState({ items, options, resolve, reject });
           setOverlayMode("selection");
         });
-      },
-      setInputDisabled: (disabled: boolean) => {
-        setInputDisabled(disabled);
       },
       handleToolCall: async (message, { abortSignal } = {}) => {
         // Extract the tool call from the message
@@ -341,10 +368,18 @@ export default function TerminalChat({
       workflowRef.current = null;
       forceUpdate(); // re‑render after teardown too
     };
-    // We intentionally omit 'approvalPolicy' and 'confirmationPrompt' from the deps
-    // so switching modes or showing confirmation dialogs doesn't tear down the loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uiConfig, requestConfirmation, additionalWritableRoots]);
+  }, [
+    approvalPolicy,
+    notify,
+    requestConfirmation,
+    uiConfig,
+    workflowFactory,
+    additionalWritableRoots,
+    smartSetState,
+    workflowState,
+    confirmationPrompt,
+    getCommandConfirmation,
+  ]);
 
   // Whenever loading starts/stops, reset or start a timer — but pause the
   // timer while a confirmation overlay is displayed so we don't trigger a
@@ -478,7 +513,16 @@ export default function TerminalChat({
         {overlayMode === "none" && workflow && (
           <TerminalChatInput
             loading={loading}
-            setItems={setItems}
+            setItems={(updater) => {
+              // Bridge setItems to smartSetState
+              smartSetState((prev) => ({
+                ...prev,
+                messages:
+                  typeof updater === "function"
+                    ? updater(prev.messages)
+                    : updater,
+              }));
+            }}
             confirmationPrompt={confirmationPrompt}
             explanation={explanation}
             submitConfirmation={(
@@ -502,15 +546,18 @@ export default function TerminalChat({
               } else {
                 text = "`/diff` — _not inside a git repository_";
               }
-              setItems((prev) => [
+              smartSetState((prev) => ({
                 ...prev,
-                {
-                  id: `diff-${Date.now()}`,
-                  type: "message",
-                  role: "system",
-                  content: text,
-                },
-              ]);
+                messages: [
+                  ...prev.messages,
+                  {
+                    id: `diff-${Date.now()}`,
+                    type: "message",
+                    role: "system",
+                    content: text,
+                  } as UIMessage,
+                ],
+              }));
               // Ensure no overlay is shown.
               setOverlayMode("none");
             }}
@@ -525,21 +572,27 @@ export default function TerminalChat({
                 "TerminalChat: interruptAgent invoked – calling workflow.stop()",
               );
               workflow.stop();
-              setLoading(false);
+              smartSetState({ loading: false });
 
               // Add a system message to indicate the interruption
-              setItems((prev) => [
+              smartSetState((prev) => ({
                 ...prev,
-                {
-                  id: `interrupt-${Date.now()}`,
-                  role: "system",
-                  content:
-                    "⏹️  Execution interrupted by user. You can continue typing.",
-                },
-              ]);
+                messages: [
+                  ...prev.messages,
+                  {
+                    id: `interrupt-${Date.now()}`,
+                    role: "system",
+                    content:
+                      "⏹️  Execution interrupted by user. You can continue typing.",
+                  } as UIMessage,
+                ],
+              }));
             }}
             submitInput={(input) => {
-              setItems((prev) => [...prev, input]);
+              smartSetState((prev) => ({
+                ...prev,
+                messages: [...prev.messages, input],
+              }));
               if (workflow != null) {
                 workflow.message(input);
               }
@@ -556,22 +609,21 @@ export default function TerminalChat({
           <ApprovalModeOverlay
             currentMode={approvalPolicy}
             onSelect={(newMode) => {
-              // Update approval policy without cancelling an in-progress session.
-              if (newMode === approvalPolicy) {
-                return;
-              }
-
               setApprovalPolicy(newMode as ApprovalPolicy);
+
               // We can't dynamically update the approval policy with the new workflow architecture
               // We'll recreate the workflow with the new approval policy when needed
-              setItems((prev) => [
+              smartSetState((prev) => ({
                 ...prev,
-                {
-                  id: `switch-approval-${Date.now()}`,
-                  role: "system",
-                  content: `Switched approval mode to ${newMode}`,
-                },
-              ]);
+                messages: [
+                  ...prev.messages,
+                  {
+                    id: `switch-approval-${Date.now()}`,
+                    role: "system",
+                    content: `Switched approval mode to ${newMode}`,
+                  } as UIMessage,
+                ],
+              }));
 
               setOverlayMode("none");
             }}

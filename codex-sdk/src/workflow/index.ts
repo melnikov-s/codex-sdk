@@ -1,3 +1,4 @@
+import type { UIMessage } from "../utils/ai";
 import type { CoreMessage, ToolSet } from "ai";
 
 export interface SelectItem {
@@ -9,6 +10,12 @@ export interface SelectOptions {
   required?: boolean;
   default?: string;
   label?: string;
+}
+
+export interface WorkflowState {
+  loading: boolean;
+  messages: Array<UIMessage>;
+  inputDisabled: boolean;
 }
 
 export interface Workflow {
@@ -70,6 +77,26 @@ export interface WorkflowHooks {
   tools: ToolSet;
 
   /**
+   * Set the workflow state declaratively
+   * @param state Partial state object or updater function
+   */
+  setState: (
+    state: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
+  ) => void;
+
+  /**
+   * Get the current workflow state
+   * @returns The current workflow state
+   */
+  getState: () => WorkflowState;
+
+  /**
+   * Append message(s) to the current messages array
+   * @param message Single message or array of messages to append
+   */
+  appendMessage: (message: UIMessage | Array<UIMessage>) => void;
+
+  /**
    * Send a confirmation prompt to the user
    * @param msg The confirmation message
    * @returns Whether the user confirmed or not
@@ -82,24 +109,6 @@ export interface WorkflowHooks {
    * @returns The user's response as a string
    */
   onPromptUser: (msg: string) => Promise<string>;
-
-  /**
-   * Set the loading state
-   * @param isLoading Whether the workflow is loading
-   */
-  setLoading: (isLoading: boolean) => void;
-
-  /**
-   * Handle new messages from the workflow (e.g. user, assistant, tool)
-   * @param message The new message
-   */
-  onMessage: (message: CoreMessage) => void;
-
-  /**
-   * Handle UI messages (e.g. logs, status, non-CoreMessage messages)
-   * @param message The UI message string
-   */
-  onUIMessage: (message: string) => void;
 
   /**
    * Handler for tool calls
@@ -134,12 +143,6 @@ export interface WorkflowHooks {
     items: Array<SelectItem>,
     options?: SelectOptions,
   ) => Promise<string>;
-
-  /**
-   * Enable or disable the input box
-   * @param disabled Whether the input should be disabled
-   */
-  setInputDisabled: (disabled: boolean) => void;
 }
 
 export type WorkflowFactory = (hooks: WorkflowHooks) => Workflow;

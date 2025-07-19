@@ -246,7 +246,7 @@ export default function TerminalChatInput({
             return;
           }
 
-          if (_key.tab && selectedCompletion >= 0) {
+          if (_key.tab) {
             const { text: newText, wasReplaced } =
               getFileSystemSuggestion(input);
 
@@ -254,8 +254,11 @@ export default function TerminalChatInput({
             if (wasReplaced) {
               applyFsSuggestion(newText);
               clearSuggestions();
+              return;
+            } else if (selectedCompletion >= 0) {
+              // If we have suggestions but completion didn't work, still consume the tab
+              return;
             }
-            return;
           }
         }
 

@@ -3,12 +3,21 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const workflow = createAgentWorkflow(
-  ({ onMessage, setLoading, handleToolCall, tools, onUIMessage }) => {
+  ({
+    setState,
+    _getState,
+    appendMessage,
+    handleToolCall,
+    tools,
+    _onConfirm,
+    _onPromptUser,
+    _onSelect,
+  }) => {
     const transcript = [];
     let state = "idle";
 
     async function startAgentLoop() {
-      setLoading(true);
+      setState({ loading: true });
       state = "running";
 
       while (state === "running") {
@@ -25,14 +34,13 @@ const workflow = createAgentWorkflow(
 
           if (aiMessage) {
             transcript.push(aiMessage);
-            onMessage(aiMessage);
+            appendMessage(aiMessage);
 
             toolCallResponseForThisTurn = await handleToolCall(aiMessage);
 
             if (toolCallResponseForThisTurn) {
               transcript.push(toolCallResponseForThisTurn);
-              onMessage(toolCallResponseForThisTurn);
-              // currentTurn++; // Removed per user request
+              appendMessage(toolCallResponseForThisTurn);
             } else if (response.finishReason === "stop") {
               state = "paused";
             }
@@ -40,50 +48,66 @@ const workflow = createAgentWorkflow(
             state = "paused";
           }
         } catch (error) {
-          onUIMessage("Error during agent processing turn.");
+          appendMessage({
+            role: "ui",
+            content: "Error during agent processing turn.",
+          });
           if (error && typeof error.message === "string") {
-            onUIMessage(error.message);
+            appendMessage({
+              role: "ui",
+              content: error.message,
+            });
           } else {
-            onUIMessage("An unknown error occurred.");
+            appendMessage({
+              role: "ui",
+              content: "An unknown error occurred.",
+            });
           }
           state = "paused";
         }
       }
 
-      setLoading(false);
+      setState({ loading: false });
     }
 
     return {
+      initialize: async () => {
+        setState({
+          messages: [
+            {
+              role: "ui",
+              content: "🤖 Agent ready. Type something to start.",
+            },
+          ],
+        });
+      },
+      message: async (userInput) => {
+        transcript.push(userInput);
+        if (state === "idle" || state === "paused") {
+          startAgentLoop();
+        } else {
+          // Agent is already running, input is added to transcript for next turn
+          appendMessage({
+            role: "ui",
+            content: "Input added to ongoing conversation.",
+          });
+        }
+      },
       stop: () => {
         state = "paused";
+        setState({ loading: false });
+        appendMessage({
+          role: "ui",
+          content: "Agent paused.",
+        });
       },
       terminate: () => {
-        onUIMessage("Terminating agent. State reset.");
         state = "idle";
-      },
-      initialize: async () => {
-        onUIMessage(
-          "What can I help you with? Provide as much information as possible. Use @ to attach files and images",
-        );
-      },
-      message: async (item) => {
-        if (state === "idle") {
-          const agentTaskPrompt = `You are a helpful assistant that can help with any task.`;
-          transcript.push({ role: "system", content: agentTaskPrompt }, item);
-
-          startAgentLoop();
-          return;
-        }
-
-        if (state === "paused") {
-          transcript.push(item);
-          await startAgentLoop();
-        } else {
-          onUIMessage(
-            "Agent is already running. New input will be added to transcript.",
-          );
-          transcript.push(item);
-        }
+        transcript.length = 0; // Clear transcript
+        setState({
+          loading: false,
+          messages: [],
+        });
       },
     };
   },

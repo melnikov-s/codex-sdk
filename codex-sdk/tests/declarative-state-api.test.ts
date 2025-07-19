@@ -1,0 +1,458 @@
+import type { WorkflowHooks, WorkflowState } from "../src/workflow/index.js";
+
+import { createAgentWorkflow } from "../src/workflow/index.js";
+import { describe, expect, it, vi } from "vitest";
+
+describe("Declarative State API", () => {
+  describe("setState behavior", () => {
+    it("should merge partial state updates", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [],
+        inputDisabled: false,
+      };
+
+      const mockSetState = (
+        updater:
+          | Partial<WorkflowState>
+          | ((prev: WorkflowState) => WorkflowState),
+      ) => {
+        if (typeof updater === "function") {
+          currentState = updater(currentState);
+        } else {
+          // Simulate the merge behavior - top level only
+          currentState = { ...currentState, ...updater };
+        }
+      };
+
+      // Test partial update
+      mockSetState({ loading: true });
+      expect(currentState).toEqual({
+        loading: true,
+        messages: [],
+        inputDisabled: false,
+      });
+
+      // Test another partial update
+      mockSetState({ inputDisabled: true });
+      expect(currentState).toEqual({
+        loading: true,
+        messages: [],
+        inputDisabled: true,
+      });
+
+      // Test updating back to false
+      mockSetState({ loading: false });
+      expect(currentState).toEqual({
+        loading: false,
+        messages: [],
+        inputDisabled: true,
+      });
+    });
+
+    it("should handle function form of setState", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [{ role: "user", content: "Hello" }],
+        inputDisabled: false,
+      };
+
+      const mockSetState = (
+        updater:
+          | Partial<WorkflowState>
+          | ((prev: WorkflowState) => WorkflowState),
+      ) => {
+        if (typeof updater === "function") {
+          currentState = updater(currentState);
+        } else {
+          currentState = { ...currentState, ...updater };
+        }
+      };
+
+      // Test function form
+      mockSetState((prev) => ({
+        ...prev,
+        loading: true,
+        messages: [...prev.messages, { role: "assistant", content: "Hi!" }],
+      }));
+
+      expect(currentState).toEqual({
+        loading: true,
+        messages: [
+          { role: "user", content: "Hello" },
+          { role: "assistant", content: "Hi!" },
+        ],
+        inputDisabled: false,
+      });
+    });
+
+    it("should replace messages array when using object form", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [{ role: "user", content: "First message" }],
+        inputDisabled: false,
+      };
+
+      // Simulate the setState behavior from terminal-chat.tsx
+      const setState = (
+        updater:
+          | Partial<WorkflowState>
+          | ((prev: WorkflowState) => WorkflowState),
+      ) => {
+        if (typeof updater === "function") {
+          currentState = updater(currentState);
+        } else {
+          // Object form - merge at top level only
+          currentState = { ...currentState, ...updater };
+        }
+      };
+
+      // Test message replacement
+      setState({
+        messages: [{ role: "assistant", content: "New message" }],
+      });
+
+      // Should REPLACE, not append
+      expect(currentState.messages).toHaveLength(1);
+      expect(currentState.messages[0]).toEqual({
+        role: "assistant",
+        content: "New message",
+      });
+
+      // Test replacing with empty array
+      setState({
+        messages: [],
+      });
+
+      expect(currentState.messages).toHaveLength(0);
+
+      // Test replacing with multiple messages
+      setState({
+        messages: [
+          { role: "ui", content: "Message 1" },
+          { role: "ui", content: "Message 2" },
+        ],
+      });
+
+      expect(currentState.messages).toHaveLength(2);
+      expect(currentState.messages[0]).toEqual({
+        role: "ui",
+        content: "Message 1",
+      });
+      expect(currentState.messages[1]).toEqual({
+        role: "ui",
+        content: "Message 2",
+      });
+    });
+  });
+
+  describe("appendMessage behavior", () => {
+    it("should append a single message", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [{ role: "user", content: "Hello" }],
+        inputDisabled: false,
+      };
+
+      const mockAppendMessage = (message: any) => {
+        const messages = Array.isArray(message) ? message : [message];
+        currentState = {
+          ...currentState,
+          messages: [...currentState.messages, ...messages],
+        };
+      };
+
+      mockAppendMessage({ role: "assistant", content: "Hi there!" });
+
+      expect(currentState.messages).toHaveLength(2);
+      expect(currentState.messages[1]).toEqual({
+        role: "assistant",
+        content: "Hi there!",
+      });
+    });
+
+    it("should append multiple messages", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [{ role: "user", content: "Hello" }],
+        inputDisabled: false,
+      };
+
+      const mockAppendMessage = (message: any) => {
+        const messages = Array.isArray(message) ? message : [message];
+        currentState = {
+          ...currentState,
+          messages: [...currentState.messages, ...messages],
+        };
+      };
+
+      const newMessages = [
+        { role: "assistant", content: "Message 1" },
+        { role: "assistant", content: "Message 2" },
+      ];
+
+      mockAppendMessage(newMessages);
+
+      expect(currentState.messages).toHaveLength(3);
+      expect(currentState.messages[1]).toEqual({
+        role: "assistant",
+        content: "Message 1",
+      });
+      expect(currentState.messages[2]).toEqual({
+        role: "assistant",
+        content: "Message 2",
+      });
+    });
+
+    it("should preserve other state properties when appending messages", () => {
+      let currentState: WorkflowState = {
+        loading: true,
+        messages: [],
+        inputDisabled: true,
+      };
+
+      const mockAppendMessage = (message: any) => {
+        const messages = Array.isArray(message) ? message : [message];
+        currentState = {
+          ...currentState,
+          messages: [...currentState.messages, ...messages],
+        };
+      };
+
+      mockAppendMessage({ role: "ui", content: "Test message" });
+
+      expect(currentState).toEqual({
+        loading: true,
+        messages: [{ role: "ui", content: "Test message" }],
+        inputDisabled: true,
+      });
+    });
+  });
+
+  describe("Workflow integration", () => {
+    it("should provide setState and getState to workflows", () => {
+      const mockHooks: WorkflowHooks = {
+        setState: vi.fn(),
+        getState: vi.fn(() => ({
+          loading: false,
+          messages: [],
+          inputDisabled: false,
+        })),
+        appendMessage: vi.fn(),
+        tools: {},
+        handleToolCall: vi.fn(),
+        onConfirm: vi.fn(),
+        onPromptUser: vi.fn(),
+        onSelect: vi.fn(),
+        logger: vi.fn(),
+      };
+
+      const workflow = createAgentWorkflow((hooks) => {
+        // Verify hooks are provided
+        expect(hooks.setState).toBeDefined();
+        expect(hooks.getState).toBeDefined();
+
+        return {
+          initialize: () => {
+            hooks.setState({ loading: true });
+            const state = hooks.getState();
+            expect(state).toBeDefined();
+          },
+          message: () => {},
+          stop: () => {},
+          terminate: () => {},
+        };
+      });
+
+      const instance = workflow(mockHooks);
+      instance.initialize?.();
+
+      expect(mockHooks.setState).toHaveBeenCalledWith({ loading: true });
+      expect(mockHooks.getState).toHaveBeenCalled();
+    });
+
+    it("should handle complex workflow state updates", () => {
+      let workflowState: WorkflowState = {
+        loading: false,
+        messages: [],
+        inputDisabled: false,
+      };
+
+      const mockHooks: WorkflowHooks = {
+        setState: vi.fn((updater) => {
+          if (typeof updater === "function") {
+            workflowState = updater(workflowState);
+          } else {
+            // Merge at top level only
+            workflowState = { ...workflowState, ...updater };
+          }
+        }),
+        getState: vi.fn(() => workflowState),
+        appendMessage: vi.fn(),
+        tools: {},
+        handleToolCall: vi.fn(),
+        onConfirm: vi.fn(),
+        onPromptUser: vi.fn(),
+        onSelect: vi.fn(),
+        logger: vi.fn(),
+      };
+
+      const workflow = createAgentWorkflow((hooks) => {
+        return {
+          initialize: () => {
+            // Add initial UI message
+            hooks.setState({
+              messages: [{ role: "ui", content: "Agent initialized" }],
+            });
+          },
+          message: (input) => {
+            // Set loading
+            hooks.setState({ loading: true });
+
+            // Add user message using function form
+            hooks.setState((prev) => ({
+              ...prev,
+              messages: [...prev.messages, input],
+            }));
+
+            // Simulate processing and add assistant message
+            hooks.setState((prev) => ({
+              ...prev,
+              messages: [
+                ...prev.messages,
+                { role: "assistant", content: "Processing..." },
+              ],
+            }));
+
+            // Complete processing
+            hooks.setState({ loading: false });
+          },
+          stop: () => {
+            hooks.setState({ loading: false });
+            hooks.setState((prev) => ({
+              ...prev,
+              messages: [...prev.messages, { role: "ui", content: "Stopped" }],
+            }));
+          },
+          terminate: () => {
+            // Use function form to replace entire state
+            hooks.setState(() => ({
+              loading: false,
+              messages: [],
+              inputDisabled: false,
+            }));
+          },
+        };
+      });
+
+      const instance = workflow(mockHooks);
+
+      // Test initialize
+      instance.initialize?.();
+      expect(workflowState.messages).toHaveLength(1);
+      expect(workflowState.messages[0]).toEqual({
+        role: "ui",
+        content: "Agent initialized",
+      });
+
+      // Test message handling
+      instance.message({ role: "user", content: "Hello" });
+      expect(workflowState.loading).toBe(false);
+      expect(workflowState.messages).toHaveLength(3);
+      expect(workflowState.messages[1]).toEqual({
+        role: "user",
+        content: "Hello",
+      });
+      expect(workflowState.messages[2]).toEqual({
+        role: "assistant",
+        content: "Processing...",
+      });
+
+      // Test stop
+      instance.stop();
+      expect(workflowState.loading).toBe(false);
+      expect(workflowState.messages).toHaveLength(4);
+      expect(workflowState.messages[3]).toEqual({
+        role: "ui",
+        content: "Stopped",
+      });
+
+      // Test terminate
+      instance.terminate();
+      expect(workflowState).toEqual({
+        loading: false,
+        messages: [],
+        inputDisabled: false,
+      });
+    });
+  });
+
+  describe("State isolation", () => {
+    it("should not share state between workflow instances", () => {
+      const createMockHooks = (): WorkflowHooks => {
+        let state: WorkflowState = {
+          loading: false,
+          messages: [],
+          inputDisabled: false,
+        };
+
+        return {
+          setState: vi.fn((updater) => {
+            if (typeof updater === "function") {
+              state = updater(state);
+            } else {
+              // Merge at top level only
+              state = { ...state, ...updater };
+            }
+          }),
+          getState: vi.fn(() => state),
+          appendMessage: vi.fn(),
+          tools: {},
+          handleToolCall: vi.fn(),
+          onConfirm: vi.fn(),
+          onPromptUser: vi.fn(),
+          onSelect: vi.fn(),
+          logger: vi.fn(),
+        };
+      };
+
+      const workflowFactory = createAgentWorkflow((hooks) => {
+        return {
+          initialize: () => {
+            hooks.setState({
+              messages: [{ role: "ui", content: "Instance initialized" }],
+            });
+          },
+          message: () => {},
+          stop: () => {},
+          terminate: () => {},
+        };
+      });
+
+      // Create two instances
+      const hooks1 = createMockHooks();
+      const hooks2 = createMockHooks();
+
+      const instance1 = workflowFactory(hooks1);
+      const instance2 = workflowFactory(hooks2);
+
+      // Initialize both
+      instance1.initialize?.();
+      instance2.initialize?.();
+
+      // Verify they have separate states
+      const state1 = hooks1.getState();
+      const state2 = hooks2.getState();
+
+      expect(state1.messages).toHaveLength(1);
+      expect(state2.messages).toHaveLength(1);
+
+      // Modify one instance
+      hooks1.setState({ loading: true });
+
+      // Verify isolation
+      expect(hooks1.getState().loading).toBe(true);
+      expect(hooks2.getState().loading).toBe(false);
+    });
+  });
+});

@@ -28,9 +28,6 @@ async function typeFileTag(
   // Type @ character
   stdin.write("@");
   await flush();
-
-  stdin.write("\t");
-  await flush();
 }
 
 // Mock the file system suggestions utility
@@ -88,6 +85,10 @@ describe("TerminalChatInput file tag suggestions", () => {
     // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
 
+    // Wait a bit for suggestions to be populated
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await flush();
+
     // Check that current directory suggestions are shown
     const frame = lastFrameStripped();
     expect(frame).toContain("file1.txt");
@@ -102,6 +103,10 @@ describe("TerminalChatInput file tag suggestions", () => {
 
     // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
+
+    // Wait a bit for suggestions to be populated
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await flush();
 
     // Press Tab to select the first suggestion
     await type(stdin, "\t", flush);
@@ -125,6 +130,10 @@ describe("TerminalChatInput file tag suggestions", () => {
     // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
 
+    // Wait a bit for suggestions to be populated
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await flush();
+
     // Check that suggestions are shown
     let frame = lastFrameStripped();
     expect(frame).toContain("file1.txt");
@@ -146,6 +155,10 @@ describe("TerminalChatInput file tag suggestions", () => {
 
     // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
+
+    // Wait a bit for suggestions to be populated
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await flush();
 
     // Navigate to directory suggestion (we need two down keys to get to the first directory)
     await type(stdin, "\u001B[B", flush); // Down arrow key - move to file2.js
@@ -174,6 +187,10 @@ describe("TerminalChatInput file tag suggestions", () => {
     );
 
     await typeFileTag(stdin, flush);
+
+    // Wait a bit for suggestions to be populated
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await flush();
 
     await type(stdin, "\r", flush);
 
