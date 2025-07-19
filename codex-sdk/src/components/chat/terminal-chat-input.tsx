@@ -587,6 +587,9 @@ export default function TerminalChatInput({
                   setHistoryIndex(null);
                 }
                 setInput(txt);
+                // Always update selection when @ is present to ensure selectedCompletion is set
+                const hasAtSymbol = txt.includes("@");
+                updateFsSuggestions(txt, hasAtSymbol);
               }}
               key={editorState.key}
               initialCursorOffset={editorState.initialCursorOffset}
