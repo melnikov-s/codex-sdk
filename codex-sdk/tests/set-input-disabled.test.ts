@@ -1,37 +1,54 @@
 import { test, expect } from "vitest";
-import type { WorkflowHooks } from "../src/workflow";
+import type { WorkflowHooks, WorkflowState } from "../src/workflow";
 
-test("setInputDisabled hook signature exists in WorkflowHooks", () => {
-  // This test verifies that the setInputDisabled hook has the correct signature
-  // We can't easily test the actual functionality without a full React setup,
-  // but we can ensure the type definition is correct
+test("input disabled state can be controlled through setState", () => {
+  let currentState: WorkflowState = {
+    loading: false,
+    messages: [],
+    inputDisabled: false,
+  };
 
   const mockHooks: Partial<WorkflowHooks> = {
-    setInputDisabled: (disabled: boolean) => {
-      // Mock implementation
-      expect(typeof disabled).toBe("boolean");
+    setState: (state) => {
+      if (typeof state === "function") {
+        currentState = state(currentState);
+      } else {
+        currentState = { ...currentState, ...state };
+      }
     },
+    getState: () => currentState,
   };
 
-  expect(mockHooks.setInputDisabled).toBeDefined();
-  expect(typeof mockHooks.setInputDisabled).toBe("function");
+  expect(mockHooks.setState).toBeDefined();
+  expect(typeof mockHooks.setState).toBe("function");
 
-  // Test that it accepts boolean parameters
-  mockHooks.setInputDisabled?.(true);
-  mockHooks.setInputDisabled?.(false);
+  mockHooks.setState?.({ inputDisabled: true });
+  expect(currentState.inputDisabled).toBe(true);
+
+  mockHooks.setState?.({ inputDisabled: false });
+  expect(currentState.inputDisabled).toBe(false);
 });
 
-test("setInputDisabled hook accepts boolean values", () => {
-  let lastValue: boolean | undefined;
-
-  const setInputDisabled = (disabled: boolean) => {
-    lastValue = disabled;
+test("input disabled state can be controlled through setState with function", () => {
+  let currentState: WorkflowState = {
+    loading: false,
+    messages: [],
+    inputDisabled: false,
   };
 
-  // Test enabling/disabling
-  setInputDisabled(true);
-  expect(lastValue).toBe(true);
+  const setState = (
+    updater: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
+  ) => {
+    if (typeof updater === "function") {
+      currentState = updater(currentState);
+    } else {
+      currentState = { ...currentState, ...updater };
+    }
+  };
 
-  setInputDisabled(false);
-  expect(lastValue).toBe(false);
+  setState((prev) => ({ ...prev, inputDisabled: !prev.inputDisabled }));
+  expect(currentState.inputDisabled).toBe(true);
+
+  setState((prev) => ({ ...prev, inputDisabled: false }));
+  expect(currentState.inputDisabled).toBe(false);
 });
