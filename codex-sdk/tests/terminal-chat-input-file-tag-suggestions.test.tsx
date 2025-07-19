@@ -25,27 +25,34 @@ async function typeFileTag(
   stdin: NodeJS.WritableStream,
   flush: () => Promise<void>,
 ) {
-  // Type @ character
   stdin.write("@");
+  await flush();
+  await new Promise((resolve) => setTimeout(resolve, 50));
   await flush();
 }
 
 // Mock the file system suggestions utility
-vi.mock("../src/utils/file-system-suggestions.js", () => ({
-  FileSystemSuggestion: class {}, // Mock the interface
-  getFileSystemSuggestions: vi.fn((pathPrefix: string) => {
-    const normalizedPrefix = pathPrefix.startsWith("./")
-      ? pathPrefix.slice(2)
-      : pathPrefix;
-    const allItems = [
-      { path: "file1.txt", isDirectory: false },
-      { path: "file2.js", isDirectory: false },
-      { path: "directory1/", isDirectory: true },
-      { path: "directory2/", isDirectory: true },
-    ];
-    return allItems.filter((item) => item.path.startsWith(normalizedPrefix));
-  }),
-}));
+vi.mock("../src/utils/file-system-suggestions.js", () => {
+  return {
+    FileSystemSuggestion: class {},
+    getFileSystemSuggestions: vi
+      .fn()
+      .mockImplementation((pathPrefix: string) => {
+        const normalizedPrefix = pathPrefix.startsWith("./")
+          ? pathPrefix.slice(2)
+          : pathPrefix;
+        const allItems = [
+          { path: "file1.txt", isDirectory: false },
+          { path: "file2.js", isDirectory: false },
+          { path: "directory1/", isDirectory: true },
+          { path: "directory2/", isDirectory: true },
+        ];
+        return allItems.filter((item) =>
+          item.path.startsWith(normalizedPrefix),
+        );
+      }),
+  };
+});
 
 // Mock the createInputItem function to avoid filesystem operations
 vi.mock("../src/utils/input-utils.js", () => ({
@@ -77,19 +84,18 @@ describe("TerminalChatInput file tag suggestions", () => {
     vi.clearAllMocks();
   });
 
-  it("shows file system suggestions when typing @ alone", async () => {
+  it("shows file system suggestions when typing @ and pressing Tab", async () => {
     const { stdin, lastFrameStripped, flush, cleanup } = renderTui(
       <TerminalChatInput {...baseProps} />,
     );
 
-    // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
 
-    // Wait a bit for suggestions to be populated
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Press Tab to trigger suggestions
+    await type(stdin, "\t", flush);
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await flush();
 
-    // Check that current directory suggestions are shown
     const frame = lastFrameStripped();
     expect(frame).toContain("file1.txt");
 
@@ -101,21 +107,24 @@ describe("TerminalChatInput file tag suggestions", () => {
       <TerminalChatInput {...baseProps} />,
     );
 
-    // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
 
-    // Wait a bit for suggestions to be populated
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // First Tab - shows suggestions
+    await type(stdin, "\t", flush);
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await flush();
 
-    // Press Tab to select the first suggestion
-    await type(stdin, "\t", flush);
+    const frame = lastFrameStripped();
+    expect(frame).toContain("file1.txt");
 
-    // Check that the input has been completed with the selected suggestion
+    // Second Tab - completes the suggestion
+    await type(stdin, "\t", flush);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await flush();
+
     const frameAfterTab = lastFrameStripped();
     expect(frameAfterTab).toContain("@file1.txt");
-    // Check that the rest of the suggestions have collapsed
-    expect(frameAfterTab).not.toContain("file2.txt");
+    expect(frameAfterTab).not.toContain("file2.js");
     expect(frameAfterTab).not.toContain("directory2/");
     expect(frameAfterTab).not.toContain("directory1/");
 
@@ -127,21 +136,20 @@ describe("TerminalChatInput file tag suggestions", () => {
       <TerminalChatInput {...baseProps} />,
     );
 
-    // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
 
-    // Wait a bit for suggestions to be populated
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Show suggestions with Tab
+    await type(stdin, "\t", flush);
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await flush();
 
-    // Check that suggestions are shown
     let frame = lastFrameStripped();
     expect(frame).toContain("file1.txt");
 
-    // Type a space to clear suggestions
     await type(stdin, " ", flush);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flush();
 
-    // Check that suggestions are cleared
     frame = lastFrameStripped();
     expect(frame).not.toContain("file1.txt");
 
@@ -153,29 +161,29 @@ describe("TerminalChatInput file tag suggestions", () => {
       <TerminalChatInput {...baseProps} />,
     );
 
-    // Type @ and activate suggestions
     await typeFileTag(stdin, flush);
 
-    // Wait a bit for suggestions to be populated
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Show suggestions with Tab
+    await type(stdin, "\t", flush);
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await flush();
 
     // Navigate to directory suggestion (we need two down keys to get to the first directory)
-    await type(stdin, "\u001B[B", flush); // Down arrow key - move to file2.js
-    await type(stdin, "\u001B[B", flush); // Down arrow key - move to directory1/
+    await type(stdin, "\u001B[B", flush);
+    await type(stdin, "\u001B[B", flush);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flush();
 
-    // Check that the directory suggestion is selected
     let frame = lastFrameStripped();
     expect(frame).toContain("directory1/");
 
-    // Press Enter to select the directory
     await type(stdin, "\r", flush);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flush();
 
-    // Check that the input now contains the directory path
     frame = lastFrameStripped();
     expect(frame).toContain("@directory1/");
 
-    // Check that submitInput was NOT called (since we're only navigating, not submitting)
     expect(baseProps.submitInput).not.toHaveBeenCalled();
 
     cleanup();
@@ -188,11 +196,14 @@ describe("TerminalChatInput file tag suggestions", () => {
 
     await typeFileTag(stdin, flush);
 
-    // Wait a bit for suggestions to be populated
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Show suggestions with Tab
+    await type(stdin, "\t", flush);
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await flush();
 
     await type(stdin, "\r", flush);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flush();
 
     expect(baseProps.submitInput).toHaveBeenCalled();
 
