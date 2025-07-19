@@ -1,5 +1,7 @@
 import { run, createDefaultWorkflow, AutoApprovalMode } from "../dist/lib.js";
 
+// The createDefaultWorkflow uses the new declarative setState API internally.
+// You don't need to manage state directly - the default workflow handles it for you.
 const defaultWorkflow = createDefaultWorkflow({
   // Set approval policy (suggest, auto-edit, or full-auto)
   approvalPolicy: AutoApprovalMode.SUGGEST,

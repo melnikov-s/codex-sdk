@@ -6,6 +6,7 @@ export {
   Workflow,
   WorkflowHooks,
   WorkflowFactory,
+  WorkflowState,
   createAgentWorkflow,
 } from "./workflow/index.js";
 export { createDefaultWorkflow } from "./workflow/default-agent.js";

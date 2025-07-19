@@ -50,79 +50,90 @@ import { run, createAgentWorkflow } from "codex-sdk";
 import { generateText } from "ai"; // Example: Using Vercel AI SDK
 import { openai } from "@ai-sdk/openai"; // Example: OpenAI provider
 
-const customWorkflow = createAgentWorkflow({
-  onMessage,
-  setLoading,
-  handleToolCall,
-  tools,
-  onUIMessage,
-}) => {
-  const transcript = [{ role: 'system', content: 'You are a helpful assistant.' }];
-  let agentState = "idle"; // 'idle', 'running', 'paused'
+const customWorkflow = createAgentWorkflow(
+  ({ setState, getState, appendMessage, handleToolCall, tools, onConfirm }) => {
+    const transcript = [
+      { role: "system", content: "You are a helpful assistant." },
+    ];
+    let agentState = "idle"; // 'idle', 'running', 'paused'
 
-  async function processLoop() {
-    setLoading(true);
-    agentState = "running";
+    async function processLoop() {
+      setState({ loading: true });
+      agentState = "running";
 
-    while (agentState === "running") {
-      try {
-        const response = await generateText({
-          model: openai("gpt-4o"), // Your chosen model
-          messages: transcript,
-          tools, // Pass the library's tools to the LLM
-        });
+      while (agentState === "running") {
+        try {
+          const response = await generateText({
+            model: openai("gpt-4o"), // Your chosen model
+            messages: transcript,
+            tools, // Pass the library's tools to the LLM
+          });
 
-        const aiResponseMessage = response.response.messages[0];
+          const aiResponseMessage = response.response.messages[0];
 
-        if (aiResponseMessage) {
-          transcript.push(aiResponseMessage);
-          onMessage(aiResponseMessage); // Send AI response to UI
+          if (aiResponseMessage) {
+            transcript.push(aiResponseMessage);
+            // Update state declaratively
+            appendMessage(aiResponseMessage);
 
-          const toolCallResult = await handleToolCall(aiResponseMessage); // Library handles tool execution
+            const toolCallResult = await handleToolCall(aiResponseMessage); // Library handles tool execution
 
-          if (toolCallResult) {
-            transcript.push(toolCallResult);
-            onMessage(toolCallResult); // Send tool result to UI
-          } else if (response.finishReason === "stop") {
+            if (toolCallResult) {
+              transcript.push(toolCallResult);
+              appendMessage(toolCallResult);
+            } else if (response.finishReason === "stop") {
+              agentState = "paused";
+            }
+          } else {
             agentState = "paused";
           }
-        } else {
+        } catch (error) {
+          appendMessage({
+            role: "ui",
+            content: `Error: ${error.message || "Unknown agent error"}`,
+          });
           agentState = "paused";
         }
-      } catch (error) {
-        onUIMessage(`Error: ${error.message || "Unknown agent error"}`);
-        agentState = "paused";
       }
+      setState({ loading: false });
     }
-    setLoading(false);
-  }
 
-  return {
-    initialize: async () => {
-      onUIMessage("Custom Agent initialized. How can I assist you?");
-    },
-    message: async (userInput) => {
-      transcript.push(userInput);
-      if (agentState === "idle" || agentState === "paused") {
-        processLoop();
-      } else {
-        // Agent is already running, input is added to transcript for next turn
-        onUIMessage("Input added to ongoing conversation.");
-      }
-    },
-    stop: () => {
-      agentState = "paused";
-      setLoading(false);
-      onUIMessage("Agent paused.");
-    },
-    terminate: () => {
-      agentState = "idle";
-      transcript.length = 0; // Clear transcript
-      setLoading(false);
-      onUIMessage("Agent terminated and reset.");
-    },
-  };
-};
+    return {
+      initialize: async () => {
+        setState({
+          messages: [
+            {
+              role: "ui",
+              content: "Custom Agent initialized. How can I assist you?",
+            },
+          ],
+        });
+      },
+      message: async (userInput) => {
+        transcript.push(userInput);
+        if (agentState === "idle" || agentState === "paused") {
+          processLoop();
+        } else {
+          // Agent is already running, input is added to transcript for next turn
+          appendMessage({
+            role: "ui",
+            content: "Input added to ongoing conversation.",
+          });
+        }
+      },
+      stop: () => {
+        agentState = "paused";
+        setState({ loading: false });
+        appendMessage({ role: "ui", content: "Agent paused." });
+      },
+      terminate: () => {
+        agentState = "idle";
+        transcript.length = 0; // Clear transcript
+        setState({ loading: false, messages: [] });
+      },
+    };
+  },
+);
 
 run(customWorkflow);
 ```
@@ -183,6 +194,25 @@ The primary function for building custom agents. It takes your agent's core logi
 
 ---
 
+### WorkflowState Structure
+
+The state managed by your workflow has the following structure:
+
+```typescript
+interface WorkflowState {
+  loading: boolean; // Whether the agent is currently processing
+  messages: Array<UIMessage>; // Array of all messages (user, assistant, tool, ui)
+  inputDisabled: boolean; // Whether user input should be disabled
+}
+```
+
+Message types in the `messages` array include:
+
+- **"user"** - User input messages
+- **"assistant"** - AI responses
+- **"tool"** - Tool execution results
+- **"ui"** - Status/system messages
+
 ### The `agentLogicFunction(hooks)`
 
 This is the function you provide to `createAgentWorkflow`. It's where your custom agent's intelligence and main processing loop reside. The SDK calls this function, providing it with a `hooks` object to interact with the UI and tools.
@@ -190,18 +220,35 @@ This is the function you provide to `createAgentWorkflow`. It's where your custo
 - **Parameters (provided by the SDK to your function):**
 
   - `hooks` (`object`): An object containing functions and data to interact with the SDK:
-    - `hooks.onMessage(messageObject)` (`function`): Sends a message to be displayed in the UI.
-      - **Input:** `messageObject` (`CoreMessage` from Vercel AI SDK): A message object, typically `{ role: 'assistant', content: '...', tool_calls: [...] }` or `{ role: 'tool', content: '...', tool_call_id: '...' }`. This should conform to the Vercel AI SDK's `CoreMessage` type.
+    - `hooks.setState(state)` (`function`): Updates the workflow state declaratively.
+      - **Input:** `state` (`Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState)`): Either a partial state object to merge or an updater function.
       - **Returns:** `void`.
-    - `hooks.setLoading(isLoading)` (`function`): Toggles the loading indicator in the UI.
-      - **Input:** `isLoading` (`boolean`): `true` to show loading, `false` to hide.
+      - **Merging behavior:** Like React's setState, only top-level properties are merged. Arrays and nested objects are replaced entirely. To append messages, use `appendMessage()` or the function form: `setState(prev => ({ ...prev, messages: [...prev.messages, newMsg] }))`.
+    - `hooks.getState()` (`function`): Gets the current workflow state.
+      - **Returns:** `WorkflowState`: The current state object containing `{ loading: boolean, messages: Array<UIMessage>, inputDisabled: boolean }`.
+    - `hooks.appendMessage(message)` (`function`): Appends message(s) to the current messages array.
+      - **Input:** `message` (`UIMessage | Array<UIMessage>`): A single message or array of messages to append.
       - **Returns:** `void`.
+      - **Usage:** This is a convenience method for the common operation of appending messages. Equivalent to `setState(prev => ({ ...prev, messages: [...prev.messages, ...messages] }))`.
     - `hooks.handleToolCall(aiMessageWithToolCall)` (`function`): Executes tool calls requested by the AI.
       - **Input:** `aiMessageWithToolCall` (`object`): The AI's message object that includes a `tool_calls` array.
       - **Returns:** `Promise<object | null>`: A promise that resolves to a tool response message (for the AI and UI) or `null` if no specific response is needed beyond the tool's side effects.
     - `hooks.tools` (`Array<object>`): An array of tool definitions that the library supports (e.g., for shell commands, file operations). You should pass these to your AI model so it knows what tools it can request.
-    - `hooks.onUIMessage(messageText)` (`function`): Displays general status messages or instructions in the UI, separate from the main chat transcript.
-      - **Input:** `messageText` (`string`): The text to display.
+    - `hooks.onConfirm(prompt)` (`function`): Shows a confirmation dialog to the user.
+      - **Input:** `prompt` (`string`): The confirmation message to display.
+      - **Returns:** `Promise<boolean>`: Resolves to `true` if confirmed, `false` otherwise.
+    - `hooks.onPromptUser(message)` (`function`): Shows a text input prompt to the user.
+      - **Input:** `message` (`string`): The prompt message.
+      - **Returns:** `Promise<string>`: The user's text input.
+    - `hooks.onSelect(items, options)` (`function`): Shows a selection dialog to the user.
+      - **Input:** `items` (`Array<{label: string, value: string}>`): Items to choose from.
+      - **Input:** `options` (`object`, optional): Selection options like `required`, `default`.
+      - **Returns:** `Promise<string>`: The selected value.
+    - `hooks.logger(message)` (`function`): Logs debug messages.
+      - **Input:** `message` (`string`): The message to log.
+      - **Returns:** `void`.
+    - `hooks.onError(error)` (`function`, optional): Error handler callback.
+      - **Input:** `error` (`unknown`): The error that occurred.
       - **Returns:** `void`.
 
 - **Returns (your function must return this):**

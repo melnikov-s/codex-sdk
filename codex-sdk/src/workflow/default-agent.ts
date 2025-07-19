@@ -115,17 +115,20 @@ export function defaultWorkflow(
     if (mcpClientManager && !mcpInitialized) {
       try {
         hooks.logger("Initializing MCP Client Manager...");
-        hooks.onUIMessage("Initializing MCP Client Manager...");
+        hooks.appendMessage({
+          role: "ui",
+          content: "Initializing MCP Client Manager...",
+        });
         await mcpClientManager.initialize();
         mcpTools = await mcpClientManager.getAllTools();
         mcpInitialized = true;
         const msg = `MCP Client Manager initialized. Tools found: ${Object.keys(mcpTools).join(", ") || "None"}`;
         hooks.logger(msg);
-        hooks.onUIMessage(msg);
+        hooks.appendMessage({ role: "ui", content: msg });
       } catch (error) {
         const errorMsg = `Error initializing MCP Client Manager: ${error instanceof Error ? error.message : String(error)}`;
         hooks.logger(errorMsg);
-        hooks.onUIMessage(errorMsg);
+        hooks.appendMessage({ role: "ui", content: errorMsg });
         // Optionally, handle this error more gracefully, e.g., by notifying the user
       }
     }
@@ -155,8 +158,11 @@ export function defaultWorkflow(
         execAbortController = new AbortController();
       }
 
-      hooks.onUIMessage("Workflow execution stopped.");
-      hooks.setLoading(false);
+      hooks.appendMessage({
+        role: "ui",
+        content: "Workflow execution stopped.",
+      });
+      hooks.setState({ loading: false });
       canceled = true;
     },
 
@@ -179,10 +185,16 @@ export function defaultWorkflow(
 
       if (mcpClientManager) {
         hooks.logger("Closing MCP Client Manager...");
-        hooks.onUIMessage("Closing MCP Client Manager connections...");
+        hooks.appendMessage({
+          role: "ui",
+          content: "Closing MCP Client Manager connections...",
+        });
         await mcpClientManager.closeAll();
         hooks.logger("MCP Client Manager closed.");
-        hooks.onUIMessage("MCP Client Manager connections closed.");
+        hooks.appendMessage({
+          role: "ui",
+          content: "MCP Client Manager connections closed.",
+        });
       }
     },
 
@@ -200,7 +212,7 @@ export function defaultWorkflow(
 
       // Set up loop control variables
       let isRunning = true;
-      hooks.setLoading(true);
+      hooks.setState({ loading: true });
       const maxTurns = 30; // Safety limit to prevent infinite loops
       let currentTurn = 0;
 
@@ -247,7 +259,7 @@ export function defaultWorkflow(
               // Add to transcript
               transcript.push(message);
               // Send to UI
-              hooks.onMessage(message);
+              hooks.appendMessage(message);
 
               // Check for tool calls
               const toolCall = getToolCall(message);
@@ -279,11 +291,11 @@ export function defaultWorkflow(
                       ],
                     };
                     transcript.push(toolResponseMessage);
-                    hooks.onMessage(toolResponseMessage);
+                    hooks.appendMessage(toolResponseMessage);
                   } catch (mcpError) {
                     const errorText = `Error calling MCP tool ${toolCall.toolName}: ${mcpError}`;
                     hooks.logger(errorText);
-                    hooks.onUIMessage(errorText);
+                    hooks.appendMessage({ role: "ui", content: errorText });
                     const errorResult: CoreMessage = {
                       role: "tool",
                       content: [
@@ -296,14 +308,14 @@ export function defaultWorkflow(
                       ],
                     };
                     transcript.push(errorResult);
-                    hooks.onMessage(errorResult);
+                    hooks.appendMessage(errorResult);
                   }
                 } else {
                   // Handle as a local tool
                   const toolResult = await hooks.handleToolCall(message);
                   if (toolResult) {
                     transcript.push(toolResult);
-                    hooks.onMessage(toolResult);
+                    hooks.appendMessage(toolResult);
                   }
                 }
               }
@@ -321,7 +333,7 @@ export function defaultWorkflow(
           // Log the error and end the loop
           const runErrorMsg = `Error in workflow run: ${(error as Error).message}`;
           hooks.logger(runErrorMsg);
-          hooks.onUIMessage(runErrorMsg);
+          hooks.appendMessage({ role: "ui", content: runErrorMsg });
 
           // Call the error handler if provided
           if (hooks.onError) {
@@ -339,7 +351,7 @@ export function defaultWorkflow(
         }
       }
 
-      hooks.setLoading(false);
+      hooks.setState({ loading: false });
     },
 
     commands: {
@@ -349,7 +361,7 @@ export function defaultWorkflow(
         handler: async (args?: string) => {
           try {
             hooks.logger("Executing /compact command");
-            hooks.setLoading(true);
+            hooks.setState({ loading: true });
 
             const customInstructions = args?.trim();
 
@@ -393,14 +405,17 @@ Keep the summary concise but comprehensive.`,
             });
 
             // Notify the hooks
-            hooks.onUIMessage("Conversation context compacted successfully.");
+            hooks.appendMessage({
+              role: "ui",
+              content: "Conversation context compacted successfully.",
+            });
 
-            hooks.setLoading(false);
+            hooks.setState({ loading: false });
           } catch (error) {
             const errorMsg = `Error executing /compact command: ${(error as Error).message}`;
             hooks.logger(errorMsg);
-            hooks.onUIMessage(errorMsg);
-            hooks.setLoading(false);
+            hooks.appendMessage({ role: "ui", content: errorMsg });
+            hooks.setState({ loading: false });
           }
         },
       },
