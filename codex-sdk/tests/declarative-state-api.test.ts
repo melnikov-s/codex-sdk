@@ -10,6 +10,7 @@ describe("Declarative State API", () => {
         loading: false,
         messages: [],
         inputDisabled: false,
+        queue: [],
       };
 
       const mockSetState = (
@@ -31,6 +32,7 @@ describe("Declarative State API", () => {
         loading: true,
         messages: [],
         inputDisabled: false,
+        queue: [],
       });
 
       // Test another partial update
@@ -39,6 +41,7 @@ describe("Declarative State API", () => {
         loading: true,
         messages: [],
         inputDisabled: true,
+        queue: [],
       });
 
       // Test updating back to false
@@ -47,6 +50,7 @@ describe("Declarative State API", () => {
         loading: false,
         messages: [],
         inputDisabled: true,
+        queue: [],
       });
     });
 
@@ -55,6 +59,7 @@ describe("Declarative State API", () => {
         loading: false,
         messages: [{ role: "user", content: "Hello" }],
         inputDisabled: false,
+        queue: [],
       };
 
       const mockSetState = (
@@ -83,6 +88,7 @@ describe("Declarative State API", () => {
           { role: "assistant", content: "Hi!" },
         ],
         inputDisabled: false,
+        queue: [],
       });
     });
 
@@ -233,12 +239,16 @@ describe("Declarative State API", () => {
     it("should provide setState and getState to workflows", () => {
       const mockHooks: WorkflowHooks = {
         setState: vi.fn(),
-        getState: vi.fn(() => ({
+        state: {
           loading: false,
           messages: [],
           inputDisabled: false,
-        })),
+          queue: [],
+          transcript: [],
+        },
         appendMessage: vi.fn(),
+        addToQueue: vi.fn(),
+        unshiftQueue: vi.fn(() => undefined),
         tools: {},
         handleToolCall: vi.fn(),
         onConfirm: vi.fn(),
@@ -250,13 +260,12 @@ describe("Declarative State API", () => {
       const workflow = createAgentWorkflow((hooks) => {
         // Verify hooks are provided
         expect(hooks.setState).toBeDefined();
-        expect(hooks.getState).toBeDefined();
+        expect(hooks.state).toBeDefined();
 
         return {
           initialize: () => {
             hooks.setState({ loading: true });
-            const state = hooks.getState();
-            expect(state).toBeDefined();
+            expect(hooks.state).toBeDefined();
           },
           message: () => {},
           stop: () => {},
@@ -268,7 +277,6 @@ describe("Declarative State API", () => {
       instance.initialize?.();
 
       expect(mockHooks.setState).toHaveBeenCalledWith({ loading: true });
-      expect(mockHooks.getState).toHaveBeenCalled();
     });
 
     it("should handle complex workflow state updates", () => {
@@ -279,16 +287,35 @@ describe("Declarative State API", () => {
       };
 
       const mockHooks: WorkflowHooks = {
-        setState: vi.fn((updater) => {
+        setState: vi.fn(async (updater) => {
           if (typeof updater === "function") {
             workflowState = updater(workflowState);
           } else {
             // Merge at top level only
             workflowState = { ...workflowState, ...updater };
           }
+          return Promise.resolve();
         }),
-        getState: vi.fn(() => workflowState),
+        state: {
+          get loading() {
+            return workflowState.loading;
+          },
+          get messages() {
+            return workflowState.messages;
+          },
+          get inputDisabled() {
+            return workflowState.inputDisabled;
+          },
+          get queue() {
+            return workflowState.queue || [];
+          },
+          get transcript() {
+            return workflowState.messages.filter((msg) => msg.role !== "ui");
+          },
+        },
         appendMessage: vi.fn(),
+        addToQueue: vi.fn(),
+        unshiftQueue: vi.fn(() => undefined),
         tools: {},
         handleToolCall: vi.fn(),
         onConfirm: vi.fn(),
@@ -397,16 +424,35 @@ describe("Declarative State API", () => {
         };
 
         return {
-          setState: vi.fn((updater) => {
+          setState: vi.fn(async (updater) => {
             if (typeof updater === "function") {
               state = updater(state);
             } else {
               // Merge at top level only
               state = { ...state, ...updater };
             }
+            return Promise.resolve();
           }),
-          getState: vi.fn(() => state),
+          state: {
+            get loading() {
+              return state.loading;
+            },
+            get messages() {
+              return state.messages;
+            },
+            get inputDisabled() {
+              return state.inputDisabled;
+            },
+            get queue() {
+              return state.queue || [];
+            },
+            get transcript() {
+              return state.messages.filter((msg) => msg.role !== "ui");
+            },
+          },
           appendMessage: vi.fn(),
+          addToQueue: vi.fn(),
+          unshiftQueue: vi.fn(() => undefined),
           tools: {},
           handleToolCall: vi.fn(),
           onConfirm: vi.fn(),
@@ -441,8 +487,8 @@ describe("Declarative State API", () => {
       instance2.initialize?.();
 
       // Verify they have separate states
-      const state1 = hooks1.getState();
-      const state2 = hooks2.getState();
+      const state1 = hooks1.state;
+      const state2 = hooks2.state;
 
       expect(state1.messages).toHaveLength(1);
       expect(state2.messages).toHaveLength(1);
@@ -451,8 +497,8 @@ describe("Declarative State API", () => {
       hooks1.setState({ loading: true });
 
       // Verify isolation
-      expect(hooks1.getState().loading).toBe(true);
-      expect(hooks2.getState().loading).toBe(false);
+      expect(hooks1.state.loading).toBe(true);
+      expect(hooks2.state.loading).toBe(false);
     });
   });
 });

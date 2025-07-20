@@ -51,35 +51,33 @@ import { generateText } from "ai"; // Example: Using Vercel AI SDK
 import { openai } from "@ai-sdk/openai"; // Example: OpenAI provider
 
 const customWorkflow = createAgentWorkflow(
-  ({ setState, getState, appendMessage, handleToolCall, tools, onConfirm }) => {
-    const transcript = [
-      { role: "system", content: "You are a helpful assistant." },
-    ];
+  ({ setState, state, appendMessage, handleToolCall, tools, onConfirm }) => {
     let agentState = "idle"; // 'idle', 'running', 'paused'
 
     async function processLoop() {
       setState({ loading: true });
       agentState = "running";
 
-      while (agentState === "running") {
+      while (agentState === "running" && state.loading) {
         try {
           const response = await generateText({
             model: openai("gpt-4o"), // Your chosen model
-            messages: transcript,
+            messages: [
+              { role: "system", content: "You are a helpful assistant." },
+              ...state.transcript, // Use filtered transcript (no UI messages)
+            ],
             tools, // Pass the library's tools to the LLM
           });
 
           const aiResponseMessage = response.response.messages[0];
 
           if (aiResponseMessage) {
-            transcript.push(aiResponseMessage);
-            // Update state declaratively
+            // Add AI response to state (automatically appears in state.transcript)
             appendMessage(aiResponseMessage);
 
             const toolCallResult = await handleToolCall(aiResponseMessage); // Library handles tool execution
 
             if (toolCallResult) {
-              transcript.push(toolCallResult);
               appendMessage(toolCallResult);
             } else if (response.finishReason === "stop") {
               agentState = "paused";
@@ -110,14 +108,14 @@ const customWorkflow = createAgentWorkflow(
         });
       },
       message: async (userInput) => {
-        transcript.push(userInput);
+        appendMessage(userInput); // Add to state (auto-appears in state.transcript)
         if (agentState === "idle" || agentState === "paused") {
           processLoop();
         } else {
-          // Agent is already running, input is added to transcript for next turn
+          // Agent is already running, show queued status
           appendMessage({
             role: "ui",
-            content: "Input added to ongoing conversation.",
+            content: "Input queued for processing...",
           });
         }
       },
@@ -128,8 +126,7 @@ const customWorkflow = createAgentWorkflow(
       },
       terminate: () => {
         agentState = "idle";
-        transcript.length = 0; // Clear transcript
-        setState({ loading: false, messages: [] });
+        setState({ loading: false, messages: [] }); // Clears transcript automatically
       },
     };
   },
@@ -203,6 +200,8 @@ interface WorkflowState {
   loading: boolean; // Whether the agent is currently processing
   messages: Array<UIMessage>; // Array of all messages (user, assistant, tool, ui)
   inputDisabled: boolean; // Whether user input should be disabled
+  queue?: Array<string>; // Optional queue of pending messages for display
+  transcript?: Array<UIMessage>; // Derived: messages filtered to exclude UI messages
 }
 ```
 
@@ -213,6 +212,51 @@ Message types in the `messages` array include:
 - **"tool"** - Tool execution results
 - **"ui"** - Status/system messages
 
+### Queue System
+
+The SDK includes a queue system for displaying pending messages while the agent is processing. This is useful for showing users what requests are queued up during loading states.
+
+- **Visual Display**: The queue appears as a bordered box above the loading indicator, showing numbered items
+- **Consumer-Managed**: Queue contents are entirely managed by your workflow logic
+- **User Flow**: When users type during loading, `message()` is called normally - your workflow decides whether to queue the input
+
+Example usage:
+
+```javascript
+// In your agent workflow - add items to queue
+hooks.setState({ loading: true });
+hooks.addToQueue(["Analyze the data", "Generate report"]);
+
+// Later, process queue items
+const nextItem = hooks.unshiftQueue();
+if (nextItem) {
+  // Process the next item...
+  console.log(`Processing: ${nextItem}`);
+}
+```
+
+### Clean LLM Integration with `state.transcript`
+
+The `state.transcript` property provides a filtered view of messages perfect for LLM calls:
+
+```javascript
+const workflow = createAgentWorkflow(({ state, appendMessage, ... }) => {
+  // Your conversation includes UI messages for user feedback
+  console.log(state.messages.length);     // 8 messages (includes UI status)
+  console.log(state.transcript.length);   // 5 messages (clean LLM input)
+
+  // Perfect for LLM calls - automatically excludes UI messages
+  const response = await generateText({
+    model: openai("gpt-4o"),
+    messages: [
+      { role: "system", content: "You are a helpful assistant." },
+      ...state.transcript, // Clean conversation history
+    ],
+    tools,
+  });
+});
+```
+
 ### The `agentLogicFunction(hooks)`
 
 This is the function you provide to `createAgentWorkflow`. It's where your custom agent's intelligence and main processing loop reside. The SDK calls this function, providing it with a `hooks` object to interact with the UI and tools.
@@ -222,14 +266,29 @@ This is the function you provide to `createAgentWorkflow`. It's where your custo
   - `hooks` (`object`): An object containing functions and data to interact with the SDK:
     - `hooks.setState(state)` (`function`): Updates the workflow state declaratively.
       - **Input:** `state` (`Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState)`): Either a partial state object to merge or an updater function.
-      - **Returns:** `void`.
+      - **Returns:** `Promise<void>`: Promise that resolves when UI has been updated (for compatibility).
+      - **Synchronous behavior:** State changes are applied immediately and are visible via `state.loading` without awaiting.
       - **Merging behavior:** Like React's setState, only top-level properties are merged. Arrays and nested objects are replaced entirely. To append messages, use `appendMessage()` or the function form: `setState(prev => ({ ...prev, messages: [...prev.messages, newMsg] }))`.
-    - `hooks.getState()` (`function`): Gets the current workflow state.
-      - **Returns:** `WorkflowState`: The current state object containing `{ loading: boolean, messages: Array<UIMessage>, inputDisabled: boolean }`.
+    - `hooks.state` (`object`): Current workflow state with getter properties.
+      - **Synchronous access:** Properties reflect current state immediately, including any changes made by recent `setState()` calls.
+      - **Properties:**
+        - `state.loading` - Whether the agent is currently processing
+        - `state.messages` - Array of all messages (user, assistant, tool, ui)
+        - `state.inputDisabled` - Whether user input should be disabled
+        - `state.queue` - Array of queued messages for display
+        - `state.transcript` - **Derived property:** Messages filtered to exclude UI messages (perfect for LLM calls)
+      - **Usage:** Access via `hooks.state.loading` instead of `hooks.getState().loading`.
     - `hooks.appendMessage(message)` (`function`): Appends message(s) to the current messages array.
       - **Input:** `message` (`UIMessage | Array<UIMessage>`): A single message or array of messages to append.
       - **Returns:** `void`.
       - **Usage:** This is a convenience method for the common operation of appending messages. Equivalent to `setState(prev => ({ ...prev, messages: [...prev.messages, ...messages] }))`.
+    - `hooks.addToQueue(item)` (`function`): Adds item(s) to the end of the queue.
+      - **Input:** `item` (`string | Array<string>`): Single string or array of strings to add to the queue.
+      - **Returns:** `void`.
+      - **Usage:** Convenience method for adding items to the queue. Equivalent to `setState(prev => ({ ...prev, queue: [...(prev.queue || []), ...items] }))`.
+    - `hooks.unshiftQueue()` (`function`): Removes and returns the first item from the queue.
+      - **Returns:** `string | undefined`: The first queue item, or `undefined` if queue is empty.
+      - **Usage:** Convenience method for consuming queue items. Equivalent to manually checking queue length, getting first item, and updating state to remove it.
     - `hooks.handleToolCall(aiMessageWithToolCall)` (`function`): Executes tool calls requested by the AI.
       - **Input:** `aiMessageWithToolCall` (`object`): The AI's message object that includes a `tool_calls` array.
       - **Returns:** `Promise<object | null>`: A promise that resolves to a tool response message (for the AI and UI) or `null` if no specific response is needed beyond the tool's side effects.

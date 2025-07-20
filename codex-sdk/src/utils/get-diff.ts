@@ -37,7 +37,7 @@ export function getGitDiff(): {
 
     // If the above call didn’t throw, we are inside a git repo. Retrieve the
     // diff for tracked files **and** include any untracked files so that the
-    // `/diff` overlay shows a complete picture of the working tree state.
+    // `/diff` command shows a complete picture of the working tree state.
 
     // 1. Diff for tracked files (unchanged behaviour)
     let trackedDiff = "";

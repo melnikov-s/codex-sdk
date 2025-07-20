@@ -6,17 +6,35 @@ test("input disabled state can be controlled through setState", () => {
     loading: false,
     messages: [],
     inputDisabled: false,
+    queue: [],
   };
 
   const mockHooks: Partial<WorkflowHooks> = {
-    setState: (state) => {
+    setState: async (state) => {
       if (typeof state === "function") {
         currentState = state(currentState);
       } else {
         currentState = { ...currentState, ...state };
       }
+      return Promise.resolve();
     },
-    getState: () => currentState,
+    state: {
+      get loading() {
+        return currentState.loading;
+      },
+      get messages() {
+        return currentState.messages;
+      },
+      get inputDisabled() {
+        return currentState.inputDisabled;
+      },
+      get queue() {
+        return currentState.queue || [];
+      },
+      get transcript() {
+        return currentState.messages.filter((msg) => msg.role !== "ui");
+      },
+    },
   };
 
   expect(mockHooks.setState).toBeDefined();
@@ -34,6 +52,7 @@ test("input disabled state can be controlled through setState with function", ()
     loading: false,
     messages: [],
     inputDisabled: false,
+    queue: [],
   };
 
   const setState = (

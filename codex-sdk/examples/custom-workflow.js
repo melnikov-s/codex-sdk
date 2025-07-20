@@ -1,3 +1,8 @@
+// Custom workflow example demonstrating the latest Codex SDK features:
+// - Queue system: messages queued when agent is busy, processed automatically
+// - state.transcript: clean message history (excludes UI messages) for LLM calls
+// - state.loading: synchronous state access for immediate logic flow
+// - appendMessage(): adds messages to state (auto-appears in state.transcript)
 import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
@@ -5,66 +10,61 @@ import { generateText } from "ai";
 const workflow = createAgentWorkflow(
   ({
     setState,
-    _getState,
+    state,
     appendMessage,
     handleToolCall,
     tools,
-    _onConfirm,
-    _onPromptUser,
-    _onSelect,
+    addToQueue,
+    unshiftQueue,
   }) => {
-    const transcript = [];
-    let state = "idle";
-
-    async function startAgentLoop() {
+    async function runAgent() {
       setState({ loading: true });
-      state = "running";
 
-      while (state === "running") {
-        let toolCallResponseForThisTurn = null;
-
+      while (state.loading) {
         try {
           const response = await generateText({
             model: openai("gpt-4o"),
-            messages: transcript,
+            messages: state.transcript,
             tools,
           });
 
           const aiMessage = response.response.messages[0];
+          if (!aiMessage) {
+            break;
+          }
 
-          if (aiMessage) {
-            transcript.push(aiMessage);
-            appendMessage(aiMessage);
+          appendMessage(aiMessage);
 
-            toolCallResponseForThisTurn = await handleToolCall(aiMessage);
-
-            if (toolCallResponseForThisTurn) {
-              transcript.push(toolCallResponseForThisTurn);
-              appendMessage(toolCallResponseForThisTurn);
-            } else if (response.finishReason === "stop") {
-              state = "paused";
-            }
-          } else {
-            state = "paused";
+          const toolResponse = await handleToolCall(aiMessage);
+          if (toolResponse) {
+            appendMessage(toolResponse);
+          } else if (response.finishReason === "stop") {
+            break;
           }
         } catch (error) {
           appendMessage({
             role: "ui",
-            content: "Error during agent processing turn.",
+            content: `Error: ${error.message || "Unknown error"}`,
           });
-          if (error && typeof error.message === "string") {
-            appendMessage({
-              role: "ui",
-              content: error.message,
-            });
-          } else {
-            appendMessage({
-              role: "ui",
-              content: "An unknown error occurred.",
-            });
-          }
-          state = "paused";
+          break;
         }
+      }
+
+      // Process any queued messages after finishing current processing
+      const nextQueuedMessage = unshiftQueue();
+      if (nextQueuedMessage) {
+        appendMessage({
+          role: "ui",
+          content: `Processing queued message: "${nextQueuedMessage}"`,
+        });
+
+        appendMessage({
+          role: "user",
+          content: nextQueuedMessage,
+        });
+
+        // Continue processing with the queued message
+        return runAgent();
       }
 
       setState({ loading: false });
@@ -82,28 +82,23 @@ const workflow = createAgentWorkflow(
         });
       },
       message: async (userInput) => {
-        transcript.push(userInput);
-        if (state === "idle" || state === "paused") {
-          startAgentLoop();
+        if (state.loading) {
+          // Agent is busy - add to queue for later processing
+          addToQueue(userInput.content);
         } else {
-          // Agent is already running, input is added to transcript for next turn
-          appendMessage({
-            role: "ui",
-            content: "Input added to ongoing conversation.",
-          });
+          // Agent is available - process immediately
+          appendMessage(userInput);
+          runAgent();
         }
       },
       stop: () => {
-        state = "paused";
         setState({ loading: false });
         appendMessage({
           role: "ui",
-          content: "Agent paused.",
+          content: "Agent stopped.",
         });
       },
       terminate: () => {
-        state = "idle";
-        transcript.length = 0; // Clear transcript
         setState({
           loading: false,
           messages: [],

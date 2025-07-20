@@ -23,13 +23,11 @@ import { execToolCall } from "../../tools/runtime.js";
 import { ReviewDecision } from "../../utils/agent/review.js";
 import { getToolCall, isNativeTool, getTextContent } from "../../utils/ai.js";
 import { extractAppliedPatches as _extractAppliedPatches } from "../../utils/extract-applied-patches.js";
-import { getGitDiff } from "../../utils/get-diff.js";
 import { log } from "../../utils/logger/log.js";
 import { CLI_VERSION } from "../../utils/session.js";
 import { shortCwd } from "../../utils/short-path.js";
 import { defaultWorkflow } from "../../workflow/default-agent.js";
 import ApprovalModeOverlay from "../approval-mode-overlay.js";
-import DiffOverlay from "../diff-overlay.js";
 import HelpOverlay from "../help-overlay.js";
 import HistoryOverlay from "../history-overlay.js";
 import PromptOverlay from "../prompt-overlay.js";
@@ -46,9 +44,9 @@ export type OverlayModeType =
   | "history"
   | "approval"
   | "help"
-  | "diff"
   | "selection"
-  | "prompt";
+  | "prompt"
+  | "confirmation";
 
 type Props = {
   approvalPolicy: ApprovalPolicy;
@@ -87,24 +85,38 @@ export default function TerminalChat({
     loading: false,
     messages: [],
     inputDisabled: false,
+    queue: [],
   });
 
-  // Smart setState that merges at top level only
+  // Separate synchronous state for immediate getState access
+  const syncStateRef = useRef<WorkflowState>({
+    loading: false,
+    messages: [],
+    inputDisabled: false,
+    queue: [],
+  });
+
+  // Smart setState that updates both sync state immediately and React state for UI
   const smartSetState = useCallback(
-    (
+    async (
       updater:
         | Partial<WorkflowState>
         | ((prev: WorkflowState) => WorkflowState),
-    ) => {
-      setWorkflowState((prev) => {
-        if (typeof updater === "function") {
-          // Function form - return as-is
-          return updater(prev);
-        }
+    ): Promise<void> => {
+      // Update synchronous state immediately
+      let newState: WorkflowState;
+      if (typeof updater === "function") {
+        newState = updater(syncStateRef.current);
+      } else {
+        newState = { ...syncStateRef.current, ...updater };
+      }
+      syncStateRef.current = newState;
 
-        // Object form - merge at top level only (arrays/objects are replaced)
-        return { ...prev, ...updater };
-      });
+      // Also update React state for UI rendering
+      setWorkflowState(newState);
+
+      // Return immediately resolved promise since state is synchronously updated
+      return Promise.resolve();
     },
     [],
   );
@@ -124,13 +136,6 @@ export default function TerminalChat({
   } = useConfirmation();
   const [overlayMode, setOverlayMode] = useState<OverlayModeType>("none");
 
-  // Store the diff text when opening the diff overlay so the view isn't
-  // recomputed on every re‑render while it is open.
-  // diffText is passed down to the DiffOverlay component. The setter is
-  // currently unused but retained for potential future updates. Prefix with
-  // an underscore so eslint ignores the unused variable.
-  const [diffText, _setDiffText] = useState<string>("");
-
   // Selection state for onSelect hook
   const [selectionState, setSelectionState] = useState<{
     items: Array<SelectItem>;
@@ -143,6 +148,13 @@ export default function TerminalChat({
   const [promptState, setPromptState] = useState<{
     message: string;
     resolve: (value: string) => void;
+    reject: (reason?: Error) => void;
+  } | null>(null);
+
+  // Confirmation state for onConfirm hook
+  const [confirmationState, setConfirmationState] = useState<{
+    message: string;
+    resolve: (value: boolean) => void;
     reject: (reason?: Error) => void;
   } | null>(null);
 
@@ -261,51 +273,80 @@ export default function TerminalChat({
         log(message);
       },
       setState: smartSetState,
-      getState: () => workflowState,
+      state: {
+        get loading() {
+          return syncStateRef.current.loading;
+        },
+        get messages() {
+          return syncStateRef.current.messages;
+        },
+        get inputDisabled() {
+          return syncStateRef.current.inputDisabled;
+        },
+        get queue() {
+          return syncStateRef.current.queue || [];
+        },
+        get transcript() {
+          return syncStateRef.current.messages.filter(
+            (msg) => msg.role !== "ui",
+          );
+        },
+      },
       appendMessage: (message: UIMessage | Array<UIMessage>) => {
         const messages = Array.isArray(message) ? message : [message];
-        smartSetState((prev) => ({
+        void smartSetState((prev) => ({
           ...prev,
           messages: [...prev.messages, ...messages],
         }));
+      },
+      addToQueue: (item: string | Array<string>) => {
+        const items = Array.isArray(item) ? item : [item];
+        // Convert any non-string items to strings
+        const stringItems = items.map((i) => {
+          if (typeof i === "string") {
+            return i;
+          } else if (typeof i === "object" && i && "content" in i) {
+            // Handle message objects by extracting content
+            return (i as { content: string }).content;
+          } else if (typeof i === "object" && i && "text" in i) {
+            // Handle objects with text property
+            return (i as { text: string }).text;
+          } else {
+            // Convert anything else to string
+            return String(i);
+          }
+        });
+        void smartSetState((prev) => ({
+          ...prev,
+          queue: [...(prev.queue || []), ...stringItems],
+        }));
+      },
+      unshiftQueue: () => {
+        const currentState = syncStateRef.current;
+        const queue = currentState.queue || [];
+        if (queue.length === 0) {
+          return undefined;
+        }
+        const firstItem = queue[0];
+        void smartSetState((prev) => ({
+          ...prev,
+          queue: (prev.queue || []).slice(1),
+        }));
+        return firstItem;
       },
       onError: (error) => {
         log(`Workflow error: ${(error as Error).message}`);
         // Error is already handled in the workflow's run method
       },
       onConfirm: async (msg: string) => {
-        // Show confirmation dialog using the selection overlay
-        return new Promise<boolean>((resolve) => {
-          const items: Array<SelectItem> = [
-            { label: "Yes", value: "yes" },
-            { label: "No", value: "no" },
-          ];
-
-          // First show the message as a system message
-          smartSetState((prev) => ({
-            ...prev,
-            messages: [
-              ...prev.messages,
-              {
-                id: `confirm-prompt-${Date.now()}`,
-                role: "system",
-                content: msg,
-              } as UIMessage,
-            ],
-          }));
-
-          // Then show the selection dialog
-          setSelectionState({
-            items,
-            options: { required: true, default: "no" },
-            resolve: (value: string) => {
-              resolve(value === "yes");
-            },
-            reject: () => {
-              resolve(false); // Default to false on cancel
-            },
+        // Show confirmation dialog using ephemeral UI
+        return new Promise<boolean>((resolve, reject) => {
+          setConfirmationState({
+            message: msg,
+            resolve,
+            reject,
           });
-          setOverlayMode("selection");
+          setOverlayMode("confirmation");
         });
       },
       onPromptUser: async (msg: string) => {
@@ -376,7 +417,6 @@ export default function TerminalChat({
     workflowFactory,
     additionalWritableRoots,
     smartSetState,
-    workflowState,
     confirmationPrompt,
     getCommandConfirmation,
   ]);
@@ -513,8 +553,10 @@ export default function TerminalChat({
         {overlayMode === "none" && workflow && (
           <TerminalChatInput
             loading={loading}
+            queue={workflowState.queue || []}
             setItems={(updater) => {
               // Bridge setItems to smartSetState
+              // TODO: Remove this when TerminalChatInput is refactored to use workflow directly
               smartSetState((prev) => ({
                 ...prev,
                 messages:
@@ -538,29 +580,6 @@ export default function TerminalChat({
             openOverlay={() => setOverlayMode("history")}
             openApprovalOverlay={() => setOverlayMode("approval")}
             openHelpOverlay={() => setOverlayMode("help")}
-            openDiffOverlay={() => {
-              const { isGitRepo, diff } = getGitDiff();
-              let text: string;
-              if (isGitRepo) {
-                text = diff;
-              } else {
-                text = "`/diff` — _not inside a git repository_";
-              }
-              smartSetState((prev) => ({
-                ...prev,
-                messages: [
-                  ...prev.messages,
-                  {
-                    id: `diff-${Date.now()}`,
-                    type: "message",
-                    role: "system",
-                    content: text,
-                  } as UIMessage,
-                ],
-              }));
-              // Ensure no overlay is shown.
-              setOverlayMode("none");
-            }}
             workflow={workflowRef.current}
             active={overlayMode === "none" && !inputDisabled}
             inputDisabled={inputDisabled}
@@ -572,29 +591,40 @@ export default function TerminalChat({
                 "TerminalChat: interruptAgent invoked – calling workflow.stop()",
               );
               workflow.stop();
-              smartSetState({ loading: false });
-
-              // Add a system message to indicate the interruption
-              smartSetState((prev) => ({
-                ...prev,
-                messages: [
-                  ...prev.messages,
-                  {
-                    id: `interrupt-${Date.now()}`,
-                    role: "system",
-                    content:
-                      "⏹️  Execution interrupted by user. You can continue typing.",
-                  } as UIMessage,
-                ],
-              }));
+              // Let the workflow handle its own interruption state and messages
             }}
             submitInput={(input) => {
-              smartSetState((prev) => ({
-                ...prev,
-                messages: [...prev.messages, input],
-              }));
               if (workflow != null) {
-                workflow.message(input);
+                // Transform content array to simple string for user messages
+                const transformedInput =
+                  input.role === "user" && Array.isArray(input.content)
+                    ? {
+                        role: "user" as const,
+                        content: input.content
+                          .map((item) => {
+                            if (typeof item === "string") {
+                              return item;
+                            }
+                            if (
+                              typeof item === "object" &&
+                              item != null &&
+                              "text" in item
+                            ) {
+                              return (item as { text: string }).text;
+                            }
+                            if (
+                              typeof item === "object" &&
+                              item != null &&
+                              "content" in item
+                            ) {
+                              return (item as { content: string }).content;
+                            }
+                            return String(item);
+                          })
+                          .join(""),
+                      }
+                    : input;
+                workflow.message(transformedInput);
               }
               return {};
             }}
@@ -610,21 +640,6 @@ export default function TerminalChat({
             currentMode={approvalPolicy}
             onSelect={(newMode) => {
               setApprovalPolicy(newMode as ApprovalPolicy);
-
-              // We can't dynamically update the approval policy with the new workflow architecture
-              // We'll recreate the workflow with the new approval policy when needed
-              smartSetState((prev) => ({
-                ...prev,
-                messages: [
-                  ...prev.messages,
-                  {
-                    id: `switch-approval-${Date.now()}`,
-                    role: "system",
-                    content: `Switched approval mode to ${newMode}`,
-                  } as UIMessage,
-                ],
-              }));
-
               setOverlayMode("none");
             }}
             onExit={() => setOverlayMode("none")}
@@ -635,13 +650,6 @@ export default function TerminalChat({
           <HelpOverlay
             onExit={() => setOverlayMode("none")}
             workflow={workflowRef.current}
-          />
-        )}
-
-        {overlayMode === "diff" && (
-          <DiffOverlay
-            diffText={diffText}
-            onExit={() => setOverlayMode("none")}
           />
         )}
 
@@ -677,6 +685,30 @@ export default function TerminalChat({
               setOverlayMode("none");
             }}
           />
+        )}
+
+        {overlayMode === "confirmation" && confirmationState && (
+          <Box flexDirection="column">
+            <Text>{confirmationState.message}</Text>
+            <TerminalChatSelect
+              items={[
+                { label: "Yes", value: "yes" },
+                { label: "No", value: "no" },
+              ]}
+              options={{ required: true, default: "no" }}
+              onSelect={(value: string) => {
+                confirmationState.resolve(value === "yes");
+                setConfirmationState(null);
+                setOverlayMode("none");
+              }}
+              onCancel={() => {
+                confirmationState.resolve(false); // Default to false on cancel
+                setConfirmationState(null);
+                setOverlayMode("none");
+              }}
+              isActive={overlayMode === "confirmation"}
+            />
+          </Box>
         )}
       </Box>
     </Box>

@@ -8,6 +8,7 @@ import type { CoreMessage } from "ai";
 import MultilineTextEditor from "./multiline-editor";
 import { TerminalChatCommandReview } from "./terminal-chat-command-review.js";
 import TextCompletions from "./terminal-chat-completions.js";
+import TerminalChatQueue from "./terminal-chat-queue.js";
 import { useFileSystemSuggestions } from "../../hooks/use-file-system-suggestions.js";
 import { loadConfig } from "../../utils/config.js";
 import { processFileTokens } from "../../utils/file-tag-utils";
@@ -34,6 +35,7 @@ import { useInterval } from "use-interval";
 
 export default function TerminalChatInput({
   loading,
+  queue,
   submitInput,
   confirmationPrompt,
   explanation,
@@ -42,7 +44,6 @@ export default function TerminalChatInput({
   openOverlay,
   openApprovalOverlay,
   openHelpOverlay,
-  openDiffOverlay,
   interruptAgent,
   active,
   thinkingSeconds,
@@ -51,6 +52,7 @@ export default function TerminalChatInput({
   inputDisabled,
 }: {
   loading: boolean;
+  queue: Array<string>;
   submitInput: (input: CoreMessage) => void;
   confirmationPrompt: React.ReactNode | null;
   explanation?: string;
@@ -62,7 +64,7 @@ export default function TerminalChatInput({
   openOverlay: () => void;
   openApprovalOverlay: () => void;
   openHelpOverlay: () => void;
-  openDiffOverlay: () => void;
+
   interruptAgent: () => void;
   active: boolean;
   thinkingSeconds: number;
@@ -130,7 +132,7 @@ export default function TerminalChatInput({
   useInput(
     (_input, _key) => {
       // Slash command navigation: up/down to select, enter to fill
-      if (!confirmationPrompt && !loading && input.trim().startsWith("/")) {
+      if (!confirmationPrompt && input.trim().startsWith("/")) {
         const prefix = input.trim();
         const matches = availableCommands.filter((cmd: SlashCommand) =>
           cmd.command.startsWith(prefix),
@@ -192,9 +194,7 @@ export default function TerminalChatInput({
                   case "/approval":
                     openApprovalOverlay();
                     break;
-                  case "/diff":
-                    openDiffOverlay();
-                    break;
+
                   case "/clearhistory":
                     onSubmit(cmd);
                     break;
@@ -230,7 +230,7 @@ export default function TerminalChatInput({
           }
         }
       }
-      if (!confirmationPrompt && !loading) {
+      if (!confirmationPrompt) {
         if (fsSuggestions.length > 0) {
           if (_key.upArrow) {
             setSelectedCompletion((prev) =>
@@ -391,10 +391,6 @@ export default function TerminalChatInput({
         setInput("");
         openHelpOverlay();
         return;
-      } else if (inputValue === "/diff") {
-        setInput("");
-        openDiffOverlay();
-        return;
       } else if (inputValue.startsWith("/approval")) {
         setInput("");
         openApprovalOverlay();
@@ -545,7 +541,6 @@ export default function TerminalChatInput({
       openOverlay,
       openApprovalOverlay,
       openHelpOverlay,
-      openDiffOverlay,
       history,
       skipNextSubmit,
       workflow,
@@ -570,57 +565,59 @@ export default function TerminalChatInput({
 
   return (
     <Box flexDirection="column">
-      <Box borderStyle="round">
-        {loading ? (
+      <TerminalChatQueue queue={queue} />
+      {loading && (
+        <Box marginTop={1} marginBottom={0}>
           <TerminalChatInputThinking
             onInterrupt={interruptAgent}
             active={active}
             thinkingSeconds={thinkingSeconds}
           />
-        ) : (
-          <Box paddingX={1}>
-            <MultilineTextEditor
-              ref={editorRef}
-              onChange={(txt: string) => {
-                setDraftInput(txt);
-                if (historyIndex != null) {
-                  setHistoryIndex(null);
-                }
-                setInput(txt);
-                // Always update selection when @ is present to ensure selectedCompletion is set
-                const hasAtSymbol = txt.includes("@");
-                updateFsSuggestions(txt, hasAtSymbol);
-              }}
-              key={editorState.key}
-              initialCursorOffset={editorState.initialCursorOffset}
-              initialText={input}
-              height={6}
-              focus={active}
-              onSubmit={(txt) => {
-                // If final token is an @path, replace with filesystem suggestion if available
-                const {
-                  text: replacedText,
-                  suggestion,
-                  wasReplaced,
-                } = getFileSystemSuggestion(txt, true);
-
-                // If we replaced @path token with a directory, don't submit
-                if (wasReplaced && suggestion?.isDirectory) {
-                  applyFsSuggestion(replacedText);
-                  // Update suggestions for the new directory
-                  updateFsSuggestions(replacedText, true);
-                  return;
-                }
-
-                onSubmit(replacedText);
-                setEditorState((s) => ({ key: s.key + 1 }));
-                setInput("");
+        </Box>
+      )}
+      <Box borderStyle="round">
+        <Box paddingX={1}>
+          <MultilineTextEditor
+            ref={editorRef}
+            onChange={(txt: string) => {
+              setDraftInput(txt);
+              if (historyIndex != null) {
                 setHistoryIndex(null);
-                setDraftInput("");
-              }}
-            />
-          </Box>
-        )}
+              }
+              setInput(txt);
+              // Always update selection when @ is present to ensure selectedCompletion is set
+              const hasAtSymbol = txt.includes("@");
+              updateFsSuggestions(txt, hasAtSymbol);
+            }}
+            key={editorState.key}
+            initialCursorOffset={editorState.initialCursorOffset}
+            initialText={input}
+            height={6}
+            focus={active}
+            onSubmit={(txt) => {
+              // If final token is an @path, replace with filesystem suggestion if available
+              const {
+                text: replacedText,
+                suggestion,
+                wasReplaced,
+              } = getFileSystemSuggestion(txt, true);
+
+              // If we replaced @path token with a directory, don't submit
+              if (wasReplaced && suggestion?.isDirectory) {
+                applyFsSuggestion(replacedText);
+                // Update suggestions for the new directory
+                updateFsSuggestions(replacedText, true);
+                return;
+              }
+
+              onSubmit(replacedText);
+              setEditorState((s) => ({ key: s.key + 1 }));
+              setInput("");
+              setHistoryIndex(null);
+              setDraftInput("");
+            }}
+          />
+        </Box>
       </Box>
       {/* Slash command autocomplete suggestions */}
       {input.trim().startsWith("/") && (

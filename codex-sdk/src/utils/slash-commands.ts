@@ -28,12 +28,6 @@ export const DEFAULT_UI_COMMANDS: Array<SlashCommand> = [
     description: "Open approval mode selection panel",
     source: "ui",
   },
-  {
-    command: "/diff",
-    description:
-      "Show git diff of the working directory (or applied patches if not in git)",
-    source: "ui",
-  },
 ];
 
 /**
