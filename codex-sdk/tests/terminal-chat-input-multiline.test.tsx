@@ -29,6 +29,7 @@ describe("TerminalChatInput multiline functionality", () => {
 
     const props: ComponentProps<typeof TerminalChatInput> = {
       loading: false,
+    queue: [],
       submitInput,
       confirmationPrompt: null,
       explanation: undefined,
@@ -37,7 +38,6 @@ describe("TerminalChatInput multiline functionality", () => {
       openOverlay: () => {},
       openApprovalOverlay: () => {},
       openHelpOverlay: () => {},
-      openDiffOverlay: () => {},
       interruptAgent: () => {},
       active: true,
       thinkingSeconds: 0,
@@ -75,6 +75,7 @@ describe("TerminalChatInput multiline functionality", () => {
 
     const props: ComponentProps<typeof TerminalChatInput> = {
       loading: false,
+    queue: [],
       submitInput,
       confirmationPrompt: null,
       explanation: undefined,
@@ -83,7 +84,6 @@ describe("TerminalChatInput multiline functionality", () => {
       openOverlay: () => {},
       openApprovalOverlay: () => {},
       openHelpOverlay: () => {},
-      openDiffOverlay: () => {},
       interruptAgent: () => {},
       active: true,
       thinkingSeconds: 0,

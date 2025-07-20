@@ -3,6 +3,7 @@ import type { AppConfig } from "../utils/config.js";
 import type { CoreMessage, ToolSet } from "ai";
 
 import { getToolCall } from "../utils/ai.js";
+import { getGitDiff } from "../utils/get-diff.js";
 import {
   MCPClientManager,
   type MCPServerConfig,
@@ -158,11 +159,11 @@ export function defaultWorkflow(
         execAbortController = new AbortController();
       }
 
+      hooks.setState({ loading: false });
       hooks.appendMessage({
         role: "ui",
-        content: "Workflow execution stopped.",
+        content: "⏹️  Execution interrupted by user. You can continue typing.",
       });
-      hooks.setState({ loading: false });
       canceled = true;
     },
 
@@ -207,8 +208,9 @@ export function defaultWorkflow(
         await initializeMcp();
       }
 
-      // Add input messages to transcript
+      // Add input messages to transcript and UI
       transcript.push(input);
+      hooks.appendMessage(input);
 
       // Set up loop control variables
       let isRunning = true;
@@ -416,6 +418,32 @@ Keep the summary concise but comprehensive.`,
             hooks.logger(errorMsg);
             hooks.appendMessage({ role: "ui", content: errorMsg });
             hooks.setState({ loading: false });
+          }
+        },
+      },
+      diff: {
+        description: "Show the current git diff of modified files",
+        handler: async () => {
+          try {
+            hooks.logger("Executing /diff command");
+
+            const { isGitRepo, diff } = getGitDiff();
+            let content: string;
+
+            if (isGitRepo) {
+              content = diff || "No changes to show.";
+            } else {
+              content = "`/diff` — _not inside a git repository_";
+            }
+
+            hooks.appendMessage({
+              role: "system",
+              content: content,
+            });
+          } catch (error) {
+            const errorMsg = `Error executing /diff command: ${(error as Error).message}`;
+            hooks.logger(errorMsg);
+            hooks.appendMessage({ role: "ui", content: errorMsg });
           }
         },
       },

@@ -11,8 +11,8 @@ test("DEFAULT_UI_COMMANDS includes expected commands", () => {
   expect(commands).toContain("/help");
   expect(commands).toContain("/approval");
   expect(commands).toContain("/clearhistory");
-  expect(commands).toContain("/diff");
 
+  expect(commands).not.toContain("/diff"); // Now a workflow command
   expect(commands).not.toContain("/compact");
   expect(commands).not.toContain("/model");
   expect(commands).not.toContain("/bug");
@@ -23,6 +23,10 @@ test("getAllAvailableCommands combines UI and workflow commands", () => {
   const workflowCommands = {
     compact: {
       description: "Clear conversation history but keep a summary in context",
+      handler: async () => {},
+    },
+    diff: {
+      description: "Show the current git diff of modified files",
       handler: async () => {},
     },
     custom: {
@@ -37,6 +41,7 @@ test("getAllAvailableCommands combines UI and workflow commands", () => {
   expect(commandNames).toContain("/help");
 
   expect(commandNames).toContain("/compact");
+  expect(commandNames).toContain("/diff");
   expect(commandNames).toContain("/custom");
 
   const compactCommand = allCommands.find((c) => c.command === "/compact");
@@ -51,7 +56,7 @@ test("getAllAvailableCommands combines UI and workflow commands", () => {
   const workflowCmds = allCommands.filter((c) => c.source === "workflow");
 
   expect(uiCommands.length).toBeGreaterThan(0);
-  expect(workflowCmds.length).toBe(2);
+  expect(workflowCmds.length).toBe(3); // compact, diff, custom
 });
 
 test("filters commands by prefix", () => {

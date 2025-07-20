@@ -64,6 +64,7 @@ function stubProps(): any {
   return {
     isNew: false,
     loading: false,
+    queue: [],
     submitInput: () => {},
     confirmationPrompt: null,
     explanation: undefined,
@@ -72,7 +73,7 @@ function stubProps(): any {
     openOverlay: () => {},
     openApprovalOverlay: () => {},
     openHelpOverlay: () => {},
-    openDiffOverlay: () => {},
+
     onCompact: () => {},
     interruptAgent: () => {},
     active: true,

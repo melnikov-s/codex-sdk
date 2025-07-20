@@ -16,6 +16,8 @@ export interface WorkflowState {
   loading: boolean;
   messages: Array<UIMessage>;
   inputDisabled: boolean;
+  queue?: Array<string>;
+  transcript?: Array<UIMessage>;
 }
 
 export interface Workflow {
@@ -78,23 +80,43 @@ export interface WorkflowHooks {
 
   /**
    * Set the workflow state declaratively
+   * State changes are applied synchronously and immediately visible via getState()
    * @param state Partial state object or updater function
+   * @returns Promise that resolves when UI has been updated (for compatibility)
    */
   setState: (
     state: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
-  ) => void;
+  ) => Promise<void>;
 
   /**
-   * Get the current workflow state
-   * @returns The current workflow state
+   * Current workflow state with getter properties
+   * Access via state.loading, state.messages, etc.
    */
-  getState: () => WorkflowState;
+  state: {
+    readonly loading: boolean;
+    readonly messages: Array<UIMessage>;
+    readonly inputDisabled: boolean;
+    readonly queue: Array<string>;
+    readonly transcript: Array<UIMessage>;
+  };
 
   /**
    * Append message(s) to the current messages array
    * @param message Single message or array of messages to append
    */
   appendMessage: (message: UIMessage | Array<UIMessage>) => void;
+
+  /**
+   * Add item(s) to the end of the queue
+   * @param item Single string or array of strings to add to queue
+   */
+  addToQueue: (item: string | Array<string>) => void;
+
+  /**
+   * Remove and return the first item from the queue
+   * @returns The first queue item, or undefined if queue is empty
+   */
+  unshiftQueue: () => string | undefined;
 
   /**
    * Send a confirmation prompt to the user

@@ -8,6 +8,7 @@ describe("TerminalChatInput compact command", () => {
   it("shows statusLine when provided", async () => {
     const props: ComponentProps<typeof TerminalChatInput> = {
       loading: false,
+      queue: [],
       submitInput: () => {},
       confirmationPrompt: null,
       explanation: undefined,
@@ -15,7 +16,7 @@ describe("TerminalChatInput compact command", () => {
       setItems: () => {},
       statusLine: "Custom status message",
       openOverlay: () => {},
-      openDiffOverlay: () => {},
+
       openApprovalOverlay: () => {},
       openHelpOverlay: () => {},
       interruptAgent: () => {},
