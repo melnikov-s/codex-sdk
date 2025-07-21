@@ -1,0 +1,150 @@
+// Project Setup Assistant - showcasing user_select for guided workflows:
+// - Suggested choices with "None of the above" for custom input
+// - Decision trees based on user preferences
+// - Timeout for when users step away during setup
+// - Progressive questioning based on previous answers
+import { run, createAgentWorkflow } from "../dist/lib.js";
+import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
+
+const workflow = createAgentWorkflow(
+  ({ setState, state, appendMessage, handleToolCall, tools }) => {
+    let projectConfig = {};
+    let setupActive = false;
+
+    async function runAssistant() {
+      setState({ loading: true });
+
+      while (state.loading) {
+        try {
+          const systemPrompt = `You are a Project Setup Assistant helping a developer create a new project.
+
+CURRENT CONFIG: ${JSON.stringify(projectConfig, null, 2)}
+SETUP STATUS: ${setupActive ? "ACTIVE" : "WAITING TO START"}
+
+Your job is to:
+1. Ask about project type, framework, features they want
+2. Offer popular suggestions but always include "None of the above" for custom options
+3. Build up a complete project configuration step by step
+4. When done, summarize their choices and offer to generate starter files
+
+IMPORTANT: Use user_select tool for ALL questions. Examples:
+- Project type: [{"label": "Web App", "value": "webapp"}, {"label": "Mobile App", "value": "mobile"}, {"label": "API/Backend", "value": "api"}]
+- Framework: [{"label": "React", "value": "react"}, {"label": "Vue", "value": "vue"}, {"label": "Next.js", "value": "nextjs"}]
+- Features: [{"label": "Authentication", "value": "auth"}, {"label": "Database", "value": "db"}, {"label": "Testing", "value": "testing"}]
+
+Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
+
+          const response = await generateText({
+            model: openai("gpt-4o"),
+            system: systemPrompt,
+            messages: state.transcript,
+            tools,
+          });
+
+          const aiMessage = response.response.messages[0];
+          if (!aiMessage) {
+            break;
+          }
+
+          appendMessage(aiMessage);
+
+          const toolResponse = await handleToolCall(aiMessage);
+          if (toolResponse) {
+            // Parse the response to update project config
+            const result = JSON.parse(toolResponse.content[0].result);
+            if (result.userResponse) {
+              // Store the user's choice in our project config
+              // This is a simplified example - you'd have more sophisticated config handling
+              appendMessage(toolResponse);
+            }
+          } else if (response.finishReason === "stop") {
+            // User selected "None of the above" - they'll provide custom input
+            appendMessage({
+              role: "ui",
+              content: "💬 Please tell me more about what you have in mind...",
+            });
+            setState({ loading: false });
+            break;
+          }
+        } catch (error) {
+          appendMessage({
+            role: "ui",
+            content: `❌ Error: ${error.message || "Unknown error"}`,
+          });
+          break;
+        }
+      }
+    }
+
+    return {
+      initialize: async () => {
+        setState({
+          messages: [
+            {
+              role: "ui",
+              content:
+                "🚀 Welcome to Project Setup Assistant! 📋\n\n" +
+                "I'll help you configure a new project by asking about your preferences.\n" +
+                "Don't see an option that fits? Just select 'None of the above' and tell me what you need!\n\n" +
+                "Ready to start? Type 'setup' to begin! ⚙️",
+            },
+          ],
+        });
+      },
+      message: async (userInput) => {
+        const content = userInput.content.toLowerCase().trim();
+
+        if (
+          !setupActive &&
+          (content === "setup" || content.includes("setup"))
+        ) {
+          setupActive = true;
+          projectConfig = {};
+          appendMessage(userInput);
+          appendMessage({
+            role: "ui",
+            content:
+              "⚙️ Setup Started! I'll ask you a few questions to understand your project needs.\n" +
+              "Remember: You can always choose 'None of the above' to provide custom details! 💡",
+          });
+          runAssistant();
+        } else if (!setupActive) {
+          appendMessage(userInput);
+          appendMessage({
+            role: "ui",
+            content:
+              "🚀 Type 'setup' when you're ready to configure your project!",
+          });
+        } else {
+          // Setup is active, user provided custom input after "None of the above"
+          appendMessage(userInput);
+          appendMessage({
+            role: "ui",
+            content:
+              "👍 Got it! I'll take that into account for your project setup...",
+          });
+          runAssistant();
+        }
+      },
+      stop: () => {
+        setState({ loading: false });
+        appendMessage({
+          role: "ui",
+          content:
+            "⏸️ Setup paused. Type anything to continue configuring your project!",
+        });
+      },
+      terminate: () => {
+        setupActive = false;
+        projectConfig = {};
+        setState({
+          loading: false,
+          messages: [],
+        });
+      },
+    };
+  },
+);
+
+run(workflow);

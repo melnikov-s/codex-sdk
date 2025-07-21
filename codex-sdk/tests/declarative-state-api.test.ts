@@ -252,7 +252,7 @@ describe("Declarative State API", () => {
         tools: {},
         handleToolCall: vi.fn(),
         onConfirm: vi.fn(),
-        onPromptUser: vi.fn(),
+        onPrompt: vi.fn(),
         onSelect: vi.fn(),
         logger: vi.fn(),
       };
@@ -319,7 +319,7 @@ describe("Declarative State API", () => {
         tools: {},
         handleToolCall: vi.fn(),
         onConfirm: vi.fn(),
-        onPromptUser: vi.fn(),
+        onPrompt: vi.fn(),
         onSelect: vi.fn(),
         logger: vi.fn(),
       };
@@ -456,7 +456,7 @@ describe("Declarative State API", () => {
           tools: {},
           handleToolCall: vi.fn(),
           onConfirm: vi.fn(),
-          onPromptUser: vi.fn(),
+          onPrompt: vi.fn(),
           onSelect: vi.fn(),
           logger: vi.fn(),
         };
