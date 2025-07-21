@@ -8,7 +8,12 @@ import type {
   WorkflowHooks,
   SelectItem,
   SelectOptions,
+  SelectOptionsWithTimeout,
   WorkflowState,
+  ConfirmOptions,
+  ConfirmOptionsWithTimeout,
+  PromptOptions,
+  PromptOptionsWithTimeout,
 } from "../../workflow";
 import type { ColorName } from "chalk";
 
@@ -139,7 +144,7 @@ export default function TerminalChat({
   // Selection state for onSelect hook
   const [selectionState, setSelectionState] = useState<{
     items: Array<SelectItem>;
-    options?: SelectOptions;
+    options?: SelectOptions | SelectOptionsWithTimeout;
     resolve: (value: string) => void;
     reject: (reason?: Error) => void;
   } | null>(null);
@@ -147,6 +152,7 @@ export default function TerminalChat({
   // Prompt state for onPromptUser hook
   const [promptState, setPromptState] = useState<{
     message: string;
+    options?: PromptOptions | PromptOptionsWithTimeout;
     resolve: (value: string) => void;
     reject: (reason?: Error) => void;
   } | null>(null);
@@ -154,6 +160,7 @@ export default function TerminalChat({
   // Confirmation state for onConfirm hook
   const [confirmationState, setConfirmationState] = useState<{
     message: string;
+    options?: ConfirmOptions | ConfirmOptionsWithTimeout;
     resolve: (value: boolean) => void;
     reject: (reason?: Error) => void;
   } | null>(null);
@@ -263,11 +270,40 @@ export default function TerminalChat({
       parameters: ShellToolParametersSchema,
     });
 
+    // User interaction tool - handles confirmations, prompts, and selections
+    const userSelectTool = tool({
+      description:
+        "Show user a selection of options. Can be used for confirmations (Yes/No), prompted input (with suggestions + custom option), or pure selections. Automatically includes 'None of the above' option which allows user to provide custom input instead.",
+      parameters: z.object({
+        message: z.string().describe("Selection prompt to show the user"),
+        options: z
+          .array(
+            z.object({
+              label: z.string().describe("Display text for this option"),
+              value: z
+                .string()
+                .describe("Value returned if this option is selected"),
+            }),
+          )
+          .describe("Array of options for user to choose from"),
+        timeout: z
+          .number()
+          .default(45)
+          .describe("Timeout in seconds (default: 45)"),
+        defaultValue: z
+          .string()
+          .describe(
+            "Value to use if user doesn't respond in time (must match one of the option values)",
+          ),
+      }),
+    });
+
     // Create the workflow hooks
     const workflowHooks: WorkflowHooks = {
       tools: {
         shell: shellTool,
         apply_patch: applyPatchTool,
+        user_select: userSelectTool,
       },
       logger: (message) => {
         log(message);
@@ -338,29 +374,40 @@ export default function TerminalChat({
         log(`Workflow error: ${(error as Error).message}`);
         // Error is already handled in the workflow's run method
       },
-      onConfirm: async (msg: string) => {
+      onConfirm: async (
+        msg: string,
+        options?: ConfirmOptions | ConfirmOptionsWithTimeout,
+      ) => {
         // Show confirmation dialog using ephemeral UI
         return new Promise<boolean>((resolve, reject) => {
           setConfirmationState({
             message: msg,
+            options,
             resolve,
             reject,
           });
           setOverlayMode("confirmation");
         });
       },
-      onPromptUser: async (msg: string) => {
+      onPrompt: async (
+        msg: string,
+        options?: PromptOptions | PromptOptionsWithTimeout,
+      ) => {
         // Show text input prompt
         return new Promise<string>((resolve, reject) => {
           setPromptState({
             message: msg,
+            options,
             resolve,
             reject,
           });
           setOverlayMode("prompt");
         });
       },
-      onSelect: (items: Array<SelectItem>, options?: SelectOptions) => {
+      onSelect: (
+        items: Array<SelectItem>,
+        options?: SelectOptions | SelectOptionsWithTimeout,
+      ) => {
         return new Promise<string>((resolve, reject) => {
           setSelectionState({ items, options, resolve, reject });
           setOverlayMode("selection");
@@ -373,7 +420,71 @@ export default function TerminalChat({
           return null;
         }
 
-        // Handle the tool call
+        // Handle user interaction tools
+        if (toolCall.toolName === "user_select") {
+          const {
+            message: promptMessage,
+            options,
+            timeout,
+            defaultValue,
+          } = toolCall.args as {
+            message: string;
+            options: Array<{ label: string; value: string }>;
+            timeout: number;
+            defaultValue: string;
+          };
+
+          // Auto-add "None of the above" option
+          const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
+          const enhancedOptions = [
+            ...options,
+            {
+              label: "None of the above (enter custom option)",
+              value: CUSTOM_INPUT_VALUE,
+            },
+          ];
+
+          // Ensure defaultValue exists in the enhanced options, fallback to first option if not
+          const validDefaultValue = enhancedOptions.find(
+            (opt) => opt.value === defaultValue,
+          )
+            ? defaultValue
+            : (enhancedOptions[0]?.value ?? CUSTOM_INPUT_VALUE);
+
+          const userResponse = await new Promise<string>((resolve, reject) => {
+            setSelectionState({
+              items: enhancedOptions,
+              options: {
+                label: promptMessage,
+                timeout,
+                defaultValue: validDefaultValue,
+              },
+              resolve,
+              reject,
+            });
+            setOverlayMode("selection");
+          });
+
+          // If user selected "None of the above", return null to naturally break the agent loop
+          if (userResponse === CUSTOM_INPUT_VALUE) {
+            return null;
+          }
+
+          // Otherwise return normal tool response
+          return {
+            role: "tool" as const,
+            content: [
+              {
+                type: "tool-result" as const,
+                toolCallId: toolCall.toolCallId,
+                result: JSON.stringify({ userResponse }),
+                toolName: toolCall.toolName,
+              },
+            ],
+          };
+        }
+
+        // Handle the tool call with existing system (shell/apply_patch)
         const toolResults = await execToolCall(
           toolCall,
           uiConfig,
@@ -674,6 +785,7 @@ export default function TerminalChat({
         {overlayMode === "prompt" && promptState && (
           <PromptOverlay
             message={promptState.message}
+            options={promptState.options}
             onSubmit={(value: string) => {
               promptState.resolve(value);
               setPromptState(null);
@@ -695,7 +807,20 @@ export default function TerminalChat({
                 { label: "Yes", value: "yes" },
                 { label: "No", value: "no" },
               ]}
-              options={{ required: true, default: "no" }}
+              options={
+                confirmationState.options &&
+                "timeout" in confirmationState.options &&
+                "defaultValue" in confirmationState.options
+                  ? {
+                      required: true,
+                      default: "no",
+                      timeout: confirmationState.options.timeout,
+                      defaultValue: confirmationState.options.defaultValue
+                        ? "yes"
+                        : "no",
+                    }
+                  : { required: true, default: "no" }
+              }
               onSelect={(value: string) => {
                 confirmationState.resolve(value === "yes");
                 setConfirmationState(null);

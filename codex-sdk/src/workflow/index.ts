@@ -10,6 +10,36 @@ export interface SelectOptions {
   required?: boolean;
   default?: string;
   label?: string;
+  timeout?: number;
+  defaultValue?: string;
+}
+
+export interface SelectOptionsWithTimeout {
+  required?: boolean;
+  default?: string;
+  label?: string;
+  timeout: number;
+  defaultValue: string;
+}
+
+export interface ConfirmOptions {
+  timeout?: number;
+  defaultValue?: boolean;
+}
+
+export interface ConfirmOptionsWithTimeout {
+  timeout: number;
+  defaultValue: boolean;
+}
+
+export interface PromptOptions {
+  timeout?: number;
+  defaultValue?: string;
+}
+
+export interface PromptOptionsWithTimeout {
+  timeout: number;
+  defaultValue: string;
 }
 
 export interface WorkflowState {
@@ -121,16 +151,22 @@ export interface WorkflowHooks {
   /**
    * Send a confirmation prompt to the user
    * @param msg The confirmation message
+   * @param options Optional timeout and default configuration
    * @returns Whether the user confirmed or not
    */
-  onConfirm: (msg: string) => Promise<boolean>;
+  onConfirm(msg: string): Promise<boolean>;
+  onConfirm(msg: string, options: ConfirmOptionsWithTimeout): Promise<boolean>;
+  onConfirm(msg: string, options?: ConfirmOptions): Promise<boolean>;
 
   /**
    * Send a prompt to the user and get their response
    * @param msg The prompt message
+   * @param options Optional timeout and default configuration
    * @returns The user's response as a string
    */
-  onPromptUser: (msg: string) => Promise<string>;
+  onPrompt(msg: string): Promise<string>;
+  onPrompt(msg: string, options: PromptOptionsWithTimeout): Promise<string>;
+  onPrompt(msg: string, options?: PromptOptions): Promise<string>;
 
   /**
    * Handler for tool calls
@@ -158,13 +194,14 @@ export interface WorkflowHooks {
   /**
    * Show a selection dialog to the user
    * @param items Array of items to select from
-   * @param options Selection options (required, default)
+   * @param options Selection options (required, default, timeout)
    * @returns Promise that resolves with the selected value
    */
-  onSelect: (
+  onSelect(
     items: Array<SelectItem>,
-    options?: SelectOptions,
-  ) => Promise<string>;
+    options: SelectOptionsWithTimeout,
+  ): Promise<string>;
+  onSelect(items: Array<SelectItem>, options?: SelectOptions): Promise<string>;
 }
 
 export type WorkflowFactory = (hooks: WorkflowHooks) => Workflow;

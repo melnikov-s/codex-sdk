@@ -44,6 +44,44 @@ run(defaultWorkflow);
 
 Create your own agent logic by providing a function to `createAgentWorkflow`. This function defines how your agent initializes, processes messages, and interacts with the UI and tools.
 
+**Timeout Functionality Example:**
+
+```javascript
+// Manual hook calls with timeout in your agent logic
+const confirmation = await hooks.onSelect(
+  [
+    { label: "Yes", value: "yes" },
+    { label: "No", value: "no" },
+  ],
+  {
+    label: "Continue with this action?",
+    timeout: 10,
+    defaultValue: "no",
+  },
+);
+
+const framework = await hooks.onSelect(
+  [
+    { label: "React", value: "react" },
+    { label: "Vue", value: "vue" },
+    { label: "Angular", value: "angular" },
+  ],
+  {
+    label: "What's your preferred framework?",
+    timeout: 30,
+    defaultValue: "react",
+  },
+);
+
+// LLM can also initiate user interactions autonomously via user_select tool
+// (timeout/defaultValue automatically included with 45s default)
+const response = await generateText({
+  model: openai("gpt-4o"),
+  messages: [...state.transcript],
+  tools, // Includes user_select for confirmations, prompts, and selections
+});
+```
+
 ```javascript
 // my-custom-agent.js
 import { run, createAgentWorkflow } from "codex-sdk";
@@ -146,6 +184,109 @@ run(customWorkflow);
 ## Key Library Components & Usage
 
 The Codex SDK revolves around a few core exports and concepts for building your agent.
+
+### User Interaction Tools for LLMs
+
+The Codex SDK automatically provides one powerful user interaction tool that LLMs can call autonomously to create human-in-the-loop workflows:
+
+**`user_select`** - Universal user interaction tool
+
+Handles **confirmations**:
+
+```json
+{
+  "toolName": "user_select",
+  "parameters": {
+    "message": "Should I delete the old backup files?",
+    "options": [
+      { "label": "Yes", "value": "yes" },
+      { "label": "No", "value": "no" }
+    ],
+    "timeout": 45,
+    "defaultValue": "no"
+  }
+}
+```
+
+Handles **prompted input with suggestions**:
+
+```json
+{
+  "toolName": "user_select",
+  "parameters": {
+    "message": "What testing framework should I use?",
+    "options": [
+      { "label": "Jest", "value": "jest" },
+      { "label": "Vitest", "value": "vitest" },
+      { "label": "Mocha", "value": "mocha" }
+    ],
+    "timeout": 45,
+    "defaultValue": "jest"
+  }
+}
+```
+
+Handles **pure selections**:
+
+```json
+{
+  "toolName": "user_select",
+  "parameters": {
+    "message": "Which deployment strategy?",
+    "options": [
+      { "label": "Blue-green deployment", "value": "blue-green" },
+      { "label": "Rolling deployment", "value": "rolling" },
+      { "label": "Canary deployment", "value": "canary" }
+    ],
+    "timeout": 45,
+    "defaultValue": "rolling"
+  }
+}
+```
+
+**Important**: `user_select` automatically adds a "None of the above (enter custom option)" choice. When selected:
+
+- `handleToolCall` returns `null` (no tool response)
+- Agent naturally stops processing (finishReason="stop")
+- User gets normal chat input to provide custom response
+- Perfect for when LLM options don't match user needs
+
+**Normal selections** return: `{"userResponse": "jest"}`
+**"None of the above"** returns: `null` (enables custom input flow)
+
+All interactions include automatic timeout handling (default 45 seconds) and return the user's response in the tool result:
+
+```json
+{"userResponse": "yes"}        // confirmation result
+{"userResponse": "jest"}       // selection result
+{"userResponse": "custom"}     // any selected value
+```
+
+**Example LLM Workflow:**
+
+```javascript
+// The LLM can autonomously create interactive workflows using just one tool:
+const response = await generateText({
+  model: openai("gpt-4o"),
+  messages: [...state.transcript],
+  tools, // Automatically includes user_select for all interaction types
+});
+
+// Examples of what the LLM might call:
+// Confirmation: user_select with Yes/No options
+// Prompted input: user_select with suggestions + "None of the above"
+// Pure selection: user_select with provided options + "None of the above"
+
+// Handle tool calls with natural flow control
+const toolResponse = await handleToolCall(response.toolCalls[0]);
+if (toolResponse) {
+  appendMessage(toolResponse); // Normal tool response - continue processing
+} else if (response.finishReason === "stop") {
+  // User selected "None of the above" - naturally breaks agent loop
+  setState({ loading: false });
+  // User can now provide custom input via normal chat interface
+}
+```
 
 ---
 
@@ -292,16 +433,17 @@ This is the function you provide to `createAgentWorkflow`. It's where your custo
     - `hooks.handleToolCall(aiMessageWithToolCall)` (`function`): Executes tool calls requested by the AI.
       - **Input:** `aiMessageWithToolCall` (`object`): The AI's message object that includes a `tool_calls` array.
       - **Returns:** `Promise<object | null>`: A promise that resolves to a tool response message (for the AI and UI) or `null` if no specific response is needed beyond the tool's side effects.
-    - `hooks.tools` (`Array<object>`): An array of tool definitions that the library supports (e.g., for shell commands, file operations). You should pass these to your AI model so it knows what tools it can request.
-    - `hooks.onConfirm(prompt)` (`function`): Shows a confirmation dialog to the user.
-      - **Input:** `prompt` (`string`): The confirmation message to display.
-      - **Returns:** `Promise<boolean>`: Resolves to `true` if confirmed, `false` otherwise.
-    - `hooks.onPromptUser(message)` (`function`): Shows a text input prompt to the user.
-      - **Input:** `message` (`string`): The prompt message.
-      - **Returns:** `Promise<string>`: The user's text input.
-    - `hooks.onSelect(items, options)` (`function`): Shows a selection dialog to the user.
+    - `hooks.tools` (`Array<object>`): An array of tool definitions that the library supports (e.g., for shell commands, file operations, and user interactions). You should pass these to your AI model so it knows what tools it can request.
+    - `hooks.onConfirm(prompt, options?)` (`function`): **Deprecated** - Use `onSelect` with Yes/No options instead.
+    - `hooks.onPrompt(message, options?)` (`function`): **Deprecated** - Use `onSelect` with suggested options instead.
+    - `hooks.onSelect(items, options?)` (`function`): Shows a selection dialog to the user.
       - **Input:** `items` (`Array<{label: string, value: string}>`): Items to choose from.
-      - **Input:** `options` (`object`, optional): Selection options like `required`, `default`.
+      - **Input:** `options` (`object`, optional): Selection options.
+        - `options.required` (`boolean`, optional): Whether selection is required.
+        - `options.default` (`string`, optional): Default value for escape key.
+        - `options.label` (`string`, optional): Custom label for the selection.
+        - `options.timeout` (`number`, optional): Timeout in seconds after which default value is automatically selected.
+        - `options.defaultValue` (`string`, required if timeout specified): Default value to use when timeout expires (must match one of the item values).
       - **Returns:** `Promise<string>`: The selected value.
     - `hooks.logger(message)` (`function`): Logs debug messages.
       - **Input:** `message` (`string`): The message to log.

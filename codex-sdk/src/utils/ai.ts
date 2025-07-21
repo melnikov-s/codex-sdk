@@ -12,7 +12,11 @@ export function getId(message: UIMessage): string {
 }
 
 export function isNativeTool(toolName: string | undefined) {
-  return toolName === "shell" || toolName === "apply_patch";
+  return (
+    toolName === "shell" ||
+    toolName === "apply_patch" ||
+    toolName === "user_select"
+  );
 }
 
 export type UIMessage =

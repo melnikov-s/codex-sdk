@@ -1,8 +1,13 @@
-import type { SelectItem, SelectOptions } from "../../workflow";
+import type {
+  SelectItem,
+  SelectOptions,
+  SelectOptionsWithTimeout,
+} from "../../workflow";
 
+import { CountdownTimer } from "../countdown-timer";
 import { Select } from "../vendor/ink-select/select";
 import { Box, Text, useInput } from "ink";
-import React from "react";
+import React, { useState } from "react";
 
 export function TerminalChatSelect({
   items,
@@ -12,12 +17,25 @@ export function TerminalChatSelect({
   isActive = true,
 }: {
   items: Array<SelectItem>;
-  options?: SelectOptions;
+  options?: SelectOptions | SelectOptionsWithTimeout;
   onSelect: (value: string) => void;
   onCancel: () => void;
   isActive?: boolean;
 }): React.ReactElement {
-  // Find the default item index if provided
+  const isTimeoutOptions = (
+    opts?: SelectOptions | SelectOptionsWithTimeout,
+  ): opts is SelectOptionsWithTimeout => {
+    return Boolean(
+      opts &&
+        typeof opts.timeout === "number" &&
+        opts.timeout > 0 &&
+        typeof opts.defaultValue === "string",
+    );
+  };
+
+  const timeoutOptions = isTimeoutOptions(options) ? options : null;
+  const [timeoutActive, setTimeoutActive] = useState(Boolean(timeoutOptions));
+
   const defaultIndex = React.useMemo(() => {
     if (options?.default) {
       const index = items.findIndex((item) => item.value === options.default);
@@ -26,7 +44,6 @@ export function TerminalChatSelect({
     return 0;
   }, [items, options?.default]);
 
-  // Memoize the select options to prevent unnecessary re-renders
   const selectOptions = React.useMemo(() => {
     return items.map((item) => ({
       label: item.label,
@@ -34,28 +51,35 @@ export function TerminalChatSelect({
     }));
   }, [items]);
 
+  const cancelTimeout = () => {
+    setTimeoutActive(false);
+  };
+
+  const handleTimeout = () => {
+    if (timeoutOptions) {
+      onSelect(timeoutOptions.defaultValue);
+    }
+  };
+
   useInput(
     (_input, key) => {
       if (key.return) {
-        // Get the currently selected item (Select component handles this internally)
-        // We'll rely on the Select component's onChange for the actual selection
         return;
       }
 
       if (key.escape) {
         if (options?.required) {
-          // Don't allow escape if required
           return;
         }
 
         if (options?.default) {
-          // Resolve with default if provided
           onSelect(options.default);
         } else {
-          // Cancel/reject
           onCancel();
         }
       }
+
+      cancelTimeout();
     },
     { isActive },
   );
@@ -63,6 +87,15 @@ export function TerminalChatSelect({
   return (
     <Box flexDirection="column" gap={1} borderStyle="round" marginTop={1}>
       <Text bold>{options?.label || "Select an option:"}</Text>
+      {timeoutActive && timeoutOptions && (
+        <Box paddingX={2}>
+          <CountdownTimer
+            timeoutSeconds={timeoutOptions.timeout}
+            onTimeout={handleTimeout}
+            onCancel={cancelTimeout}
+          />
+        </Box>
+      )}
       <Box paddingX={2} flexDirection="column" gap={1}>
         <Select
           isDisabled={!isActive}
@@ -70,6 +103,7 @@ export function TerminalChatSelect({
           highlightText=""
           defaultValue={selectOptions[defaultIndex]?.value}
           onChange={(value: string) => {
+            cancelTimeout();
             onSelect(value);
           }}
           options={selectOptions}
