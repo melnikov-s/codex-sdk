@@ -81,7 +81,7 @@ esbuild
     platform: "node",
     tsconfig: "tsconfig.json",
     outfile: `${OUT_DIR}/lib.js`,
-    minify: !isDevBuild,
+    minify: false,
     sourcemap: isDevBuild ? "inline" : true,
     plugins,
     inject: ["./require-shim.js"],

@@ -70,7 +70,6 @@ export default function PromptOverlay({
           <CountdownTimer
             timeoutSeconds={timeoutOptions.timeout}
             onTimeout={handleTimeout}
-            onCancel={cancelTimeout}
           />
         </Box>
       )}

@@ -5,6 +5,7 @@ import type {
 } from "../../workflow";
 
 import { CountdownTimer } from "../countdown-timer";
+import MultilineTextEditor from "./multiline-editor";
 import { Select } from "../vendor/ink-select/select";
 import { Box, Text, useInput } from "ink";
 import React, { useState } from "react";
@@ -13,7 +14,7 @@ export function TerminalChatSelect({
   items,
   options,
   onSelect,
-  onCancel,
+  onCancel: _onCancel,
   isActive = true,
 }: {
   items: Array<SelectItem>;
@@ -29,20 +30,29 @@ export function TerminalChatSelect({
       opts &&
         typeof opts.timeout === "number" &&
         opts.timeout > 0 &&
-        typeof opts.defaultValue === "string",
+        typeof opts.defaultValue === "string" &&
+        opts.defaultValue.length > 0,
     );
   };
 
   const timeoutOptions = isTimeoutOptions(options) ? options : null;
   const [timeoutActive, setTimeoutActive] = useState(Boolean(timeoutOptions));
+  
+  // Custom input state
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customInputValue, setCustomInputValue] = useState("");
+  
+  // Track if this is the initial render to avoid cancelling timeout on default selection
+  const initializedRef = React.useRef(false);
 
   const defaultIndex = React.useMemo(() => {
-    if (options?.default) {
-      const index = items.findIndex((item) => item.value === options.default);
+    const defaultValue = options?.defaultValue || options?.default;
+    if (defaultValue) {
+      const index = items.findIndex((item) => item.value === defaultValue);
       return index >= 0 ? index : 0;
     }
     return 0;
-  }, [items, options?.default]);
+  }, [items, options?.defaultValue, options?.default]);
 
   const selectOptions = React.useMemo(() => {
     return items.map((item) => ({
@@ -61,8 +71,56 @@ export function TerminalChatSelect({
     }
   };
 
+  const handleSelectionChange = (value: string) => {
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      const defaultValue = options?.defaultValue || options?.default;
+      if (value === defaultValue) {
+        return;
+      }
+    }
+
+    // This is a real user selection - cancel timeout and proceed
+    cancelTimeout();
+
+    // Check if "None of the above" was selected
+    if (value === "__CUSTOM_INPUT__") {
+      setShowCustomInput(true);
+      return;
+    }
+    
+    onSelect(value);
+  };
+
+  const handleCustomInputSubmit = (text: string) => {
+    if (text.trim()) {
+      onSelect(text.trim());
+    }
+  };
+
+  const handleCustomInputCancel = () => {
+    setShowCustomInput(false);
+    setCustomInputValue("");
+    // When cancelling custom input, fall back to default if available
+    const defaultValue = options?.defaultValue || options?.default;
+    if (defaultValue) {
+      onSelect(defaultValue);
+    } else {
+      // If no default, resolve with empty string rather than rejecting
+      onSelect("");
+    }
+  };
+
   useInput(
     (_input, key) => {
+      // If in custom input mode, let the text editor handle input
+      if (showCustomInput) {
+        if (key.escape) {
+          handleCustomInputCancel();
+        }
+        return;
+      }
+
       if (key.return) {
         return;
       }
@@ -72,18 +130,58 @@ export function TerminalChatSelect({
           return;
         }
 
-        if (options?.default) {
-          onSelect(options.default);
+        const defaultValue = options?.defaultValue || options?.default;
+        if (defaultValue) {
+          onSelect(defaultValue);
         } else {
-          onCancel();
+          // Resolve with empty string instead of calling onCancel
+          onSelect("");
         }
+        return;
       }
 
-      cancelTimeout();
+      // Only cancel timeout for meaningful navigation keys, not on any input
+      if (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) {
+        cancelTimeout();
+      }
     },
     { isActive },
   );
 
+  // Render custom input mode
+  if (showCustomInput) {
+    return (
+      <Box flexDirection="column" gap={1} borderStyle="round" marginTop={1}>
+        <Text bold>Enter your custom option:</Text>
+        {timeoutActive && timeoutOptions && (
+          <Box paddingX={2}>
+            <CountdownTimer
+              timeoutSeconds={timeoutOptions.timeout}
+              onTimeout={handleTimeout}
+            />
+          </Box>
+        )}
+        <Box paddingX={2} flexDirection="column" gap={1}>
+          <Box borderStyle="single" paddingX={1}>
+            <MultilineTextEditor
+              initialText={customInputValue}
+              height={3}
+              focus={isActive}
+              onChange={setCustomInputValue}
+              onSubmit={handleCustomInputSubmit}
+            />
+          </Box>
+        </Box>
+        <Box paddingX={2}>
+          <Text dimColor>
+            ↵ to submit • Shift+↵ for new line • esc to select default
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Render normal selection mode
   return (
     <Box flexDirection="column" gap={1} borderStyle="round" marginTop={1}>
       <Text bold>{options?.label || "Select an option:"}</Text>
@@ -92,7 +190,6 @@ export function TerminalChatSelect({
           <CountdownTimer
             timeoutSeconds={timeoutOptions.timeout}
             onTimeout={handleTimeout}
-            onCancel={cancelTimeout}
           />
         </Box>
       )}
@@ -102,10 +199,7 @@ export function TerminalChatSelect({
           visibleOptionCount={Math.min(selectOptions.length, 10)}
           highlightText=""
           defaultValue={selectOptions[defaultIndex]?.value}
-          onChange={(value: string) => {
-            cancelTimeout();
-            onSelect(value);
-          }}
+          onChange={handleSelectionChange}
           options={selectOptions}
         />
       </Box>
@@ -113,9 +207,16 @@ export function TerminalChatSelect({
         <Text dimColor>
           {options?.required
             ? "↵ to select (escape disabled)"
-            : options?.default
-              ? `↵ to select • esc for default (${options.default})`
-              : "↵ to select • esc to cancel"}
+            : (() => {
+                const defaultValue = options?.defaultValue || options?.default;
+                if (defaultValue) {
+                  // Find the label for the default value to match capitalization
+                  const defaultItem = items.find(item => item.value === defaultValue);
+                  const displayValue = defaultItem ? defaultItem.label : defaultValue;
+                  return `↵ to select • esc to select default (${displayValue})`;
+                }
+                return "↵ to select • esc to select (none)";
+              })()}
         </Text>
       </Box>
     </Box>

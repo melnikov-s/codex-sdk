@@ -4,28 +4,25 @@ import React, { useEffect, useState } from "react";
 interface Props {
   timeoutSeconds: number;
   onTimeout: () => void;
-  onCancel: () => void;
 }
 
-export function CountdownTimer({ timeoutSeconds, onTimeout, onCancel }: Props) {
+export function CountdownTimer({ timeoutSeconds, onTimeout }: Props) {
   const [remaining, setRemaining] = useState(timeoutSeconds);
 
   useEffect(() => {
-    if (remaining <= 0) {
-      onTimeout();
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setRemaining(remaining - 1);
+    const timer = setInterval(() => {
+      setRemaining((r) => r - 1);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [remaining, onTimeout]);
+  }, []);
 
   useEffect(() => {
-    return () => onCancel();
-  }, [onCancel]);
+     if (remaining <= 0) {
+      onTimeout();
+      return;
+    }
+  }, [onTimeout, remaining]);
 
   return (
     <Text dimColor>
