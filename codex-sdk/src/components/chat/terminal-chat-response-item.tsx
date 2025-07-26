@@ -152,6 +152,23 @@ function TerminalChatResponseToolCall({
 }) {
   const details = parseToolCall(message);
   const text = getTextContent(message);
+  const toolCall = getToolCall(message);
+  
+  // Handle user_select tool calls differently - don't show command format
+  if (toolCall?.toolName === "user_select") {
+    return (
+      <Box flexDirection="column" gap={1}>
+        {text ? (
+          <TerminalChatResponseMessage
+            message={message}
+            formatRole={formatRole}
+          />
+        ) : null}
+      </Box>
+    );
+  }
+
+  // Default handling for shell and other tool calls
   return (
     <Box flexDirection="column" gap={1}>
       {text ? (
@@ -213,7 +230,9 @@ function TerminalChatResponseToolCallOutput({
     output: string;
     metadata: ExecOutputMetadata;
   };
-  const { exit_code, duration_seconds } = metadata;
+  
+  // Extract metadata for all tool calls (needed for hook rules)
+  const { exit_code, duration_seconds } = metadata ?? {};
   const metadataInfo = useMemo(
     () =>
       [
@@ -226,6 +245,19 @@ function TerminalChatResponseToolCallOutput({
         .join(", "),
     [exit_code, duration_seconds],
   );
+  
+  // Handle user_select tool calls differently
+  if (toolResult.toolName === "user_select") {
+    return (
+      <Box flexDirection="column" gap={0} marginLeft={2}>
+        <Text color="green" bold>
+          You selected: <Text color="white">{output}</Text>
+        </Text>
+      </Box>
+    );
+  }
+
+  // Default handling for shell and other tool calls
   let displayedContent = output;
   if (getMessageType(message) === "function_call_output" && !fullStdout) {
     const lines = displayedContent.split("\n");

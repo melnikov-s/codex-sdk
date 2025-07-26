@@ -286,10 +286,6 @@ export default function TerminalChat({
             }),
           )
           .describe("Array of options for user to choose from"),
-        timeout: z
-          .number()
-          .default(45)
-          .describe("Timeout in seconds (default: 45)"),
         defaultValue: z
           .string()
           .describe(
@@ -425,12 +421,10 @@ export default function TerminalChat({
           const {
             message: promptMessage,
             options,
-            timeout,
             defaultValue,
           } = toolCall.args as {
             message: string;
             options: Array<{ label: string; value: string }>;
-            timeout: number;
             defaultValue: string;
           };
 
@@ -444,31 +438,27 @@ export default function TerminalChat({
             },
           ];
 
-          // Ensure defaultValue exists in the enhanced options, fallback to first option if not
-          const validDefaultValue = enhancedOptions.find(
+          // Ensure defaultValue exists in the original options (not custom input)
+          const originalOptions = options; // The options without "None of the above"
+          const validDefaultValue = originalOptions.find(
             (opt) => opt.value === defaultValue,
           )
             ? defaultValue
-            : (enhancedOptions[0]?.value ?? CUSTOM_INPUT_VALUE);
+            : (originalOptions[0]?.value ?? "yes"); // Fallback to first original option, not custom input
 
           const userResponse = await new Promise<string>((resolve, reject) => {
             setSelectionState({
               items: enhancedOptions,
               options: {
                 label: promptMessage,
-                timeout,
-                defaultValue: validDefaultValue,
+                timeout: 45, // Always 45 seconds
+                defaultValue: validDefaultValue, // This is now always a valid string
               },
               resolve,
               reject,
             });
             setOverlayMode("selection");
           });
-
-          // If user selected "None of the above", return null to naturally break the agent loop
-          if (userResponse === CUSTOM_INPUT_VALUE) {
-            return null;
-          }
 
           // Otherwise return normal tool response
           return {
@@ -477,7 +467,13 @@ export default function TerminalChat({
               {
                 type: "tool-result" as const,
                 toolCallId: toolCall.toolCallId,
-                result: JSON.stringify({ userResponse }),
+                result: JSON.stringify({
+                  output: userResponse,
+                  metadata: {
+                    exit_code: 0,
+                    duration_seconds: 0,
+                  },
+                }),
                 toolName: toolCall.toolName,
               },
             ],
