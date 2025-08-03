@@ -78,7 +78,7 @@ describe("TerminalChatInput file tag suggestions", () => {
 
     interruptAgent: () => {},
     active: true,
-    thinkingSeconds: 0,
+
   };
 
   beforeEach(() => {

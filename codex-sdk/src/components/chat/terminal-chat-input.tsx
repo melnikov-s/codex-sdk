@@ -46,7 +46,6 @@ export default function TerminalChatInput({
   openHelpOverlay,
   interruptAgent,
   active,
-  thinkingSeconds,
   statusLine,
   workflow,
   inputDisabled,
@@ -67,7 +66,6 @@ export default function TerminalChatInput({
 
   interruptAgent: () => void;
   active: boolean;
-  thinkingSeconds: number;
   statusLine?: string;
   workflow?: Workflow | null;
   inputDisabled?: boolean;
@@ -568,11 +566,10 @@ export default function TerminalChatInput({
       <TerminalChatQueue queue={queue} />
       {loading && (
         <Box marginTop={1} marginBottom={0}>
-          <TerminalChatInputThinking
-            onInterrupt={interruptAgent}
-            active={active}
-            thinkingSeconds={thinkingSeconds}
-          />
+                  <TerminalChatInputThinking
+          onInterrupt={interruptAgent}
+          active={active}
+        />
         </Box>
       )}
       <Box borderStyle="round">
@@ -671,19 +668,23 @@ export default function TerminalChatInput({
 function TerminalChatInputThinking({
   onInterrupt,
   active,
-  thinkingSeconds,
 }: {
   onInterrupt: () => void;
   active: boolean;
-  thinkingSeconds: number;
 }) {
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const [dots, setDots] = useState("");
+  const [thinkingSeconds, setThinkingSeconds] = useState(0);
 
   // Animate ellipsis
   useInterval(() => {
     setDots((prev) => (prev.length < 3 ? prev + "." : ""));
   }, 500);
+
+  // Timer for thinking seconds
+  useInterval(() => {
+    setThinkingSeconds((prev) => prev + 1);
+  }, 1000);
 
   // Spinner frames with embedded seconds
   const ballFrames = [

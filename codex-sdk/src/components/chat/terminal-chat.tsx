@@ -83,7 +83,7 @@ export default function TerminalChat({
   const [approvalPolicy, setApprovalPolicy] = useState<ApprovalPolicy>(
     initialApprovalPolicy,
   );
-  const [thinkingSeconds, setThinkingSeconds] = useState(0);
+
   const [items, setItems] = useState<Array<UIMessage>>([]);
 
   // New workflow state management
@@ -130,9 +130,12 @@ export default function TerminalChat({
   // Sync workflowState to individual state pieces for backward compatibility
   useEffect(() => {
     setLoading(workflowState.loading);
+  }, [workflowState.loading]);
+
+  useEffect(() => {
     setItems(workflowState.messages);
     setInputDisabled(workflowState.inputDisabled);
-  }, [workflowState]);
+  }, [workflowState.messages, workflowState.inputDisabled]);
 
   const {
     requestConfirmation,
@@ -526,30 +529,7 @@ export default function TerminalChat({
     getCommandConfirmation,
   ]);
 
-  // Whenever loading starts/stops, reset or start a timer — but pause the
-  // timer while a confirmation overlay is displayed so we don't trigger a
-  // re‑render every second during apply_patch reviews.
-  useEffect(() => {
-    let handle: ReturnType<typeof setInterval> | null = null;
-    // Only tick the "thinking…" timer when the agent is actually processing
-    // a request *and* the user is not being asked to review a command.
-    if (loading && confirmationPrompt == null) {
-      setThinkingSeconds(0);
-      handle = setInterval(() => {
-        setThinkingSeconds((s) => s + 1);
-      }, 1000);
-    } else {
-      if (handle) {
-        clearInterval(handle);
-      }
-      setThinkingSeconds(0);
-    }
-    return () => {
-      if (handle) {
-        clearInterval(handle);
-      }
-    };
-  }, [loading, confirmationPrompt]);
+
 
   // Notify desktop with a preview when an assistant response arrives.
   const prevLoadingRef = useRef<boolean>(false);
@@ -636,7 +616,6 @@ export default function TerminalChat({
             userMsgCount={userMsgCount}
             confirmationPrompt={confirmationPrompt}
             loading={loading}
-            thinkingSeconds={thinkingSeconds}
             fullStdout={fullStdout}
             displayConfig={displayConfig}
             headerProps={{
@@ -733,7 +712,6 @@ export default function TerminalChat({
               }
               return {};
             }}
-            thinkingSeconds={thinkingSeconds}
           />
         )}
         {overlayMode === "history" && (
