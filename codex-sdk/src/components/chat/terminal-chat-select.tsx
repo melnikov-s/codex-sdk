@@ -158,6 +158,7 @@ export function TerminalChatSelect({
             <CountdownTimer
               timeoutSeconds={timeoutOptions.timeout}
               onTimeout={handleTimeout}
+              defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
             />
           </Box>
         )}
@@ -190,6 +191,7 @@ export function TerminalChatSelect({
           <CountdownTimer
             timeoutSeconds={timeoutOptions.timeout}
             onTimeout={handleTimeout}
+            defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
           />
         </Box>
       )}

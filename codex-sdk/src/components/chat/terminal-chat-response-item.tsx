@@ -154,16 +154,41 @@ function TerminalChatResponseToolCall({
   const text = getTextContent(message);
   const toolCall = getToolCall(message);
   
-  // Handle user_select tool calls differently - don't show command format
+  const roleToDisplay = formatRole
+    ? formatRole(
+        message.role as "user" | "system" | "assistant" | "tool" | "ui",
+      )
+    : message.role;
+  
+  // Handle user_select tool calls differently - show the selection prompt
   if (toolCall?.toolName === "user_select") {
+    const args = toolCall.args as {
+      message: string;
+      options: Array<{ label: string; value: string }>;
+      defaultValue: string;
+    };
+    
     return (
       <Box flexDirection="column" gap={1}>
-        {text ? (
+        {text && (
           <TerminalChatResponseMessage
             message={message}
             formatRole={formatRole}
           />
-        ) : null}
+        )}
+        <Box flexDirection="column">
+          <Text bold color={colorsByRole[message.role] || "gray"}>
+            {roleToDisplay}
+          </Text>
+          <Box flexDirection="column" marginLeft={2}>
+            <Text color="cyan" bold>
+              asking user: {args.message}
+            </Text>
+            <Text color="gray">
+              Options: {args.options.map(opt => opt.label).join(", ")}
+            </Text>
+          </Box>
+        </Box>
       </Box>
     );
   }
@@ -171,19 +196,24 @@ function TerminalChatResponseToolCall({
   // Default handling for shell and other tool calls
   return (
     <Box flexDirection="column" gap={1}>
-      {text ? (
+      {text && (
         <TerminalChatResponseMessage
           message={message}
           formatRole={formatRole}
         />
-      ) : null}
-      <Box flexDirection="column" marginLeft={2}>
-        <Text color="magentaBright" bold>
-          command
+      )}
+      <Box flexDirection="column">
+        <Text bold color={colorsByRole[message.role] || "gray"}>
+          {roleToDisplay}
         </Text>
-        <Text>
-          <Text dimColor>$</Text> {details?.cmdReadableText}
-        </Text>
+        <Box flexDirection="column" marginLeft={2}>
+          <Text color="cyan" bold>
+            command
+          </Text>
+          <Text>
+            <Text dimColor>$</Text> {details?.cmdReadableText}
+          </Text>
+        </Box>
       </Box>
     </Box>
   );

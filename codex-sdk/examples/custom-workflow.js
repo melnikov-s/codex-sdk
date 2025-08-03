@@ -39,6 +39,7 @@ Use the user_select tool for ALL interactions:
             system: systemPrompt,
             messages: state.transcript,
             tools,
+            toolChoice: "required",
           });
 
           const aiMessage = response.response.messages[0];
