@@ -1,5 +1,6 @@
 import type { UIMessage } from "../utils/ai";
 import type { CoreMessage, ToolSet } from "ai";
+import type { ForegroundColorName } from "chalk";
 
 export interface SelectItem {
   label: string;
@@ -50,6 +51,73 @@ export interface WorkflowState {
   transcript?: Array<UIMessage>;
 }
 
+export type ChalkColor = ForegroundColorName;
+
+export interface ThemeOptions {
+  /** Primary brand color */
+  primary?: ChalkColor | string;
+  /** Secondary accent color */
+  accent?: ChalkColor | string;
+  /** Success/positive color */
+  success?: ChalkColor | string;
+  /** Warning color */
+  warning?: ChalkColor | string;
+  /** Error/danger color */
+  error?: ChalkColor | string;
+  /** Muted/secondary text color */
+  muted?: ChalkColor | string;
+}
+
+export interface MessageDisplayOptions {
+  /** Simple string label for the message type */
+  label?: string;
+  
+  /** Function to transform the entire message display */
+  onMessage?: (message: UIMessage) => string;
+  
+  /** Text color (chalk color name, hex, or theme reference) */
+  color?: ChalkColor | string;
+  
+  /** Whether to display as bold */
+  bold?: boolean;
+  
+  /** Container styling */
+  border?: {
+    style?: 'single' | 'double' | 'round' | 'bold';
+    color?: ChalkColor | string;
+  };
+  
+  /** Background color */
+  backgroundColor?: ChalkColor | string;
+  
+  /** Text color override */
+  textColor?: ChalkColor | string;
+  
+  /** Margin/padding adjustments */
+  spacing?: {
+    marginLeft?: number;
+    marginTop?: number;
+    marginBottom?: number;
+  };
+}
+
+export interface DisplayConfig {
+  /** Message type customization - 5 types only */
+  messageTypes?: {
+    toolCall?: MessageDisplayOptions;
+    assistant?: MessageDisplayOptions; 
+    user?: MessageDisplayOptions;
+    toolResponse?: MessageDisplayOptions;
+    ui?: MessageDisplayOptions;
+  };
+  
+  /** Global theme overrides */
+  theme?: ThemeOptions;
+  
+  /** Custom header for the workflow */
+  header?: string;
+}
+
 export interface Workflow {
   /**
    * Initialize the workflow
@@ -76,20 +144,13 @@ export interface Workflow {
    */
   terminate(): void;
 
-  /**
-   * Custom header for the workflow
-   * If not provided, defaults to "Codex (Default workflow)"
-   */
-  header?: string;
+
 
   /**
-   * Optional function to format role names for display
-   * @param role The role to format
-   * @returns The formatted display name for the role
+   * Display customization configuration
+   * Controls how messages and UI elements are styled
    */
-  formatRole?: (
-    role: "user" | "system" | "assistant" | "tool" | "ui",
-  ) => string;
+  displayConfig?: DisplayConfig;
 
   /**
    * Commands that this workflow provides

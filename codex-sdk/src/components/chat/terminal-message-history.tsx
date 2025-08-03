@@ -1,6 +1,7 @@
 import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
 import type { UIMessage } from "../../utils/ai.js";
+import type { DisplayConfig } from "../../workflow/index.js";
 
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
@@ -22,9 +23,7 @@ type TerminalMessageHistoryProps = {
   thinkingSeconds: number;
   headerProps: TerminalHeaderProps;
   fullStdout: boolean;
-  formatRole?: (
-    role: "user" | "system" | "assistant" | "tool" | "ui",
-  ) => string;
+  displayConfig?: DisplayConfig;
 };
 
 const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
@@ -34,7 +33,7 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
   loading: _loading,
   thinkingSeconds: _thinkingSeconds,
   fullStdout,
-  formatRole,
+  displayConfig,
 }) => {
   // Flatten batch entries to response items.
   const messages = useMemo(() => batch.map(({ item }) => item!), [batch]);
@@ -67,7 +66,7 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
               <TerminalChatResponseItem
                 item={message}
                 fullStdout={fullStdout}
-                formatRole={formatRole}
+                displayConfig={displayConfig}
               />
             </Box>
           );

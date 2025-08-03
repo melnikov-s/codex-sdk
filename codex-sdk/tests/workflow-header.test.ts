@@ -1,37 +1,43 @@
 import { test, expect } from "vitest";
 import type { Workflow } from "../src/workflow";
 
-test("Workflow interface includes optional header property", () => {
-  // Test that header is optional and accepts string values
+test("Workflow interface includes optional displayConfig with header", () => {
+  // Test that displayConfig.header is optional and accepts string values
   const workflowWithHeader: Partial<Workflow> = {
-    header: "Custom Workflow Header",
+    displayConfig: {
+      header: "Custom Workflow Header",
+    },
     message: () => {},
     stop: () => {},
     terminate: () => {},
   };
 
-  expect(workflowWithHeader.header).toBe("Custom Workflow Header");
-  expect(typeof workflowWithHeader.header).toBe("string");
+  expect(workflowWithHeader.displayConfig?.header).toBe("Custom Workflow Header");
+  expect(typeof workflowWithHeader.displayConfig?.header).toBe("string");
 });
 
-test("Workflow can exist without header property", () => {
-  // Test that header is truly optional
+test("Workflow can exist without displayConfig header", () => {
+  // Test that displayConfig.header is truly optional
   const workflowWithoutHeader: Partial<Workflow> = {
     message: () => {},
     stop: () => {},
     terminate: () => {},
   };
 
-  expect(workflowWithoutHeader.header).toBeUndefined();
+  expect(workflowWithoutHeader.displayConfig?.header).toBeUndefined();
 });
 
 test("Header fallback behavior", () => {
   // Test fallback logic similar to what's used in the component
-  const workflowWithHeader = { header: "My Custom Header" };
+  const workflowWithHeader = { 
+    displayConfig: { 
+      header: "My Custom Header" 
+    } 
+  };
   const workflowWithoutHeader = {};
 
-  const getDisplayHeader = (workflow?: { header?: string }) => {
-    return workflow?.header || "Codex (Default workflow)";
+  const getDisplayHeader = (workflow?: { displayConfig?: { header?: string } }) => {
+    return workflow?.displayConfig?.header || "Codex (Default workflow)";
   };
 
   expect(getDisplayHeader(workflowWithHeader)).toBe("My Custom Header");

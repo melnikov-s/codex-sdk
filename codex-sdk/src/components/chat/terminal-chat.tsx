@@ -13,6 +13,7 @@ import type {
   ConfirmOptions,
   ConfirmOptionsWithTimeout,
   PromptOptions,
+  DisplayConfig,
   PromptOptionsWithTimeout,
 } from "../../workflow";
 import type { ColorName } from "chalk";
@@ -174,11 +175,8 @@ export default function TerminalChat({
   const workflowRef = React.useRef<Workflow | null>(null);
   const [, forceUpdate] = React.useReducer((c) => c + 1, 0); // trigger re‑render
 
-  // Store formatRole function
-  const [formatRole, setFormatRole] = useState<
-    | ((role: "user" | "system" | "assistant" | "tool" | "ui") => string)
-    | undefined
-  >(undefined);
+  // Store displayConfig from workflow
+  const [displayConfig, setDisplayConfig] = useState<DisplayConfig | undefined>(undefined);
 
   // ────────────────────────────────────────────────────────────────
   // DEBUG: log every render w/ key bits of state
@@ -499,8 +497,8 @@ export default function TerminalChat({
     const factory = workflowFactory || defaultWorkflow;
     workflowRef.current = factory(workflowHooks);
 
-    // Store formatRole function from workflow (not workflowHooks)
-    setFormatRole(() => workflowRef.current?.formatRole);
+    // Store displayConfig from workflow (not workflowHooks)
+    setDisplayConfig(workflowRef.current?.displayConfig);
 
     // Initialize the workflow
     workflowRef.current.initialize?.();
@@ -640,7 +638,7 @@ export default function TerminalChat({
             loading={loading}
             thinkingSeconds={thinkingSeconds}
             fullStdout={fullStdout}
-            formatRole={formatRole}
+            displayConfig={displayConfig}
             headerProps={{
               terminalRows,
               version: CLI_VERSION,
@@ -649,7 +647,7 @@ export default function TerminalChat({
               colorsByPolicy,
               headers,
               statusLine,
-              workflowHeader: workflow?.header || "Codex (Default workflow)",
+              workflowHeader: displayConfig?.header || "Codex (Default workflow)",
             }}
           />
         ) : (
