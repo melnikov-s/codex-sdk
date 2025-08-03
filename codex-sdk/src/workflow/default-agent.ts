@@ -1,4 +1,4 @@
-import type { Workflow, WorkflowHooks } from "./index.js";
+import type { DisplayConfig, Workflow, WorkflowHooks } from "./index.js";
 import type { AppConfig } from "../utils/config.js";
 import type { CoreMessage, ToolSet } from "ai";
 
@@ -66,9 +66,7 @@ export interface DefaultAgentWorkflowConfig {
   mcp?: Record<string, Omit<MCPServerConfig, "name"> & { enabled?: boolean }>;
   model?: Model;
   instructions?: string;
-  formatRole?: (
-    role: "user" | "system" | "assistant" | "tool" | "ui",
-  ) => string;
+  displayConfig?: DisplayConfig;
 }
 
 /**
@@ -139,9 +137,7 @@ export function defaultWorkflow(
    * Implements the Workflow interface
    */
   return {
-    header: "Codex AI Agent",
-
-    formatRole: agentConfig?.formatRole,
+    displayConfig: agentConfig?.displayConfig,
 
     initialize(): void {
       // Optional initialization - default implementation does nothing

@@ -3,6 +3,7 @@
 // - Multiple choice guesses with "None of the above" escape hatch
 // - Timeout functionality for when user steps away
 // - Natural flow control when user provides custom input
+// - Custom display configuration for enhanced visual experience
 import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
@@ -86,6 +87,116 @@ Use the user_select tool for ALL interactions:
     }
 
     return {
+      // Custom display configuration showcasing the new theming system
+      displayConfig: {
+        header: "Let's play 20 questions!",
+        theme: {
+          primary: "#00ff88",      // Bright green for primary actions
+          accent: "#ff6b35",       // Orange for highlights  
+          success: "#28a745",      // Green for success states
+          warning: "#ffc107",      // Yellow for warnings
+          error: "#dc3545",        // Red for errors
+          muted: "#6c757d"         // Gray for secondary text
+        },
+        messageTypes: {
+          assistant: {
+            label: "🤖 Game Master",
+            color: "primary",
+            bold: true,
+            onMessage: (message) => {
+              // Add some game-specific formatting to AI responses
+              const content = Array.isArray(message.content) 
+                ? message.content.find(part => part.type === 'text')?.text || ''
+                : message.content;
+              
+              // Add question counter if this looks like a question
+              if (content.includes('?')) {
+                return `🎯 ${content}`;
+              }
+              return content;
+            }
+          },
+          user: {
+            label: "🧠 Player", 
+            color: "accent",
+            bold: true
+          },
+          toolCall: {
+            label: "🎮 Interactive Question",
+            color: "success", 
+            border: {
+              style: "round",
+              color: "accent"
+            },
+            spacing: {
+              marginLeft: 1,
+              marginTop: 1
+            },
+            onMessage: (message) => {
+              // Extract tool call details for better display
+              if (Array.isArray(message.content)) {
+                const toolCall = message.content.find(part => part.type === 'tool-call');
+                if (toolCall?.toolName === 'user_select') {
+                  const args = toolCall.args;
+                  return `❓ ${args.message}\n📝 Options: ${args.options.map(opt => opt.label).join(' | ')}`;
+                }
+              }
+              return 'Processing your selection...';
+            }
+          },
+          toolResponse: {
+            label: "✅ Your Answer",
+            color: "success",
+            bold: true,
+            spacing: {
+              marginLeft: 2
+            },
+            onMessage: (message) => {
+              // Parse tool response to show user's choice clearly
+              if (Array.isArray(message.content)) {
+                const result = message.content.find(part => part.type === 'tool-result');
+                if (result?.result) {
+                  try {
+                    const parsed = JSON.parse(result.result);
+                    if (parsed.output) {
+                      return `🎯 You selected: "${parsed.output}"`;
+                    }
+                  } catch (e) {
+                    // fallback
+                  }
+                }
+              }
+              return message.content;
+            }
+          },
+          ui: {
+            label: "🎲 Game System",
+            color: "warning",
+            bold: true,
+            onMessage: (message) => {
+              // Add emoji indicators for different UI message types
+              const content = message.content;
+              if (content.includes('Game Over')) {
+                return `🏁 ${content}`;
+              }
+              if (content.includes('Game Started')) {
+                return `🚀 ${content}`;
+              }
+              if (content.includes('Welcome')) {
+                return `🎪 ${content}`;
+              }
+              if (content.includes('Error')) {
+                return `❌ ${content}`;
+              }
+              if (content.includes('paused')) {
+                return `⏸️ ${content}`;
+              }
+              return content;
+            }
+          }
+        }
+      },
+
       initialize: async () => {
         setState({
           messages: [
@@ -146,7 +257,7 @@ Use the user_select tool for ALL interactions:
         });
       },
     };
-  },
+  }
 );
 
 run(workflow);

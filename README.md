@@ -316,6 +316,7 @@ Creates a pre-configured workflow with a default agent, offering an experience s
           - `options.config.tools.shell.maxBytes` (`number`, optional): Maximum bytes for shell output.
           - `options.config.tools.shell.maxLines` (`number`, optional): Maximum lines for shell output.
       - `options.config.fullAutoErrorMode` (`string`, optional, default: `'ask-user'`): Defines error handling behavior in `FULL_AUTO` mode (e.g., `'ask-user'`, `'ignore-and-continue'`).
+    - `options.displayConfig` (`object`, optional): Display customization configuration. Controls how messages, headers, and UI elements are styled. See [Display Customization](#display-customization) section for details.
 - **Returns:**
   - `object`: A workflow object to be passed to the `run` function.
 
@@ -329,6 +330,234 @@ The primary function for building custom agents. It takes your agent's core logi
   - `agentLogicFunction` (`function`): A function you define that contains your agent's intelligence and interaction loop. See details below.
 - **Returns:**
   - `object`: A workflow object to be passed to the `run` function.
+
+---
+
+## Display Customization
+
+The Codex SDK provides powerful display customization through the `displayConfig` system, allowing you to customize headers, message labels, colors, borders, and content transformations.
+
+### Display Configuration Options
+
+```typescript
+interface DisplayConfig {
+  /** Custom header for the workflow */
+  header?: string;
+
+  /** Message type customization */
+  messageTypes?: {
+    toolCall?: MessageDisplayOptions;
+    assistant?: MessageDisplayOptions;
+    user?: MessageDisplayOptions;
+    toolResponse?: MessageDisplayOptions;
+    ui?: MessageDisplayOptions;
+  };
+
+  /** Global theme overrides */
+  theme?: ThemeOptions;
+}
+```
+
+### Message Display Options
+
+```typescript
+interface MessageDisplayOptions {
+  /** Simple string label for the message type */
+  label?: string;
+
+  /** Function to transform the entire message display */
+  onMessage?: (message: UIMessage) => string;
+
+  /** Text color (chalk color name, hex, or theme reference) */
+  color?: string;
+
+  /** Whether to display as bold */
+  bold?: boolean;
+
+  /** Container styling */
+  border?: {
+    style?: "single" | "double" | "round" | "bold";
+    color?: string;
+  };
+
+  /** Background color */
+  backgroundColor?: string;
+
+  /** Text color override */
+  textColor?: string;
+
+  /** Margin/padding adjustments */
+  spacing?: {
+    marginLeft?: number;
+    marginTop?: number;
+    marginBottom?: number;
+  };
+}
+```
+
+### Theme System
+
+Define reusable colors that can be referenced throughout your display configuration:
+
+```typescript
+interface ThemeOptions {
+  primary?: string; // Main brand color
+  accent?: string; // Secondary accent color
+  success?: string; // Success/positive color
+  warning?: string; // Warning color
+  error?: string; // Error/danger color
+  muted?: string; // Muted/secondary text color
+}
+```
+
+### Display Customization Examples
+
+**Basic Customization with Custom Header:**
+
+```javascript
+const workflow = createAgentWorkflow((hooks) => {
+  // ... your agent logic
+
+  return {
+    displayConfig: {
+      header: "My Custom Agent",
+      messageTypes: {
+        assistant: {
+          label: "🤖 AI Assistant",
+          color: "magentaBright",
+          bold: true,
+        },
+        user: {
+          label: "👤 You",
+          color: "blueBright",
+        },
+      },
+    },
+    // ... other workflow methods
+  };
+});
+```
+
+**Advanced Theming with Content Transformation:**
+
+```javascript
+const workflow = createAgentWorkflow((hooks) => {
+  // ... your agent logic
+
+  return {
+    displayConfig: {
+      header: "Let's play 20 questions!",
+      theme: {
+        primary: "#00ff88",
+        accent: "#ff6b35",
+        success: "#28a745",
+      },
+      messageTypes: {
+        assistant: {
+          label: "🎮 Game Master",
+          color: "primary", // References theme.primary
+          onMessage: (message) => {
+            // Transform AI responses with game-specific formatting
+            const content = Array.isArray(message.content)
+              ? message.content.find((part) => part.type === "text")?.text || ""
+              : message.content;
+
+            if (content.includes("?")) {
+              return `🎯 ${content}`;
+            }
+            return content;
+          },
+        },
+        toolCall: {
+          label: "🎮 Interactive Question",
+          color: "success",
+          border: { style: "round", color: "accent" },
+          onMessage: (message) => {
+            // Extract and format tool call details
+            if (Array.isArray(message.content)) {
+              const toolCall = message.content.find(
+                (part) => part.type === "tool-call",
+              );
+              if (toolCall?.toolName === "user_select") {
+                const args = toolCall.args;
+                return `❓ ${args.message}\\n📝 Options: ${args.options.map((opt) => opt.label).join(" | ")}`;
+              }
+            }
+            return "Processing your selection...";
+          },
+        },
+        toolResponse: {
+          label: "✅ Your Choice",
+          color: "success",
+          onMessage: (message) => {
+            // Parse and display user selections clearly
+            if (Array.isArray(message.content)) {
+              const result = message.content.find(
+                (part) => part.type === "tool-result",
+              );
+              if (result?.result) {
+                try {
+                  const parsed = JSON.parse(result.result);
+                  if (parsed.output) {
+                    return `🎯 You selected: "${parsed.output}"`;
+                  }
+                } catch (e) {
+                  // fallback
+                }
+              }
+            }
+            return message.content;
+          },
+        },
+      },
+    },
+    // ... other workflow methods
+  };
+});
+```
+
+**Using with Default Workflow:**
+
+```javascript
+const workflow = createDefaultWorkflow({
+  model: "openai/gpt-4o",
+  displayConfig: {
+    header: "Custom Code Assistant",
+    theme: {
+      primary: "#007acc",
+      accent: "#f39c12",
+    },
+    messageTypes: {
+      assistant: {
+        label: "💻 Code Assistant",
+        color: "primary",
+      },
+      user: {
+        label: "👨‍💻 Developer",
+        color: "accent",
+      },
+    },
+  },
+});
+```
+
+### Message Types
+
+The system recognizes 5 distinct message types:
+
+- **`assistant`**: Regular AI responses without tool calls
+- **`toolCall`**: AI messages that contain tool calls (detected automatically from content array)
+- **`user`**: User input messages
+- **`toolResponse`**: Results from tool executions
+- **`ui`**: System/status messages from the library
+
+### Color System
+
+Colors can be specified as:
+
+- **Chalk color names**: `"red"`, `"blueBright"`, `"magentaBright"`, etc.
+- **Hex codes**: `"#ff0000"`, `"#00ff88"`, etc.
+- **Theme references**: `"primary"`, `"accent"`, `"success"`, etc. (references your theme colors)
 
 ---
 
