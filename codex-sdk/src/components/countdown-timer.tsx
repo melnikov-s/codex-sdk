@@ -4,9 +4,10 @@ import React, { useEffect, useState } from "react";
 interface Props {
   timeoutSeconds: number;
   onTimeout: () => void;
+  defaultLabel: string;
 }
 
-export function CountdownTimer({ timeoutSeconds, onTimeout }: Props) {
+export function CountdownTimer({ timeoutSeconds, onTimeout, defaultLabel }: Props) {
   const [remaining, setRemaining] = useState(timeoutSeconds);
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export function CountdownTimer({ timeoutSeconds, onTimeout }: Props) {
 
   return (
     <Text dimColor>
-      Auto-selecting default in {remaining}s... (interact to cancel)
+      Auto-selection {defaultLabel} in {remaining}s... (interact to cancel)
     </Text>
   );
 }
