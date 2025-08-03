@@ -42,8 +42,7 @@ export function TerminalChatSelect({
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customInputValue, setCustomInputValue] = useState("");
   
-  // Track if this is the initial render to avoid cancelling timeout on default selection
-  const initializedRef = React.useRef(false);
+
 
   const defaultIndex = React.useMemo(() => {
     const defaultValue = options?.defaultValue || options?.default;
@@ -72,15 +71,7 @@ export function TerminalChatSelect({
   };
 
   const handleSelectionChange = (value: string) => {
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-      const defaultValue = options?.defaultValue || options?.default;
-      if (value === defaultValue) {
-        return;
-      }
-    }
-
-    // This is a real user selection - cancel timeout and proceed
+    // This is always a real user selection - cancel timeout and proceed
     cancelTimeout();
 
     // Check if "None of the above" was selected
@@ -121,9 +112,7 @@ export function TerminalChatSelect({
         return;
       }
 
-      if (key.return) {
-        return;
-      }
+
 
       if (key.escape) {
         if (options?.required) {
