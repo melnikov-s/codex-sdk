@@ -21,7 +21,7 @@ describe("TerminalChatInput compact command", () => {
       openHelpOverlay: () => {},
       interruptAgent: () => {},
       active: true,
-      thinkingSeconds: 0,
+
     };
     const { lastFrameStripped } = renderTui(<TerminalChatInput {...props} />);
     const frame = lastFrameStripped();

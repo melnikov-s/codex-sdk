@@ -10,19 +10,23 @@ import { useInterval } from "use-interval";
 export default function TerminalChatInputThinking({
   onInterrupt,
   active,
-  thinkingSeconds,
 }: {
   onInterrupt: () => void;
   active: boolean;
-  thinkingSeconds: number;
 }): React.ReactElement {
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const [dots, setDots] = useState("");
+  const [thinkingSeconds, setThinkingSeconds] = useState(0);
 
   // Animate the ellipsis
   useInterval(() => {
     setDots((prev) => (prev.length < 3 ? prev + "." : ""));
   }, 500);
+
+  // Timer for thinking seconds
+  useInterval(() => {
+    setThinkingSeconds((prev) => prev + 1);
+  }, 1000);
 
   const { stdin, setRawMode } = useStdin();
 

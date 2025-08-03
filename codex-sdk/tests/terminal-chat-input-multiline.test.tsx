@@ -40,7 +40,7 @@ describe("TerminalChatInput multiline functionality", () => {
       openHelpOverlay: () => {},
       interruptAgent: () => {},
       active: true,
-      thinkingSeconds: 0,
+
     };
 
     const { stdin, lastFrameStripped, flush, cleanup } = renderTui(
@@ -86,7 +86,7 @@ describe("TerminalChatInput multiline functionality", () => {
       openHelpOverlay: () => {},
       interruptAgent: () => {},
       active: true,
-      thinkingSeconds: 0,
+
     };
 
     const { stdin, lastFrameStripped, flush, cleanup } = renderTui(

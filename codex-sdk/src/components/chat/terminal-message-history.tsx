@@ -20,7 +20,6 @@ type TerminalMessageHistoryProps = {
   userMsgCount: number;
   confirmationPrompt: React.ReactNode;
   loading: boolean;
-  thinkingSeconds: number;
   headerProps: TerminalHeaderProps;
   fullStdout: boolean;
   displayConfig?: DisplayConfig;
@@ -29,9 +28,8 @@ type TerminalMessageHistoryProps = {
 const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
   batch,
   headerProps,
-  // `loading` and `thinkingSeconds` handled by input component now.
+  // `loading` handled by input component now.
   loading: _loading,
-  thinkingSeconds: _thinkingSeconds,
   fullStdout,
   displayConfig,
 }) => {
@@ -77,3 +75,4 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
 };
 
 export default React.memo(TerminalMessageHistory);
+
