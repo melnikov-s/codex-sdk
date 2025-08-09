@@ -12,7 +12,7 @@ import { CODEX_UNSAFE_ALLOW_NO_SANDBOX } from "../config.js";
 import { isLoggingEnabled, log } from "../logger/log.js";
 import { SandboxType } from "./sandbox/interface.js";
 import { PATH_TO_SEATBELT_EXECUTABLE } from "./sandbox/macos-seatbelt.js";
-import { type CoreMessage } from "ai";
+import { type ModelMessage } from "ai";
 import fs from "fs/promises";
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ function deriveCommandKey(cmd: Array<string>): string {
 type HandleExecCommandResult = {
   outputText: string;
   metadata: Record<string, unknown>;
-  additionalItems?: Array<CoreMessage>;
+  additionalItems?: Array<ModelMessage>;
 };
 
 export async function handleExecCommand(

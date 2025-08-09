@@ -1,6 +1,6 @@
 import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
@@ -11,11 +11,11 @@ import React from "react";
 // A batch entry can either be a standalone response item or a grouped set of
 // items (e.g. auto‑approved tool‑call batches) that should be rendered
 // together.
-type BatchEntry = { item?: CoreMessage; group?: GroupedResponseItem };
+type BatchEntry = { item?: ModelMessage; group?: GroupedResponseItem };
 type MessageHistoryProps = {
   batch: Array<BatchEntry>;
   groupCounts: Record<string, number>;
-  items: Array<CoreMessage>;
+  items: Array<ModelMessage>;
   userMsgCount: number;
   confirmationPrompt: React.ReactNode;
   loading: boolean;

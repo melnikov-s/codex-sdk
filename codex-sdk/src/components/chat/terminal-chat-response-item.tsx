@@ -1,6 +1,6 @@
 import type { UIMessage } from "../../utils/ai";
 import type { DisplayConfig, ThemeOptions } from "../../workflow/index";
-import type { CoreAssistantMessage, CoreMessage, CoreToolMessage } from "ai";
+import type { ModelMessage, CoreToolMessage } from "ai";
 import type { TerminalRendererOptions } from "marked-terminal";
 import type { ExecOutputMetadata } from "src/utils/agent/sandbox/interface";
 
@@ -33,12 +33,15 @@ export default function TerminalChatResponseItem({
     case "message":
     case "ui":
       return (
-        <TerminalChatResponseMessage message={item} displayConfig={displayConfig} />
+        <TerminalChatResponseMessage
+          message={item}
+          displayConfig={displayConfig}
+        />
       );
     case "function_call":
       return (
         <TerminalChatResponseToolCall
-          message={item as CoreMessage}
+          message={item as ModelMessage}
           displayConfig={displayConfig}
         />
       );
@@ -48,14 +51,6 @@ export default function TerminalChatResponseItem({
           message={item as CoreToolMessage}
           fullStdout={fullStdout}
         />
-      );
-    case "mcp_call":
-      return (
-        <TerminalChatResponseMcpCall message={item as CoreAssistantMessage} />
-      );
-    case "mcp_output":
-      return (
-        <TerminalChatResponseMcpOutput message={item as CoreToolMessage} />
       );
     default:
       break;
@@ -112,24 +107,24 @@ export function TerminalChatResponseReasoning({
 function resolveColor(
   color: string | undefined,
   theme: ThemeOptions | undefined,
-  fallback: ForegroundColorName = "gray"
+  fallback: ForegroundColorName = "gray",
 ): ForegroundColorName | string {
   if (!color) {
     return fallback;
   }
-  
+
   // Check if it's a theme reference
   if (theme && color in theme) {
     return theme[color as keyof ThemeOptions] || fallback;
   }
-  
+
   return color;
 }
 
 // Default colors for each message type
 const defaultColors: Record<string, ForegroundColorName> = {
   assistant: "magentaBright",
-  user: "blueBright", 
+  user: "blueBright",
   toolCall: "cyan",
   toolResponse: "green",
   ui: "yellow",
@@ -144,21 +139,21 @@ function TerminalChatResponseMessage({
 }) {
   const messageType = getDisplayMessageType(message);
   const displayOptions = displayConfig?.messageTypes?.[messageType];
-  
+
   // Get label (default to messageType if not specified)
   const label = displayOptions?.label || messageType;
-  
+
   // Transform message content if onMessage provided
   let content = getTextContent(message);
   if (displayOptions?.onMessage) {
     content = displayOptions.onMessage(message);
   }
-  
+
   // Get colors with theme support
   const color = resolveColor(
-    displayOptions?.color, 
-    displayConfig?.theme, 
-    defaultColors[messageType] || "gray"
+    displayOptions?.color,
+    displayConfig?.theme,
+    defaultColors[messageType] || "gray",
   );
 
   return (
@@ -175,34 +170,34 @@ function TerminalChatResponseToolCall({
   message,
   displayConfig,
 }: {
-  message: CoreMessage;
+  message: ModelMessage;
   displayConfig?: DisplayConfig;
 }) {
   const details = parseToolCall(message);
   const text = getTextContent(message);
   const toolCall = getToolCall(message);
-  
+
   const messageType = getDisplayMessageType(message);
   const displayOptions = displayConfig?.messageTypes?.[messageType];
-  
+
   // Get label (default to messageType if not specified)
   const label = displayOptions?.label || messageType;
-  
+
   // Get colors with theme support
   const color = resolveColor(
-    displayOptions?.color, 
-    displayConfig?.theme, 
-    defaultColors[messageType] || "gray"
+    displayOptions?.color,
+    displayConfig?.theme,
+    defaultColors[messageType] || "gray",
   );
-  
+
   // Handle user_select tool calls differently - show the selection prompt
   if (toolCall?.toolName === "user_select") {
-    const args = toolCall.args as {
+    const args = toolCall.input as {
       message: string;
       options: Array<{ label: string; value: string }>;
       defaultValue: string;
     };
-    
+
     return (
       <Box flexDirection="column" gap={1}>
         {text && (
@@ -212,7 +207,7 @@ function TerminalChatResponseToolCall({
           />
         )}
         <Box flexDirection="column">
-                    <Text bold color={color}>
+          <Text bold color={color}>
             {label}
           </Text>
           <Box flexDirection="column" marginLeft={2}>
@@ -220,7 +215,7 @@ function TerminalChatResponseToolCall({
               asking user: {args.message}
             </Text>
             <Text color="gray">
-              Options: {args.options.map(opt => opt.label).join(", ")}
+              Options: {args.options.map((opt) => opt.label).join(", ")}
             </Text>
           </Box>
         </Box>
@@ -238,8 +233,8 @@ function TerminalChatResponseToolCall({
         />
       )}
       <Box flexDirection="column">
-          <Text bold color={color}>
-            {label}
+        <Text bold color={color}>
+          {label}
         </Text>
         <Box flexDirection="column" marginLeft={2}>
           <Text color="cyan" bold>
@@ -254,35 +249,6 @@ function TerminalChatResponseToolCall({
   );
 }
 
-function TerminalChatResponseMcpOutput({ message }: { message: CoreMessage }) {
-  const toolCallResult = getToolCallResult(message);
-  const content = toolCallResult?.result;
-  if (!content) {
-    return null;
-  }
-  const contentStr =
-    typeof content === "string" ? content : JSON.stringify(content);
-  return <Text>Received response (length: {contentStr.length})</Text>;
-}
-
-function TerminalChatResponseMcpCall({
-  message,
-}: {
-  message: CoreAssistantMessage;
-}) {
-  const details = getToolCall(message);
-  return (
-    <Box flexDirection="column" gap={0}>
-      <Text color="magentaBright" bold>
-        calling mcp:
-      </Text>
-      <Text>
-        <Text dimColor>$</Text> {details?.toolName}
-      </Text>
-    </Box>
-  );
-}
-
 function TerminalChatResponseToolCallOutput({
   message,
   fullStdout,
@@ -291,11 +257,32 @@ function TerminalChatResponseToolCallOutput({
   fullStdout: boolean;
 }) {
   const toolResult = getToolCallResult(message)!;
-  const { output, metadata } = JSON.parse(toolResult.result as string) as {
-    output: string;
-    metadata: ExecOutputMetadata;
-  };
   
+  // Handle the new tool result output structure safely
+  const jsonResult = (() => {
+    if (toolResult.output?.type === "json") {
+      try {
+        // toolResult.output.value is a JSON string that needs to be parsed
+        return JSON.parse(toolResult.output.value as string) as {
+          output: string;
+          metadata: ExecOutputMetadata;
+        };
+      } catch (e) {
+        // Fallback if parsing fails
+        return {
+          output: toolResult.output.value as string || "",
+          metadata: { exit_code: 0, duration_seconds: 0 },
+        };
+      }
+    } else {
+      return {
+        output: toolResult.output?.value || "",
+        metadata: { exit_code: 0, duration_seconds: 0 },
+      };
+    }
+  })();
+  const { output, metadata } = jsonResult;
+
   // Extract metadata for all tool calls (needed for hook rules)
   const { exit_code, duration_seconds } = metadata ?? {};
   const metadataInfo = useMemo(
@@ -310,20 +297,20 @@ function TerminalChatResponseToolCallOutput({
         .join(", "),
     [exit_code, duration_seconds],
   );
-  
+
   // Handle user_select tool calls differently
   if (toolResult.toolName === "user_select") {
     return (
       <Box flexDirection="column" gap={0} marginLeft={2}>
         <Text color="green" bold>
-          You selected: <Text color="white">{output}</Text>
+          You selected: <Text color="white">{String(output)}</Text>
         </Text>
       </Box>
     );
   }
 
   // Default handling for shell and other tool calls
-  let displayedContent = output;
+  let displayedContent = String(output || "");
   if (getMessageType(message) === "function_call_output" && !fullStdout) {
     const lines = displayedContent.split("\n");
     if (lines.length > 4) {

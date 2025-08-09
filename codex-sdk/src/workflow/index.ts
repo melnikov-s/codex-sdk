@@ -1,5 +1,5 @@
 import type { UIMessage } from "../utils/ai";
-import type { CoreMessage, ToolSet } from "ai";
+import type { ModelMessage, ToolSet } from "ai";
 import type { ForegroundColorName } from "chalk";
 
 export interface SelectItem {
@@ -130,7 +130,7 @@ export interface Workflow {
    * @param input The input messages to process
    * @returns Promise that resolves with any messages produced after the call
    */
-  message(input: CoreMessage): void;
+  message(input: ModelMessage): void;
 
   /**
    * Stop the current workflow processing
@@ -236,9 +236,9 @@ export interface WorkflowHooks {
    * @returns The tool response message if a tool was called, null otherwise
    */
   handleToolCall: (
-    message: CoreMessage,
+    message: ModelMessage,
     opts?: { abortSignal?: AbortSignal },
-  ) => Promise<CoreMessage | null>;
+  ) => Promise<ModelMessage | null>;
 
   /**
    * Optional error handler

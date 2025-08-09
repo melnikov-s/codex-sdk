@@ -1,5 +1,5 @@
 import type { Model } from "./providers";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import { getLanguageModel } from "./providers";
 import { generateText } from "ai";
@@ -12,16 +12,15 @@ import { generateText } from "ai";
  * @returns A concise structured summary string
  */
 export async function generateCompactSummary(
-  items: Array<CoreMessage>,
+  items: Array<ModelMessage>,
   model: Model,
 ): Promise<string> {
-  const MAX_COMPACT_SUMMARY_TOKENS = 2048;
 
   const languageModel = getLanguageModel(model);
 
   const conversationText = items
     .filter(
-      (item): item is CoreMessage & { content: Array<unknown>; role: string } =>
+      (item): item is ModelMessage & { content: Array<unknown>; role: string } =>
         (item.role === "user" || item.role === "assistant") &&
         Array.isArray(item.content),
     )
@@ -53,7 +52,6 @@ export async function generateCompactSummary(
         content: `Here is the conversation so far:\n${conversationText}\n\nPlease summarize this conversation, covering:\n1. Tasks performed and outcomes\n2. Code files, modules, or functions modified or examined\n3. Important decisions or assumptions made\n4. Errors encountered and test or build results\n5. Remaining tasks, open questions, or next steps\nProvide the summary in a clear, concise format.`,
       },
     ],
-    maxTokens: MAX_COMPACT_SUMMARY_TOKENS,
   });
   return summary ?? "Unable to generate summary.";
 }

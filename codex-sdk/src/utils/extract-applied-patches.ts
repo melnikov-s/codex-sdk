@@ -1,4 +1,4 @@
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import { getMessageType } from "./ai";
 
@@ -6,7 +6,7 @@ import { getMessageType } from "./ai";
  * Extracts the patch texts of all `apply_patch` tool calls from the given
  * message history. Returns an empty string when none are found.
  */
-export function extractAppliedPatches(items: Array<CoreMessage>): string {
+export function extractAppliedPatches(items: Array<ModelMessage>): string {
   const patches: Array<string> = [];
 
   for (const item of items) {

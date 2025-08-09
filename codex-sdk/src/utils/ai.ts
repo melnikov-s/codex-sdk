@@ -1,6 +1,6 @@
 import type { Model } from "./providers";
 
-import { generateId, type CoreMessage } from "ai";
+import { generateId, type ModelMessage } from "ai";
 
 const idMap = new WeakMap<UIMessage, string>();
 
@@ -24,15 +24,13 @@ export type UIMessage =
       role: "ui";
       content: string;
     }
-  | CoreMessage;
+  | ModelMessage;
 
 export type MessageType =
   | "message"
   | "function_call"
   | "function_call_output"
   | "reasoning"
-  | "mcp_call"
-  | "mcp_output"
   | "ui";
 
 export function getMessageType(item: UIMessage): MessageType {
@@ -44,11 +42,7 @@ export function getMessageType(item: UIMessage): MessageType {
     Array.isArray(item.content) &&
     item.content.find((part) => part.type === "tool-call")
   ) {
-    const toolCall = item.content.find((part) => part.type === "tool-call");
-    if (isNativeTool(toolCall?.toolName)) {
-      return "function_call";
-    }
-    return "mcp_call";
+    return "function_call";
   }
   if (
     item.role === "assistant" &&
@@ -59,12 +53,7 @@ export function getMessageType(item: UIMessage): MessageType {
   }
 
   if (item.role === "tool") {
-    const result = item.content.find((part) => part.type === "tool-result");
-    if (isNativeTool(result?.toolName)) {
-      return "function_call_output";
-    }
-
-    return "mcp_output";
+    return "function_call_output";
   }
 
   if (item.role === "ui") {

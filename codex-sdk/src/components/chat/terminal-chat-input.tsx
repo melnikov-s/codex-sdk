@@ -3,7 +3,7 @@ import type { ReviewDecision } from "../../utils/agent/review.js";
 import type { UIMessage } from "../../utils/ai";
 import type { HistoryEntry } from "../../utils/storage/command-history.js";
 import type { Workflow } from "../../workflow";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import MultilineTextEditor from "./multiline-editor";
 import { TerminalChatCommandReview } from "./terminal-chat-command-review.js";
@@ -52,7 +52,7 @@ export default function TerminalChatInput({
 }: {
   loading: boolean;
   queue: Array<string>;
-  submitInput: (input: CoreMessage) => void;
+  submitInput: (input: ModelMessage) => void;
   confirmationPrompt: React.ReactNode | null;
   explanation?: string;
   submitConfirmation: (

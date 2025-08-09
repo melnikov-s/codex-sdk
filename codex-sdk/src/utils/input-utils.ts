@@ -38,7 +38,7 @@ export async function createInputItem(
       const encoded = attachment.content.toString("base64");
       (inputItem.content as Array<ImagePart>).push({
         type: "image",
-        mimeType: attachment.mimeType,
+        mediaType: attachment.mimeType,
         image: `data:${attachment.mimeType};base64,${encoded}`,
       });
     } else {
@@ -59,7 +59,7 @@ export async function createInputItem(
       const mime = kind?.mime ?? "application/octet-stream";
       (inputItem.content as Array<ImagePart>).push({
         type: "image",
-        mimeType: mime,
+        mediaType: mime,
         image: `data:${mime};base64,${encoded}`,
       });
     } catch (err) {

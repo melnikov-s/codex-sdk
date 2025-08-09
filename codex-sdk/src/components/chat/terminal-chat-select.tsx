@@ -142,15 +142,6 @@ export function TerminalChatSelect({
     return (
       <Box flexDirection="column" gap={1} borderStyle="round" marginTop={1}>
         <Text bold>Enter your custom option:</Text>
-        {timeoutActive && timeoutOptions && (
-          <Box paddingX={2}>
-            <CountdownTimer
-              timeoutSeconds={timeoutOptions.timeout}
-              onTimeout={handleTimeout}
-              defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
-            />
-          </Box>
-        )}
         <Box paddingX={2} flexDirection="column" gap={1}>
           <Box borderStyle="single" paddingX={1}>
             <MultilineTextEditor
@@ -167,6 +158,15 @@ export function TerminalChatSelect({
             ↵ to submit • Shift+↵ for new line • esc to select default
           </Text>
         </Box>
+        {timeoutActive && timeoutOptions && (
+          <Box paddingX={2}>
+            <CountdownTimer
+              timeoutSeconds={timeoutOptions.timeout}
+              onTimeout={handleTimeout}
+              defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
+            />
+          </Box>
+        )}
       </Box>
     );
   }
@@ -175,15 +175,6 @@ export function TerminalChatSelect({
   return (
     <Box flexDirection="column" gap={1} borderStyle="round" marginTop={1}>
       <Text bold>{options?.label || "Select an option:"}</Text>
-      {timeoutActive && timeoutOptions && (
-        <Box paddingX={2}>
-          <CountdownTimer
-            timeoutSeconds={timeoutOptions.timeout}
-            onTimeout={handleTimeout}
-            defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
-          />
-        </Box>
-      )}
       <Box paddingX={2} flexDirection="column" gap={1}>
         <Select
           isDisabled={!isActive}
@@ -210,6 +201,15 @@ export function TerminalChatSelect({
               })()}
         </Text>
       </Box>
+      {timeoutActive && timeoutOptions && (
+        <Box paddingX={2}>
+          <CountdownTimer
+            timeoutSeconds={timeoutOptions.timeout}
+            onTimeout={handleTimeout}
+            defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

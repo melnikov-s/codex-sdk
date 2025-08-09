@@ -1,45 +1,103 @@
-// Interactive 20 Questions Game - showcasing user_select tool capabilities:
-// - Yes/No questions using user_select with confirmation-style options
-// - Multiple choice guesses with "None of the above" escape hatch
-// - Timeout functionality for when user steps away
-// - Natural flow control when user provides custom input
-// - Custom display configuration for enhanced visual experience
+// Fantasy Adventure Game - showcasing user_select tool capabilities:
+// - Location-based exploration with multiple action choices
+// - NPC interaction with dialogue options
+// - Inventory and quest management
+// - Dynamic storytelling with player agency
+// - Custom display configuration for immersive fantasy experience
 import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const workflow = createAgentWorkflow(
   ({ setState, state, appendMessage, handleToolCall, tools }) => {
-    let questionCount = 0;
     let gameActive = false;
+    let playerState = {
+      location: "village_square",
+      inventory: ["rusty_sword", "health_potion"],
+      health: 100,
+      gold: 50,
+      quests: []
+    };
+
+    const gameWorld = {
+      village_square: {
+        name: "Village Square",
+        description: "A bustling square with cobblestone paths. The village fountain gurgles peacefully in the center.",
+        npcs: ["merchant", "guard", "old_woman"],
+        exits: ["tavern", "blacksmith", "forest_path", "temple"]
+      },
+      tavern: {
+        name: "The Prancing Pony Tavern",
+        description: "A warm, dimly lit tavern filled with the aroma of ale and roasted meat.",
+        npcs: ["bartender", "mysterious_stranger", "bard"],
+        exits: ["village_square", "tavern_upstairs"]
+      },
+      blacksmith: {
+        name: "Ironforge Smithy",
+        description: "Hot forge fires crackle as the blacksmith hammers away at glowing metal.",
+        npcs: ["blacksmith"],
+        exits: ["village_square"]
+      },
+      forest_path: {
+        name: "Forest Path",
+        description: "A winding dirt path leading into the dark woods. Strange sounds echo from within.",
+        npcs: ["forest_hermit"],
+        exits: ["village_square", "deep_forest"]
+      },
+      temple: {
+        name: "Temple of Light",
+        description: "A serene temple with golden light streaming through stained glass windows.",
+        npcs: ["priest", "temple_guard"],
+        exits: ["village_square"]
+      }
+    };
 
     async function runAgent() {
       setState({ loading: true });
 
       while (state.loading) {
         try {
-          const systemPrompt = `You are playing 20 Questions! Your goal is to guess what the user is thinking of.
+          const currentLocation = gameWorld[playerState.location];
+          const systemPrompt = `You are a Dungeon Master running a fantasy adventure game! Create an immersive D&D-style experience.
 
-RULES:
-1. You have ${20 - questionCount} questions remaining
-2. Ask strategic yes/no questions using the user_select tool
-3. When you're confident, make guesses using user_select with multiple options + "None of the above"
-4. If user selects "None of the above", they'll provide clarification - use that info!
-5. Be clever and strategic - narrow down categories first, then get specific
+PLAYER STATUS:
+- Location: ${currentLocation.name}
+- Health: ${playerState.health}/100
+- Gold: ${playerState.gold}
+- Inventory: ${playerState.inventory.join(", ")}
+- Active Quests: ${playerState.quests.length > 0 ? playerState.quests.join(", ") : "None"}
 
-CURRENT STATUS: ${questionCount}/20 questions used
-${gameActive ? "GAME ACTIVE - Keep asking questions!" : "GAME NOT STARTED"}
+CURRENT LOCATION: ${currentLocation.name}
+${currentLocation.description}
 
-Use the user_select tool for ALL interactions:
-- For yes/no questions: [{"label": "Yes", "value": "yes"}, {"label": "No", "value": "no"}]
-- For guesses: [{"label": "A dog", "value": "dog"}, {"label": "A car", "value": "car"}, {"label": "A book", "value": "book"}]
-- Always include timeout and defaultValue parameters`;
+AVAILABLE NPCS: ${currentLocation.npcs.join(", ")}
+AVAILABLE EXITS: ${currentLocation.exits.join(", ")}
+
+GAME MASTER RULES:
+1. Use user_select for ALL player actions - never just narrate without giving choices
+2. Always provide 4-6 meaningful action options using user_select
+3. Include options like: "Talk to [NPC]", "Go to [Location]", "Examine [Object]", "Use [Item]"
+4. Create engaging dialogue for NPCs with personality
+5. Add random encounters, quests, and discoveries
+6. Manage player health, inventory, and gold based on actions
+7. Make the world feel alive and reactive to player choices
+
+ACTION TYPES TO INCLUDE:
+- Movement: "Go to the Tavern", "Enter the Forest"
+- Social: "Talk to the Merchant", "Chat with the Guard"
+- Exploration: "Examine the fountain", "Search the area"
+- Combat: "Attack the bandit", "Defend yourself"
+- Items: "Use health potion", "Buy from merchant"
+- Special: "Cast a spell", "Attempt to pickpocket"
+
+Always include timeout (30000) and defaultValue parameters in user_select calls.
+Be descriptive and immersive - this is high fantasy roleplay!`;
 
           const response = await generateText({
             model: openai("gpt-4o"),
             system: systemPrompt,
             messages: state.transcript,
-            tools,
+            tools: {user_select: tools.user_select},
             toolChoice: "required",
           });
 
@@ -53,25 +111,31 @@ Use the user_select tool for ALL interactions:
           const toolResponse = await handleToolCall(aiMessage);
           if (toolResponse) {
             appendMessage(toolResponse);
-            questionCount++;
-
-            // Check if we've hit the question limit
-            if (questionCount >= 20) {
-              appendMessage({
-                role: "ui",
-                content:
-                  "🎮 Game Over! I've used all 20 questions. You win! 🎉",
-              });
-              gameActive = false;
-              setState({ loading: false });
-              break;
+            
+            // Parse the player's action and update game state
+            if (Array.isArray(toolResponse.content)) {
+              const result = toolResponse.content.find(part => part.type === 'tool-result');
+              if (result?.output) {
+                try {
+                  // Handle new AI SDK structure: result.output.value instead of result.result
+                  const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
+                  if (typeof outputValue === 'string') {
+                    const parsed = JSON.parse(outputValue);
+                    if (parsed.output) {
+                      updateGameState(parsed.output);
+                    }
+                  } else if (typeof outputValue === 'object' && outputValue.output) {
+                    updateGameState(outputValue.output);
+                  }
+                } catch (e) {
+                  // fallback
+                }
+              }
             }
           } else if (response.finishReason === "stop") {
-            // User selected "None of the above" - they'll provide custom input
             appendMessage({
               role: "ui",
-              content:
-                "💭 Please provide more details to help me understand better...",
+              content: "💭 What would you like to do? (Type your action or wait for options...)",
             });
             setState({ loading: false });
             break;
@@ -86,43 +150,74 @@ Use the user_select tool for ALL interactions:
       }
     }
 
+    function updateGameState(action) {
+      // Parse common actions and update player state
+      const actionLower = action.toLowerCase();
+      
+      if (actionLower.includes("go to") || actionLower.includes("enter")) {
+        // Handle movement
+        const location = Object.keys(gameWorld).find(key => 
+          actionLower.includes(key.replace(/_/g, " ")) || 
+          actionLower.includes(gameWorld[key].name.toLowerCase())
+        );
+        if (location && gameWorld[playerState.location].exits.includes(location)) {
+          playerState.location = location;
+        }
+      }
+      
+      if (actionLower.includes("health potion") && actionLower.includes("use")) {
+        if (playerState.inventory.includes("health_potion")) {
+          playerState.health = Math.min(100, playerState.health + 30);
+          playerState.inventory = playerState.inventory.filter(item => item !== "health_potion");
+        }
+      }
+    }
+
     return {
-      // Custom display configuration showcasing the new theming system
+      // Custom display configuration for fantasy adventure theme
       displayConfig: {
-        header: "Let's play 20 questions!",
+        header: "⚔️ Fantasy Adventure Quest ⚔️",
         theme: {
-          primary: "#00ff88",      // Bright green for primary actions
-          accent: "#ff6b35",       // Orange for highlights  
-          success: "#28a745",      // Green for success states
-          warning: "#ffc107",      // Yellow for warnings
-          error: "#dc3545",        // Red for errors
-          muted: "#6c757d"         // Gray for secondary text
+          primary: "#d4af37",      // Gold for primary actions
+          accent: "#8a2be2",       // Purple for magical elements  
+          success: "#228b22",      // Forest green for success
+          warning: "#ff8c00",      // Dark orange for warnings
+          error: "#dc143c",        // Crimson for errors/combat
+          muted: "#696969"         // Dim gray for secondary text
         },
         messageTypes: {
           assistant: {
-            label: "🤖 Game Master",
+            label: "🧙‍♂️ Dungeon Master",
             color: "primary",
             bold: true,
             onMessage: (message) => {
-              // Add some game-specific formatting to AI responses
               const content = Array.isArray(message.content) 
                 ? message.content.find(part => part.type === 'text')?.text || ''
                 : message.content;
               
-              // Add question counter if this looks like a question
-              if (content.includes('?')) {
-                return `🎯 ${content}`;
+              // Add atmospheric indicators for different types of narration
+              if (content.includes('combat') || content.includes('attack') || content.includes('damage')) {
+                return `⚔️ ${content}`;
               }
-              return content;
+              if (content.includes('magic') || content.includes('spell') || content.includes('enchant')) {
+                return `✨ ${content}`;
+              }
+              if (content.includes('treasure') || content.includes('gold') || content.includes('loot')) {
+                return `💰 ${content}`;
+              }
+              if (content.includes('quest') || content.includes('mission')) {
+                return `📜 ${content}`;
+              }
+              return `🎭 ${content}`;
             }
           },
           user: {
-            label: "🧠 Player", 
+            label: "🦸‍♀️ Adventurer", 
             color: "accent",
             bold: true
           },
           toolCall: {
-            label: "🎮 Interactive Question",
+            label: "🎲 Action Menu",
             color: "success", 
             border: {
               style: "round",
@@ -133,33 +228,37 @@ Use the user_select tool for ALL interactions:
               marginTop: 1
             },
             onMessage: (message) => {
-              // Extract tool call details for better display
               if (Array.isArray(message.content)) {
                 const toolCall = message.content.find(part => part.type === 'tool-call');
                 if (toolCall?.toolName === 'user_select') {
                   const args = toolCall.args;
-                  return `❓ ${args.message}\n📝 Options: ${args.options.map(opt => opt.label).join(' | ')}`;
+                  return `🗡️ ${args.message}\n⚡ Actions: ${args.options.map(opt => opt.label).join(' | ')}`;
                 }
               }
-              return 'Processing your selection...';
+              return '🎮 Preparing your options...';
             }
           },
           toolResponse: {
-            label: "✅ Your Answer",
+            label: "⚡ Your Choice",
             color: "success",
             bold: true,
             spacing: {
               marginLeft: 2
             },
             onMessage: (message) => {
-              // Parse tool response to show user's choice clearly
               if (Array.isArray(message.content)) {
                 const result = message.content.find(part => part.type === 'tool-result');
-                if (result?.result) {
+                if (result?.output) {
                   try {
-                    const parsed = JSON.parse(result.result);
-                    if (parsed.output) {
-                      return `🎯 You selected: "${parsed.output}"`;
+                    // Handle new AI SDK structure: result.output.value instead of result.result
+                    const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
+                    if (typeof outputValue === 'string') {
+                      const parsed = JSON.parse(outputValue);
+                      if (parsed.output) {
+                        return `🎯 You chose: "${parsed.output}"`;
+                      }
+                    } else if (typeof outputValue === 'object' && outputValue.output) {
+                      return `🎯 You chose: "${outputValue.output}"`;
                     }
                   } catch (e) {
                     // fallback
@@ -170,28 +269,30 @@ Use the user_select tool for ALL interactions:
             }
           },
           ui: {
-            label: "🎲 Game System",
+            label: "🏰 Game World",
             color: "warning",
             bold: true,
             onMessage: (message) => {
-              // Add emoji indicators for different UI message types
               const content = message.content;
-              if (content.includes('Game Over')) {
-                return `🏁 ${content}`;
+              if (content.includes('Welcome') || content.includes('adventure begins')) {
+                return `🌟 ${content}`;
               }
-              if (content.includes('Game Started')) {
-                return `🚀 ${content}`;
+              if (content.includes('died') || content.includes('Game Over')) {
+                return `💀 ${content}`;
               }
-              if (content.includes('Welcome')) {
-                return `🎪 ${content}`;
+              if (content.includes('level up') || content.includes('victory')) {
+                return `🏆 ${content}`;
+              }
+              if (content.includes('paused') || content.includes('stopped')) {
+                return `⏸️ ${content}`;
               }
               if (content.includes('Error')) {
                 return `❌ ${content}`;
               }
-              if (content.includes('paused')) {
-                return `⏸️ ${content}`;
+              if (content.includes('Health:') || content.includes('Status:')) {
+                return `📊 ${content}`;
               }
-              return content;
+              return `🌍 ${content}`;
             }
           }
         }
@@ -203,10 +304,12 @@ Use the user_select tool for ALL interactions:
             {
               role: "ui",
               content:
-                "🎯 Welcome to 20 Questions! 🎲\n\n" +
-                "Think of ANYTHING - object, person, place, concept, etc.\n" +
-                "I'll try to guess it in 20 questions or less!\n\n" +
-                "Ready? Type 'start' to begin the game! 🚀",
+                "🏰 Welcome to the Fantasy Adventure Quest! ⚔️\n\n" +
+                "You are a brave adventurer who has just arrived in the peaceful village of Millbrook.\n" +
+                "The village square bustles with activity, and adventure awaits around every corner!\n\n" +
+                `📊 STATUS: Health: ${playerState.health}/100 | Gold: ${playerState.gold} | Location: ${gameWorld[playerState.location].name}\n` +
+                `🎒 INVENTORY: ${playerState.inventory.join(", ")}\n\n` +
+                "Type 'start' to begin your adventure, or describe what you'd like to do! 🌟",
             },
           ],
         });
@@ -214,29 +317,29 @@ Use the user_select tool for ALL interactions:
       message: async (userInput) => {
         const content = userInput.content.toLowerCase().trim();
 
-        if (!gameActive && (content === "start" || content.includes("start"))) {
+        if (!gameActive && (content === "start" || content.includes("start") || content.includes("adventure"))) {
           gameActive = true;
-          questionCount = 0;
           appendMessage(userInput);
           appendMessage({
             role: "ui",
             content:
-              "🎮 Game Started! I have 20 questions to guess what you're thinking of.\n" +
-              "Remember: You can always select 'None of the above' if my options don't fit! 🧠",
+              `🌟 Your adventure begins in ${gameWorld[playerState.location].name}!\n\n` +
+              `${gameWorld[playerState.location].description}\n\n` +
+              "🎭 The Dungeon Master will now present you with choices. You can always type custom actions too! ⚔️",
           });
           runAgent();
         } else if (!gameActive) {
           appendMessage(userInput);
           appendMessage({
             role: "ui",
-            content: "🎯 Type 'start' when you're ready to play 20 Questions!",
+            content: "🏰 Type 'start' when you're ready to begin your fantasy adventure!",
           });
         } else {
-          // Game is active, user provided custom input after "None of the above"
+          // Game is active, user provided custom input
           appendMessage(userInput);
           appendMessage({
             role: "ui",
-            content: `💡 Got it! Using that info to ask better questions... (${20 - questionCount} questions left)`,
+            content: `📜 The Dungeon Master considers your action... (Location: ${gameWorld[playerState.location].name})`,
           });
           runAgent();
         }
@@ -245,12 +348,18 @@ Use the user_select tool for ALL interactions:
         setState({ loading: false });
         appendMessage({
           role: "ui",
-          content: "⏸️ Game paused. Type anything to continue!",
+          content: "⏸️ Adventure paused. Your character rests briefly... Type anything to continue your quest!",
         });
       },
       terminate: () => {
         gameActive = false;
-        questionCount = 0;
+        playerState = {
+          location: "village_square",
+          inventory: ["rusty_sword", "health_potion"],
+          health: 100,
+          gold: 50,
+          quests: []
+        };
         setState({
           loading: false,
           messages: [],

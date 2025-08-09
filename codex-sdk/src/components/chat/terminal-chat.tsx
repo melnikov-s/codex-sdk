@@ -263,19 +263,19 @@ export default function TerminalChat({
     // Vercel AI SDK compatible tool definition
     const shellTool = tool({
       description: `Run a command in the terminal, can be git or shell, or any other command available on the system.`,
-      parameters: ShellToolParametersSchema,
+      inputSchema: ShellToolParametersSchema,
     });
 
     const applyPatchTool = tool({
       description: `Use \`apply_patch\` to edit files: {"cmd":["apply_patch","*** Begin Patch\\n*** Update File: path/to/file.py\\n@@ def example():\\n-  pass\\n+  return 123\\n*** End Patch"]}.`,
-      parameters: ShellToolParametersSchema,
+      inputSchema: ShellToolParametersSchema,
     });
 
     // User interaction tool - handles confirmations, prompts, and selections
     const userSelectTool = tool({
       description:
         "Show user a selection of options. Can be used for confirmations (Yes/No), prompted input (with suggestions + custom option), or pure selections. Automatically includes 'None of the above' option which allows user to provide custom input instead.",
-      parameters: z.object({
+      inputSchema: z.object({
         message: z.string().describe("Selection prompt to show the user"),
         options: z
           .array(
@@ -423,7 +423,7 @@ export default function TerminalChat({
             message: promptMessage,
             options,
             defaultValue,
-          } = toolCall.args as {
+          } = toolCall.input as {
             message: string;
             options: Array<{ label: string; value: string }>;
             defaultValue: string;
@@ -468,13 +468,10 @@ export default function TerminalChat({
               {
                 type: "tool-result" as const,
                 toolCallId: toolCall.toolCallId,
-                result: JSON.stringify({
-                  output: userResponse,
-                  metadata: {
-                    exit_code: 0,
-                    duration_seconds: 0,
-                  },
-                }),
+                output: {
+                  value: userResponse,
+                  type: "text",
+                },
                 toolName: toolCall.toolName,
               },
             ],
