@@ -194,7 +194,7 @@ function TerminalChatResponseToolCall({
   if (toolCall?.toolName === "user_select") {
     const args = toolCall.input as {
       message: string;
-      options: Array<{ label: string; value: string }>;
+      options: Array<string>;
       defaultValue: string;
     };
 
@@ -214,9 +214,7 @@ function TerminalChatResponseToolCall({
             <Text color="cyan" bold>
               asking user: {args.message}
             </Text>
-            <Text color="gray">
-              Options: {args.options.map((opt) => opt.label).join(", ")}
-            </Text>
+            <Text color="gray">Options: {args.options.join(", ")}</Text>
           </Box>
         </Box>
       </Box>

@@ -29,9 +29,9 @@ Your job is to:
 4. When done, summarize their choices and offer to generate starter files
 
 IMPORTANT: Use user_select tool for ALL questions. Examples:
-- Project type: [{"label": "Web App", "value": "webapp"}, {"label": "Mobile App", "value": "mobile"}, {"label": "API/Backend", "value": "api"}]
-- Framework: [{"label": "React", "value": "react"}, {"label": "Vue", "value": "vue"}, {"label": "Next.js", "value": "nextjs"}]
-- Features: [{"label": "Authentication", "value": "auth"}, {"label": "Database", "value": "db"}, {"label": "Testing", "value": "testing"}]
+- Project type: ["Web App", "Mobile App", "API/Backend"]
+- Framework: ["React", "Vue", "Next.js"]
+- Features: ["Authentication", "Database", "Testing"]
 
 Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
 
