@@ -341,6 +341,9 @@ The Codex SDK provides powerful display customization through the `displayConfig
 
 ```typescript
 interface DisplayConfig {
+  /** Function to transform the entire message display based on message role */
+  onMessage?: (message: UIMessage) => string;
+
   /** Custom header for the workflow */
   header?: string;
 
@@ -364,9 +367,6 @@ interface DisplayConfig {
 interface MessageDisplayOptions {
   /** Simple string label for the message type */
   label?: string;
-
-  /** Function to transform the entire message display */
-  onMessage?: (message: UIMessage) => string;
 
   /** Text color (chalk color name, hex, or theme reference) */
   color?: string;
@@ -452,62 +452,70 @@ const workflow = createAgentWorkflow((hooks) => {
         accent: "#ff6b35",
         success: "#28a745",
       },
+      onMessage: (message) => {
+        // Transform messages based on their role and content
+        const content = Array.isArray(message.content)
+          ? message.content.find((part) => part.type === "text")?.text || ""
+          : message.content;
+
+        if (message.role === "assistant") {
+          // Check if this is a tool call message
+          if (Array.isArray(message.content)) {
+            const toolCall = message.content.find(
+              (part) => part.type === "tool-call",
+            );
+            if (toolCall?.toolName === "user_select") {
+              const args = toolCall.args;
+              return `❓ ${args.message}\\n📝 Options: ${args.options.map((opt) => opt.label).join(" | ")}`;
+            }
+            if (toolCall) {
+              return "Processing your selection...";
+            }
+          }
+
+          // Regular assistant messages - add game-specific formatting
+          if (content.includes("?")) {
+            return `🎯 ${content}`;
+          }
+          return content;
+        }
+
+        if (message.role === "tool") {
+          // Parse and display user selections clearly
+          if (Array.isArray(message.content)) {
+            const result = message.content.find(
+              (part) => part.type === "tool-result",
+            );
+            if (result?.result) {
+              try {
+                const parsed = JSON.parse(result.result);
+                if (parsed.output) {
+                  return `🎯 You selected: "${parsed.output}"`;
+                }
+              } catch (e) {
+                // fallback
+              }
+            }
+          }
+          return message.content;
+        }
+
+        // Default fallback
+        return content;
+      },
       messageTypes: {
         assistant: {
           label: "🎮 Game Master",
           color: "primary", // References theme.primary
-          onMessage: (message) => {
-            // Transform AI responses with game-specific formatting
-            const content = Array.isArray(message.content)
-              ? message.content.find((part) => part.type === "text")?.text || ""
-              : message.content;
-
-            if (content.includes("?")) {
-              return `🎯 ${content}`;
-            }
-            return content;
-          },
         },
         toolCall: {
           label: "🎮 Interactive Question",
           color: "success",
           border: { style: "round", color: "accent" },
-          onMessage: (message) => {
-            // Extract and format tool call details
-            if (Array.isArray(message.content)) {
-              const toolCall = message.content.find(
-                (part) => part.type === "tool-call",
-              );
-              if (toolCall?.toolName === "user_select") {
-                const args = toolCall.args;
-                return `❓ ${args.message}\\n📝 Options: ${args.options.map((opt) => opt.label).join(" | ")}`;
-              }
-            }
-            return "Processing your selection...";
-          },
         },
         toolResponse: {
           label: "✅ Your Choice",
           color: "success",
-          onMessage: (message) => {
-            // Parse and display user selections clearly
-            if (Array.isArray(message.content)) {
-              const result = message.content.find(
-                (part) => part.type === "tool-result",
-              );
-              if (result?.result) {
-                try {
-                  const parsed = JSON.parse(result.result);
-                  if (parsed.output) {
-                    return `🎯 You selected: "${parsed.output}"`;
-                  }
-                } catch (e) {
-                  // fallback
-                }
-              }
-            }
-            return message.content;
-          },
         },
       },
     },
