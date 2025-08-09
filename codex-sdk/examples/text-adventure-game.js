@@ -9,7 +9,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const workflow = createAgentWorkflow(
-  ({ setState, state, appendMessage, handleToolCall, tools }) => {
+  ({ setState, state, addMessage, handleModelResult, tools }) => {
     let gameActive = false;
     let playerState = {
       location: "village_square",
@@ -93,7 +93,7 @@ ACTION TYPES TO INCLUDE:
 Always include timeout (30000) and defaultValue parameters in user_select calls.
 Be descriptive and immersive - this is high fantasy roleplay!`;
 
-          const response = await generateText({
+          const result = await generateText({
             model: openai("gpt-4o"),
             system: systemPrompt,
             messages: state.transcript,
@@ -101,39 +101,37 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
             toolChoice: "required",
           });
 
-          const aiMessage = response.response.messages[0];
-          if (!aiMessage) {
-            break;
-          }
+          const toolResponses = await handleModelResult(result);
 
-          appendMessage(aiMessage);
-
-          const toolResponse = await handleToolCall(aiMessage);
-          if (toolResponse) {
-            appendMessage(toolResponse);
-            
-            // Parse the player's action and update game state
-            if (Array.isArray(toolResponse.content)) {
-              const result = toolResponse.content.find(part => part.type === 'tool-result');
-              if (result?.output) {
-                try {
-                  // Handle new AI SDK structure: result.output.value instead of result.result
-                  const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
-                  if (typeof outputValue === 'string') {
-                    const parsed = JSON.parse(outputValue);
-                    if (parsed.output) {
-                      updateGameState(parsed.output);
+            // Parse each tool response and update game state if applicable
+            for (const tr of toolResponses) {
+              if (Array.isArray(tr.content)) {
+                const toolResultPart = tr.content.find(
+                  (part) => part.type === "tool-result",
+                );
+                if (toolResultPart?.output) {
+                  try {
+                    const outputValue = toolResultPart.output.value;
+                    if (typeof outputValue === "string") {
+                      const parsed = JSON.parse(outputValue);
+                      if (parsed.output) {
+                        updateGameState(parsed.output);
+                      }
+                    } else if (
+                      typeof outputValue === "object" &&
+                      outputValue &&
+                      "output" in outputValue
+                    ) {
+                      updateGameState(outputValue.output);
                     }
-                  } else if (typeof outputValue === 'object' && outputValue.output) {
-                    updateGameState(outputValue.output);
+                  } catch (e) {
+                    // ignore parse errors
                   }
-                } catch (e) {
-                  // fallback
                 }
               }
             }
-          } else if (response.finishReason === "stop") {
-            appendMessage({
+          if (result.finishReason === "stop") {
+            addMessage({
               role: "ui",
               content: "💭 What would you like to do? (Type your action or wait for options...)",
             });
@@ -141,7 +139,7 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
             break;
           }
         } catch (error) {
-          appendMessage({
+          addMessage({
             role: "ui",
             content: `❌ Error: ${error.message || "Unknown error"}`,
           });
@@ -328,34 +326,41 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
 
         if (!gameActive && (content === "start" || content.includes("start") || content.includes("adventure"))) {
           gameActive = true;
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content:
-              `🌟 Your adventure begins in ${gameWorld[playerState.location].name}!\n\n` +
-              `${gameWorld[playerState.location].description}\n\n` +
-              "🎭 The Dungeon Master will now present you with choices. You can always type custom actions too! ⚔️",
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                `🌟 Your adventure begins in ${gameWorld[playerState.location].name}!\n\n` +
+                `${gameWorld[playerState.location].description}\n\n` +
+                "🎭 The Dungeon Master will now present you with choices. You can always type custom actions too! ⚔️",
+            },
+          ]);
           runAgent();
         } else if (!gameActive) {
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content: "🏰 Type 'start' when you're ready to begin your fantasy adventure!",
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "🏰 Type 'start' when you're ready to begin your fantasy adventure!",
+            },
+          ]);
         } else {
           // Game is active, user provided custom input
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content: `📜 The Dungeon Master considers your action... (Location: ${gameWorld[playerState.location].name})`,
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content: `📜 The Dungeon Master considers your action... (Location: ${gameWorld[playerState.location].name})`,
+            },
+          ]);
           runAgent();
         }
       },
       stop: () => {
         setState({ loading: false });
-        appendMessage({
+        addMessage({
           role: "ui",
           content: "⏸️ Adventure paused. Your character rests briefly... Type anything to continue your quest!",
         });

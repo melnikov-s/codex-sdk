@@ -16,6 +16,7 @@ import type {
   DisplayConfig,
   PromptOptionsWithTimeout,
 } from "../../workflow";
+import type { ModelMessage } from "ai";
 import type { ColorName } from "chalk";
 
 import TerminalChatInput from "./terminal-chat-input.js";
@@ -320,7 +321,7 @@ export default function TerminalChat({
           );
         },
       },
-      appendMessage: (message: UIMessage | Array<UIMessage>) => {
+      addMessage: (message: UIMessage | Array<UIMessage>) => {
         const messages = Array.isArray(message) ? message : [message];
         void smartSetState((prev) => ({
           ...prev,
@@ -405,92 +406,124 @@ export default function TerminalChat({
           setOverlayMode("selection");
         });
       },
-      handleToolCall: async (message, { abortSignal } = {}) => {
-        // Extract the tool call from the message
-        const toolCall = getToolCall(message);
-        if (!toolCall || !isNativeTool(toolCall.toolName)) {
-          return null;
-        }
+      handleToolCall: (async (
+        messageOrMessages: ModelMessage | Array<ModelMessage>,
+        { abortSignal } = {},
+      ) => {
+        // Support single message or array of messages
+        const messages = Array.isArray(messageOrMessages)
+          ? messageOrMessages
+          : [messageOrMessages];
 
-        // Handle user interaction tools
-        if (toolCall.toolName === "user_select") {
-          const {
-            message: promptMessage,
-            options,
-            defaultValue,
-          } = toolCall.input as {
-            message: string;
-            options: Array<string>;
-            defaultValue: string;
-          };
+        const toolResponses: Array<ModelMessage> = [];
 
-          // Transform string options to objects with label and value
-          const transformedOptions = options.map((option) => ({
-            label: option,
-            value: option,
-          }));
+        for (const message of messages) {
+          const toolCall = getToolCall(message);
+          if (!toolCall || !isNativeTool(toolCall.toolName)) {
+            continue;
+          }
 
-          // Auto-add "None of the above" option
-          const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
-          const enhancedOptions = [
-            ...transformedOptions,
-            {
-              label: "None of the above (enter custom option)",
-              value: CUSTOM_INPUT_VALUE,
-            },
-          ];
+          // Handle user interaction tools
+          if (toolCall.toolName === "user_select") {
+            const {
+              message: promptMessage,
+              options,
+              defaultValue,
+            } = toolCall.input as {
+              message: string;
+              options: Array<string>;
+              defaultValue: string;
+            };
 
-          // Ensure defaultValue exists in the original options (not custom input)
-          const originalOptions = transformedOptions; // The options without "None of the above"
-          const validDefaultValue = originalOptions.find(
-            (opt) => opt.value === defaultValue,
-          )
-            ? defaultValue
-            : (originalOptions[0]?.value ?? "yes"); // Fallback to first original option, not custom input
+            // Transform string options to objects (using string as both label and key)
+            const transformedOptions = options.map((option) => ({
+              label: option,
+              value: option, // Same as label, but needed for Select component structure
+            }));
 
-          const userResponse = await new Promise<string>((resolve, reject) => {
-            setSelectionState({
-              items: enhancedOptions,
-              options: {
-                label: promptMessage,
-                timeout: 45, // Always 45 seconds
-                defaultValue: validDefaultValue, // This is now always a valid string
-              },
-              resolve,
-              reject,
-            });
-            setOverlayMode("selection");
-          });
-
-          // Otherwise return normal tool response
-          return {
-            role: "tool" as const,
-            content: [
+            // Auto-add "None of the above" option
+            const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
+            const enhancedOptions = [
+              ...transformedOptions,
               {
-                type: "tool-result" as const,
-                toolCallId: toolCall.toolCallId,
-                output: {
-                  value: userResponse,
-                  type: "text",
-                },
-                toolName: toolCall.toolName,
+                label: "None of the above (enter custom option)",
+                value: CUSTOM_INPUT_VALUE,
               },
-            ],
-          };
+            ];
+
+            // Ensure defaultValue exists in the original options (not custom input)
+            const originalOptions = transformedOptions; // The options without "None of the above"
+            const validDefaultValue = originalOptions.find(
+              (opt) => opt.value === defaultValue,
+            )
+              ? defaultValue
+              : (originalOptions[0]?.value ?? "yes"); // Fallback to first original option, not custom input
+
+            const userResponse = await new Promise<string>(
+              (resolve, reject) => {
+                setSelectionState({
+                  items: enhancedOptions,
+                  options: {
+                    label: promptMessage,
+                    timeout: 45, // Always 45 seconds
+                    defaultValue: validDefaultValue, // This is now always a valid string
+                  },
+                  resolve,
+                  reject,
+                });
+                setOverlayMode("selection");
+              },
+            );
+
+            // Build tool response message and collect it
+            toolResponses.push({
+              role: "tool" as const,
+              content: [
+                {
+                  type: "tool-result" as const,
+                  toolCallId: toolCall.toolCallId,
+                  output: {
+                    value: userResponse,
+                    type: "text",
+                  },
+                  toolName: toolCall.toolName,
+                },
+              ],
+            });
+            continue;
+          }
+
+          // Handle the tool call with existing system (shell/apply_patch)
+          const toolResults = await execToolCall(
+            getToolCall(message)!,
+            uiConfig,
+            approvalPolicy,
+            additionalWritableRoots,
+            getCommandConfirmation,
+            abortSignal,
+          );
+          if (toolResults[0]) {
+            toolResponses.push(toolResults[0]);
+          }
         }
 
-        // Handle the tool call with existing system (shell/apply_patch)
-        const toolResults = await execToolCall(
-          toolCall,
-          uiConfig,
-          approvalPolicy,
-          additionalWritableRoots,
-          getCommandConfirmation,
-          abortSignal,
-        );
+        // Return single or array depending on input shape
+        if (Array.isArray(messageOrMessages)) {
+          return toolResponses; // possibly empty
+        }
+        return toolResponses[0] || null;
+      }) as WorkflowHooks["handleToolCall"],
 
-        // Return the first tool result or null if none
-        return toolResults[0] || null;
+      handleModelResult: async (result, opts) => {
+        const messages = result?.response?.messages ?? [];
+        const msgsAsUI = messages as unknown as Array<UIMessage>;
+        workflowHooks.addMessage(msgsAsUI);
+        const toolResponses = (await workflowHooks.handleToolCall(
+          messages as unknown as Array<ModelMessage>,
+          opts,
+        )) as Array<ModelMessage>;
+        workflowHooks.addMessage(toolResponses as unknown as Array<UIMessage>);
+        return toolResponses as unknown as Array<UIMessage>;
       },
     };
 

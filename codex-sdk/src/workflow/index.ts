@@ -190,10 +190,24 @@ export interface WorkflowHooks {
   };
 
   /**
-   * Append message(s) to the current messages array
-   * @param message Single message or array of messages to append
+   * Convenience helper: apply a model result by adding its messages and executing tool calls.
+   * Equivalent to:
+   *   const { messages } = result.response;
+   *   addMessage(messages);
+   *   const toolResponses = await handleToolCall(messages);
+   *   addMessage(toolResponses);
+   * Returns the array of tool responses (possibly empty).
    */
-  appendMessage: (message: UIMessage | Array<UIMessage>) => void;
+  handleModelResult: (
+    result: { response: { messages: Array<UIMessage> }; finishReason?: string },
+    opts?: { abortSignal?: AbortSignal },
+  ) => Promise<Array<UIMessage>>;
+
+  /**
+   * Add message(s) to the current messages array
+   * @param message Single message or array of messages to add
+   */
+  addMessage: (message: UIMessage | Array<UIMessage>) => void;
 
   /**
    * Add item(s) to the end of the queue
@@ -229,14 +243,20 @@ export interface WorkflowHooks {
 
   /**
    * Handler for tool calls
-   * @param message The message containing a tool call
-   * @param opts Optional options for the tool call
-   * @returns The tool response message if a tool was called, null otherwise
+   * Overloads:
+   *  - single message → returns a single tool response message or null
+   *  - array of messages → returns an array of tool response messages (empty if none)
    */
-  handleToolCall: (
-    message: ModelMessage,
-    opts?: { abortSignal?: AbortSignal },
-  ) => Promise<ModelMessage | null>;
+  handleToolCall: {
+    (
+      message: ModelMessage,
+      opts?: { abortSignal?: AbortSignal },
+    ): Promise<ModelMessage | null>;
+    (
+      messages: Array<ModelMessage>,
+      opts?: { abortSignal?: AbortSignal },
+    ): Promise<Array<ModelMessage>>;
+  };
 
   /**
    * Optional error handler
