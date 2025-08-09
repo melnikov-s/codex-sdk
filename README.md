@@ -198,12 +198,9 @@ Handles **confirmations**:
   "toolName": "user_select",
   "parameters": {
     "message": "Should I delete the old backup files?",
-    "options": [
-      { "label": "Yes", "value": "yes" },
-      { "label": "No", "value": "no" }
-    ],
+    "options": ["Yes", "No"],
     "timeout": 45,
-    "defaultValue": "no"
+    "defaultValue": "No"
   }
 }
 ```
@@ -215,13 +212,9 @@ Handles **prompted input with suggestions**:
   "toolName": "user_select",
   "parameters": {
     "message": "What testing framework should I use?",
-    "options": [
-      { "label": "Jest", "value": "jest" },
-      { "label": "Vitest", "value": "vitest" },
-      { "label": "Mocha", "value": "mocha" }
-    ],
+    "options": ["Jest", "Vitest", "Mocha"],
     "timeout": 45,
-    "defaultValue": "jest"
+    "defaultValue": "Jest"
   }
 }
 ```
@@ -234,12 +227,12 @@ Handles **pure selections**:
   "parameters": {
     "message": "Which deployment strategy?",
     "options": [
-      { "label": "Blue-green deployment", "value": "blue-green" },
-      { "label": "Rolling deployment", "value": "rolling" },
-      { "label": "Canary deployment", "value": "canary" }
+      "Blue-green deployment",
+      "Rolling deployment",
+      "Canary deployment"
     ],
     "timeout": 45,
-    "defaultValue": "rolling"
+    "defaultValue": "Rolling deployment"
   }
 }
 ```
@@ -251,7 +244,7 @@ Handles **pure selections**:
 - User gets normal chat input to provide custom response
 - Perfect for when LLM options don't match user needs
 
-**Normal selections** return: `{"userResponse": "jest"}`
+**Normal selections** return: `{"userResponse": "Jest"}`
 **"None of the above"** returns: `null` (enables custom input flow)
 
 All interactions include automatic timeout handling (default 45 seconds) and return the user's response in the tool result:

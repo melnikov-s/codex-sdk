@@ -280,19 +280,12 @@ export default function TerminalChat({
       inputSchema: z.object({
         message: z.string().describe("Selection prompt to show the user"),
         options: z
-          .array(
-            z.object({
-              label: z.string().describe("Display text for this option"),
-              value: z
-                .string()
-                .describe("Value returned if this option is selected"),
-            }),
-          )
-          .describe("Array of options for user to choose from"),
+          .array(z.string())
+          .describe("Array of option strings for user to choose from"),
         defaultValue: z
           .string()
           .describe(
-            "Value to use if user doesn't respond in time (must match one of the option values)",
+            "Value to use if user doesn't respond in time (must match one of the options)",
           ),
       }),
     });
@@ -427,14 +420,20 @@ export default function TerminalChat({
             defaultValue,
           } = toolCall.input as {
             message: string;
-            options: Array<{ label: string; value: string }>;
+            options: Array<string>;
             defaultValue: string;
           };
+
+          // Transform string options to objects with label and value
+          const transformedOptions = options.map((option) => ({
+            label: option,
+            value: option,
+          }));
 
           // Auto-add "None of the above" option
           const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
           const enhancedOptions = [
-            ...options,
+            ...transformedOptions,
             {
               label: "None of the above (enter custom option)",
               value: CUSTOM_INPUT_VALUE,
@@ -442,7 +441,7 @@ export default function TerminalChat({
           ];
 
           // Ensure defaultValue exists in the original options (not custom input)
-          const originalOptions = options; // The options without "None of the above"
+          const originalOptions = transformedOptions; // The options without "None of the above"
           const validDefaultValue = originalOptions.find(
             (opt) => opt.value === defaultValue,
           )

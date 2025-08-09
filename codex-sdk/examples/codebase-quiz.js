@@ -278,7 +278,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
               const toolCall = message.content.find(part => part.type === 'tool-call');
               if (toolCall?.toolName === 'user_select') {
                 const args = toolCall.args;
-                return `📚 ${args.message}\n\n📋 Choose your answer: ${args.options.map(opt => opt.label).join(' | ')}`;
+                return `📚 ${args.message}\n\n📋 Choose your answer: ${args.options.join(' | ')}`;
               }
               if (toolCall?.toolName === 'shell') {
                 return `🔧 Reading: ${toolCall.args.command}`;

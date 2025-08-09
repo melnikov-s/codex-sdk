@@ -197,7 +197,7 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
               const toolCall = message.content.find(part => part.type === 'tool-call');
               if (toolCall?.toolName === 'user_select') {
                 const args = toolCall.args;
-                return `🗡️ ${args.message}\n⚡ Actions: ${args.options.map(opt => opt.label).join(' | ')}`;
+                return `🗡️ ${args.message}\n⚡ Actions: ${args.options.join(' | ')}`;
               }
               if (toolCall) {
                 return '🎮 Preparing your options...';
