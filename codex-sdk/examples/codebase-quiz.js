@@ -9,7 +9,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const workflow = createAgentWorkflow(
-  ({ setState, state, appendMessage, handleToolCall, tools }) => {
+  ({ setState, state, addMessage, handleModelResult, tools }) => {
     let quizActive = false;
     let quizState = {
       codebaseAnalyzed: false,
@@ -29,7 +29,7 @@ const workflow = createAgentWorkflow(
         await simpleFileAnalysis("package.json", "project dependencies");
         
         // Finish analysis after reading key files
-        appendMessage({
+        addMessage({
           role: "ui",
           content: "✅ Basic codebase analysis complete! Ready to generate quiz questions..."
         });
@@ -37,7 +37,7 @@ const workflow = createAgentWorkflow(
         finishAnalysis();
         
       } catch (error) {
-        appendMessage({
+        addMessage({
           role: "ui",
           content: `❌ Analysis failed: ${error.message}`
         });
@@ -50,7 +50,7 @@ const workflow = createAgentWorkflow(
       try {
         const systemPrompt = `Read and analyze the ${filename} file to understand the ${purpose}. Use shell commands to read the file content.`;
 
-        const response = await generateText({
+        const result = await generateText({
           model: openai("gpt-4o"),
           system: systemPrompt,
           messages: [{
@@ -61,17 +61,9 @@ const workflow = createAgentWorkflow(
           toolChoice: "required"
         });
 
-        const aiMessage = response.response.messages[0];
-        if (aiMessage) {
-          appendMessage(aiMessage);
-          
-          const toolResponse = await handleToolCall(aiMessage);
-          if (toolResponse) {
-            appendMessage(toolResponse);
-          }
-        }
+        await handleModelResult(result);
       } catch (error) {
-        appendMessage({
+        addMessage({
           role: "ui",
           content: `⚠️ Could not read ${filename}: ${error.message}`
         });
@@ -84,7 +76,7 @@ const workflow = createAgentWorkflow(
       quizState.analyzing = false;
       quizState.codebaseAnalyzed = true;
       
-      appendMessage({
+      addMessage({
         role: "ui",
         content: "✅ Codebase analysis complete! Generating your first quiz question..."
       });
@@ -96,7 +88,7 @@ const workflow = createAgentWorkflow(
       setState({ loading: true });
       quizState.analyzing = true;
       
-      appendMessage({
+      addMessage({
         role: "ui",
         content: "🔍 Starting codebase analysis..."
       });
@@ -105,7 +97,7 @@ const workflow = createAgentWorkflow(
     }
 
     async function startQuiz() {
-      appendMessage({
+      addMessage({
         role: "ui",
         content: `📊 Score: ${quizState.score}/${quizState.totalQuestions} | Question: ${quizState.currentQuestion + 1}/${quizState.totalQuestions}`
       });
@@ -146,7 +138,7 @@ Requirements:
 
 DO NOT repeat any previous questions. Generate something new about ${currentTopic}.`;
 
-        const response = await generateText({
+        const result = await generateText({
           model: openai("gpt-4o"),
           system: questionPrompt,
           messages: state.transcript,
@@ -154,25 +146,20 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
           toolChoice: "required"
         });
 
-        const aiMessage = response.response.messages[0];
-        if (aiMessage) {
-          appendMessage(aiMessage);
-          
-          const toolResponse = await handleToolCall(aiMessage);
-          if (toolResponse) {
-            appendMessage(toolResponse);
-            handleQuizAnswer(toolResponse);
-          } else {
-            // No tool response means user chose "None of the above"
-            appendMessage({
-              role: "ui", 
-              content: "📝 Please provide your own answer..."
-            });
-            setState({ loading: false });
-          }
+        const toolResponses = await handleModelResult(result);
+        if (toolResponses.length === 0) {
+          // No tool response means user chose "None of the above"
+          addMessage({
+            role: "ui", 
+            content: "📝 Please provide your own answer..."
+          });
+          setState({ loading: false });
+        } else {
+          // Use the last toolResponse for answer handling
+          handleQuizAnswer(toolResponses[toolResponses.length - 1]);
         }
       } catch (error) {
-        appendMessage({
+        addMessage({
           role: "ui",
           content: `❌ Question generation failed: ${error.message}`
         });
@@ -211,12 +198,12 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
       
       if (isCorrect) {
         quizState.score++;
-        appendMessage({
+        addMessage({
           role: "ui",
           content: `✅ Correct! Your answer: ${userAnswer}\n📊 Score: ${quizState.score}/${quizState.totalQuestions}`
         });
       } else {
-        appendMessage({
+        addMessage({
           role: "ui",
           content: `❌ Not quite right. Your answer: ${userAnswer}\n📊 Score: ${quizState.score}/${quizState.totalQuestions}`
         });
@@ -248,7 +235,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
         performance = "📚 Consider spending more time with the codebase.";
       }
 
-      appendMessage({
+      addMessage({
         role: "ui",
         content: `🏁 Quiz Complete!\n\n📊 Final Score: ${quizState.score}/${quizState.totalQuestions} (${percentage}%)\n${performance}\n\nType 'restart' to take the quiz again or 'analyze' to re-analyze the codebase!`
       });
@@ -436,11 +423,14 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
 
         if (!quizActive && (content === "start" || content.includes("start") || content.includes("begin"))) {
           quizActive = true;
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content: "🚀 Starting intelligent codebase discovery and analysis!\n🔍 I'll automatically find the project root, discover all documentation, and analyze the structure...\n📖 This may take a moment as I explore the codebase thoroughly!"
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "🚀 Starting intelligent codebase discovery and analysis!\n🔍 I'll automatically find the project root, discover all documentation, and analyze the structure...\n📖 This may take a moment as I explore the codebase thoroughly!",
+            },
+          ]);
           await analyzeCodebase();
         } else if (content === "restart" && quizActive) {
           // Reset quiz state
@@ -451,42 +441,53 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
             score: 0,
             analyzing: false
           };
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content: "🔄 Restarting quiz... Re-discovering and analyzing the codebase for fresh questions!"
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "🔄 Restarting quiz... Re-discovering and analyzing the codebase for fresh questions!",
+            },
+          ]);
           await analyzeCodebase();
         } else if (content === "analyze" && quizActive) {
           // Reset analysis state
           quizState.codebaseAnalyzed = false;
           quizState.currentQuestion = 0;
           quizState.score = 0;
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui", 
-            content: "🔍 Re-discovering the codebase structure and documentation with fresh perspective..."
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "🔍 Re-discovering the codebase structure and documentation with fresh perspective...",
+            },
+          ]);
           await analyzeCodebase();
         } else if (!quizActive) {
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content: "🎓 Type 'start' when you're ready to begin the codebase analysis and quiz!"
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "🎓 Type 'start' when you're ready to begin the codebase analysis and quiz!",
+            },
+          ]);
         } else {
           // Quiz is active, handle as custom input
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content: "📝 I'll consider your input for the current question analysis..."
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content: "📝 I'll consider your input for the current question analysis...",
+            },
+          ]);
         }
       },
       
       stop: () => {
         setState({ loading: false });
-        appendMessage({
+        addMessage({
           role: "ui",
           content: "⏸️ Quiz paused. Type anything to continue or 'restart' for a new quiz!"
         });

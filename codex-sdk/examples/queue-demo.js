@@ -1,7 +1,7 @@
 import { run, createAgentWorkflow } from "../dist/lib.js";
 
 const queueDemoWorkflow = createAgentWorkflow(
-  ({ setState, appendMessage, addToQueue, unshiftQueue }) => {
+  ({ setState, addMessage, addToQueue, unshiftQueue }) => {
     let processing = false;
 
     async function processNextInQueue() {
@@ -14,14 +14,14 @@ const queueDemoWorkflow = createAgentWorkflow(
 
       let nextMessage = unshiftQueue();
       while (nextMessage) {
-        appendMessage({
+        addMessage({
           role: "assistant",
           content: `Processing: "${nextMessage}"`,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        appendMessage({
+        addMessage({
           role: "assistant",
           content: `Completed: "${nextMessage}"`,
         });
@@ -35,7 +35,7 @@ const queueDemoWorkflow = createAgentWorkflow(
 
     return {
       initialize: async () => {
-        appendMessage({
+        addMessage({
           role: "ui",
           content:
             "Queue Demo Agent ready! Type messages to see them queued while processing.",
@@ -45,10 +45,10 @@ const queueDemoWorkflow = createAgentWorkflow(
       message: async (input) => {
         const userMessage = input.content;
 
-        appendMessage(input);
+        addMessage(input);
         addToQueue(userMessage);
 
-        appendMessage({
+        addMessage({
           role: "ui",
           content: `Added "${userMessage}" to queue`,
         });
@@ -59,7 +59,7 @@ const queueDemoWorkflow = createAgentWorkflow(
       stop: () => {
         processing = false;
         setState({ loading: false });
-        appendMessage({
+        addMessage({
           role: "ui",
           content: "Processing stopped. Queue preserved.",
         });

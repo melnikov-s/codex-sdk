@@ -8,7 +8,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const workflow = createAgentWorkflow(
-  ({ setState, state, appendMessage, handleToolCall, tools }) => {
+  ({ setState, state, addMessage, handleModelResult, tools }) => {
     let projectConfig = {};
     let setupActive = false;
 
@@ -35,32 +35,18 @@ IMPORTANT: Use user_select tool for ALL questions. Examples:
 
 Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
 
-          const response = await generateText({
+          const result = await generateText({
             model: openai("gpt-4o"),
             system: systemPrompt,
             messages: state.transcript,
             tools,
           });
 
-          const aiMessage = response.response.messages[0];
-          if (!aiMessage) {
-            break;
-          }
+          await handleModelResult(result);
 
-          appendMessage(aiMessage);
-
-          const toolResponse = await handleToolCall(aiMessage);
-          if (toolResponse) {
-            // Parse the response to update project config
-            const result = JSON.parse(toolResponse.content[0].result);
-            if (result.userResponse) {
-              // Store the user's choice in our project config
-              // This is a simplified example - you'd have more sophisticated config handling
-              appendMessage(toolResponse);
-            }
-          } else if (response.finishReason === "stop") {
+          if (result.finishReason === "stop") {
             // User selected "None of the above" - they'll provide custom input
-            appendMessage({
+            addMessage({
               role: "ui",
               content: "💬 Please tell me more about what you have in mind...",
             });
@@ -68,7 +54,7 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
             break;
           }
         } catch (error) {
-          appendMessage({
+            addMessage({
             role: "ui",
             content: `❌ Error: ${error.message || "Unknown error"}`,
           });
@@ -101,35 +87,41 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
         ) {
           setupActive = true;
           projectConfig = {};
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content:
-              "⚙️ Setup Started! I'll ask you a few questions to understand your project needs.\n" +
-              "Remember: You can always choose 'None of the above' to provide custom details! 💡",
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "⚙️ Setup Started! I'll ask you a few questions to understand your project needs.\n" +
+                "Remember: You can always choose 'None of the above' to provide custom details! 💡",
+            },
+          ]);
           runAssistant();
         } else if (!setupActive) {
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content:
-              "🚀 Type 'setup' when you're ready to configure your project!",
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "🚀 Type 'setup' when you're ready to configure your project!",
+            },
+          ]);
         } else {
           // Setup is active, user provided custom input after "None of the above"
-          appendMessage(userInput);
-          appendMessage({
-            role: "ui",
-            content:
-              "👍 Got it! I'll take that into account for your project setup...",
-          });
+          addMessage([
+            userInput,
+            {
+              role: "ui",
+              content:
+                "👍 Got it! I'll take that into account for your project setup...",
+            },
+          ]);
           runAssistant();
         }
       },
       stop: () => {
         setState({ loading: false });
-        appendMessage({
+        addMessage({
           role: "ui",
           content:
             "⏸️ Setup paused. Type anything to continue configuring your project!",

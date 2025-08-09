@@ -152,7 +152,7 @@ describe("Declarative State API", () => {
     });
   });
 
-  describe("appendMessage behavior", () => {
+  describe("addMessage behavior", () => {
     it("should append a single message", () => {
       let currentState: WorkflowState = {
         loading: false,
@@ -160,7 +160,7 @@ describe("Declarative State API", () => {
         inputDisabled: false,
       };
 
-      const mockAppendMessage = (message: any) => {
+      const mockAddMessage = (message: any) => {
         const messages = Array.isArray(message) ? message : [message];
         currentState = {
           ...currentState,
@@ -168,7 +168,7 @@ describe("Declarative State API", () => {
         };
       };
 
-      mockAppendMessage({ role: "assistant", content: "Hi there!" });
+      mockAddMessage({ role: "assistant", content: "Hi there!" });
 
       expect(currentState.messages).toHaveLength(2);
       expect(currentState.messages[1]).toEqual({
@@ -184,7 +184,7 @@ describe("Declarative State API", () => {
         inputDisabled: false,
       };
 
-      const mockAppendMessage = (message: any) => {
+      const mockAddMessage = (message: any) => {
         const messages = Array.isArray(message) ? message : [message];
         currentState = {
           ...currentState,
@@ -197,7 +197,7 @@ describe("Declarative State API", () => {
         { role: "assistant", content: "Message 2" },
       ];
 
-      mockAppendMessage(newMessages);
+      mockAddMessage(newMessages);
 
       expect(currentState.messages).toHaveLength(3);
       expect(currentState.messages[1]).toEqual({
@@ -217,7 +217,7 @@ describe("Declarative State API", () => {
         inputDisabled: true,
       };
 
-      const mockAppendMessage = (message: any) => {
+      const mockAddMessage = (message: any) => {
         const messages = Array.isArray(message) ? message : [message];
         currentState = {
           ...currentState,
@@ -225,7 +225,7 @@ describe("Declarative State API", () => {
         };
       };
 
-      mockAppendMessage({ role: "ui", content: "Test message" });
+      mockAddMessage({ role: "ui", content: "Test message" });
 
       expect(currentState).toEqual({
         loading: true,
@@ -246,7 +246,7 @@ describe("Declarative State API", () => {
           queue: [],
           transcript: [],
         },
-        appendMessage: vi.fn(),
+        addMessage: vi.fn(),
         addToQueue: vi.fn(),
         unshiftQueue: vi.fn(() => undefined),
         tools: {},
@@ -255,6 +255,7 @@ describe("Declarative State API", () => {
         onPrompt: vi.fn(),
         onSelect: vi.fn(),
         logger: vi.fn(),
+        handleModelResult: vi.fn(),
       };
 
       const workflow = createAgentWorkflow((hooks) => {
@@ -313,7 +314,7 @@ describe("Declarative State API", () => {
             return workflowState.messages.filter((msg) => msg.role !== "ui");
           },
         },
-        appendMessage: vi.fn(),
+        addMessage: vi.fn(),
         addToQueue: vi.fn(),
         unshiftQueue: vi.fn(() => undefined),
         tools: {},
@@ -322,6 +323,7 @@ describe("Declarative State API", () => {
         onPrompt: vi.fn(),
         onSelect: vi.fn(),
         logger: vi.fn(),
+        handleModelResult: vi.fn(),
       };
 
       const workflow = createAgentWorkflow((hooks) => {
@@ -450,7 +452,7 @@ describe("Declarative State API", () => {
               return state.messages.filter((msg) => msg.role !== "ui");
             },
           },
-          appendMessage: vi.fn(),
+          addMessage: vi.fn(),
           addToQueue: vi.fn(),
           unshiftQueue: vi.fn(() => undefined),
           tools: {},
@@ -459,6 +461,7 @@ describe("Declarative State API", () => {
           onPrompt: vi.fn(),
           onSelect: vi.fn(),
           logger: vi.fn(),
+          handleModelResult: vi.fn(),
         };
       };
 

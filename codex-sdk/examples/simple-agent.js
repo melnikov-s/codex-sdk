@@ -1,35 +1,38 @@
-import { run, createDefaultWorkflow, AutoApprovalMode } from "../dist/lib.js";
+// minimal-agent.js
+import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
+import { run, createAgentWorkflow } from "codex-sdk";
 
-// The createDefaultWorkflow uses the new declarative setState API internally.
-// You don't need to manage state directly - the default workflow handles it for you.
-const defaultWorkflow = createDefaultWorkflow({
-  // Set approval policy (suggest, auto-edit, or full-auto)
-  approvalPolicy: AutoApprovalMode.SUGGEST,
-  model: "openai/gpt-4o",
-
-  // Configure UI settings
-  config: {
-    // Enable desktop notifications
-    notify: true,
-
-    // Configure shell tool
-    tools: {
-      shell: {
-        // Limit output size to prevent excessive output
-        maxBytes: 100000,
-        maxLines: 1000,
+const workflow = createAgentWorkflow(
+  ({ state, setState, addMessage, handleModelResult, tools }) => {
+    return {
+      // Set an initial "Ready" message
+      initialize: async () => {
+        setState({ messages: [{ role: "ui", content: "Ready." }] });
       },
-    },
+      // This is the core loop, called on every user input
+      message: async (userInput) => {
+        addMessage(userInput);
+        setState({ loading: true });
 
-    // Error mode for handling sandbox errors
-    fullAutoErrorMode: "ask-user",
+        const result = await generateText({
+          model: openai("gpt-4o"),
+          system: "You are a helpful assistant.",
+          messages: state.transcript, // transcript conveniently excludes UI messages
+          tools,
+        });
+
+        // handleModelResult adds the AI response, executes tools,
+        // and adds tool results to the message history automatically.
+        await handleModelResult(result);
+
+        setState({ loading: false });
+      },
+      // Cleanup methods for user interruption
+      stop: () => setState({ loading: false }),
+      terminate: () => setState({ loading: false, messages: [] }),
+    };
   },
-});
+);
 
-// Launch the CLI with the default workflow
-run(defaultWorkflow);
-
-// Note: The defaultWorkflow will:
-// 1. Handle user input and agent responses
-// 2. Execute tool calls and display results
-// 3. Manage the approval flow based on the configured policy
+run(workflow);
