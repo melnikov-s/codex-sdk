@@ -566,10 +566,10 @@ export default function TerminalChatInput({
       <TerminalChatQueue queue={queue} />
       {loading && (
         <Box marginTop={1} marginBottom={0}>
-                  <TerminalChatInputThinking
-          onInterrupt={interruptAgent}
-          active={active}
-        />
+          <TerminalChatInputThinking
+            onInterrupt={interruptAgent}
+            active={active}
+          />
         </Box>
       )}
       <Box borderStyle="round">

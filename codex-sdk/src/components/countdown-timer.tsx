@@ -7,7 +7,11 @@ interface Props {
   defaultLabel: string;
 }
 
-export function CountdownTimer({ timeoutSeconds, onTimeout, defaultLabel }: Props) {
+export function CountdownTimer({
+  timeoutSeconds,
+  onTimeout,
+  defaultLabel,
+}: Props) {
   const [remaining, setRemaining] = useState(timeoutSeconds);
 
   useEffect(() => {
@@ -19,7 +23,7 @@ export function CountdownTimer({ timeoutSeconds, onTimeout, defaultLabel }: Prop
   }, []);
 
   useEffect(() => {
-     if (remaining <= 0) {
+    if (remaining <= 0) {
       onTimeout();
       return;
     }

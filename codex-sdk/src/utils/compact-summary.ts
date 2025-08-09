@@ -15,12 +15,13 @@ export async function generateCompactSummary(
   items: Array<ModelMessage>,
   model: Model,
 ): Promise<string> {
-
   const languageModel = getLanguageModel(model);
 
   const conversationText = items
     .filter(
-      (item): item is ModelMessage & { content: Array<unknown>; role: string } =>
+      (
+        item,
+      ): item is ModelMessage & { content: Array<unknown>; role: string } =>
         (item.role === "user" || item.role === "assistant") &&
         Array.isArray(item.content),
     )

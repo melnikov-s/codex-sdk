@@ -71,28 +71,28 @@ export interface ThemeOptions {
 export interface MessageDisplayOptions {
   /** Simple string label for the message type */
   label?: string;
-  
+
   /** Function to transform the entire message display */
   onMessage?: (message: UIMessage) => string;
-  
+
   /** Text color (chalk color name, hex, or theme reference) */
   color?: ChalkColor | string;
-  
+
   /** Whether to display as bold */
   bold?: boolean;
-  
+
   /** Container styling */
   border?: {
-    style?: 'single' | 'double' | 'round' | 'bold';
+    style?: "single" | "double" | "round" | "bold";
     color?: ChalkColor | string;
   };
-  
+
   /** Background color */
   backgroundColor?: ChalkColor | string;
-  
+
   /** Text color override */
   textColor?: ChalkColor | string;
-  
+
   /** Margin/padding adjustments */
   spacing?: {
     marginLeft?: number;
@@ -105,15 +105,15 @@ export interface DisplayConfig {
   /** Message type customization - 5 types only */
   messageTypes?: {
     toolCall?: MessageDisplayOptions;
-    assistant?: MessageDisplayOptions; 
+    assistant?: MessageDisplayOptions;
     user?: MessageDisplayOptions;
     toolResponse?: MessageDisplayOptions;
     ui?: MessageDisplayOptions;
   };
-  
+
   /** Global theme overrides */
   theme?: ThemeOptions;
-  
+
   /** Custom header for the workflow */
   header?: string;
 }
@@ -143,8 +143,6 @@ export interface Workflow {
    * Destroys the workflow instance - cannot be used after this call
    */
   terminate(): void;
-
-
 
   /**
    * Display customization configuration

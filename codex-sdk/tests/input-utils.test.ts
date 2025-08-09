@@ -29,7 +29,7 @@ describe("createInputItem", () => {
     expect(textItem).toEqual({ type: "text", text: "hello" });
     expect(imageItem).toEqual({
       type: "image",
-      mimeType: "application/octet-stream",
+      mediaType: "application/octet-stream",
       image: expectedUrl,
     });
     readSpy.mockRestore();

@@ -66,7 +66,7 @@ describe("TerminalChatInput file tag suggestions", () => {
   // Standard props for all tests
   const baseProps: ComponentProps<typeof TerminalChatInput> = {
     loading: false,
-        queue: [],
+    queue: [],
     submitInput: vi.fn(),
     confirmationPrompt: null,
     explanation: undefined,
@@ -78,7 +78,6 @@ describe("TerminalChatInput file tag suggestions", () => {
 
     interruptAgent: () => {},
     active: true,
-
   };
 
   beforeEach(() => {
