@@ -1,5 +1,5 @@
 import type { AppConfig } from "../config.js";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import { log } from "../logger/log.js";
 import { experimental_createMCPClient as createMCPClient } from "ai";
@@ -173,7 +173,7 @@ export class MCPClientManager {
     args: unknown;
     abortSignal?: AbortSignal;
     toolCallId: string;
-    messages: Array<CoreMessage>;
+    messages: Array<ModelMessage>;
   }): Promise<string> {
     // Find which client has this tool
     for (const client of this.clients) {

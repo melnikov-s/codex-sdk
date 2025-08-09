@@ -1,6 +1,6 @@
 import type { DisplayConfig, Workflow, WorkflowHooks } from "./index.js";
 import type { AppConfig } from "../utils/config.js";
-import type { CoreMessage, ToolSet } from "ai";
+import type { ModelMessage, ToolSet } from "ai";
 
 import { getToolCall } from "../utils/ai.js";
 import { getGitDiff } from "../utils/get-diff.js";
@@ -77,7 +77,7 @@ export function defaultWorkflow(
   agentConfig?: DefaultAgentWorkflowConfig,
 ): Workflow {
   // Implementation details
-  const transcript: Array<CoreMessage> = [];
+  const transcript: Array<ModelMessage> = [];
   const config: AppConfig = {
     model: agentConfig?.model || ("openai/gpt-4o" as Model),
     instructions: agentConfig?.instructions || "",
@@ -195,7 +195,7 @@ export function defaultWorkflow(
       }
     },
 
-    async message(input: CoreMessage) {
+    async message(input: ModelMessage) {
       // Reset canceled state for new run
       canceled = false;
 
@@ -224,7 +224,6 @@ export function defaultWorkflow(
         try {
           // Call the language model with current messages and tools
           const response = await generateText({
-            maxSteps: 1,
             model,
             messages: [
               { role: "system", content: prefix },
@@ -273,18 +272,21 @@ export function defaultWorkflow(
                   try {
                     const result = await mcpClientManager.callTool({
                       name: toolCall.toolName,
-                      args: toolCall.args,
+                      args: toolCall.input,
                       toolCallId: toolCall.toolCallId,
                       messages: [...transcript], // Pass current transcript
                     });
-                    const toolResponseMessage: CoreMessage = {
+                    const toolResponseMessage: ModelMessage = {
                       role: "tool",
                       content: [
                         {
                           type: "tool-result",
                           toolCallId: toolCall.toolCallId,
                           toolName: toolCall.toolName,
-                          result,
+                          output: {
+                            value: result,
+                            type: "json",
+                          },
                         },
                       ],
                     };
@@ -294,14 +296,17 @@ export function defaultWorkflow(
                     const errorText = `Error calling MCP tool ${toolCall.toolName}: ${mcpError}`;
                     hooks.logger(errorText);
                     hooks.appendMessage({ role: "ui", content: errorText });
-                    const errorResult: CoreMessage = {
+                    const errorResult: ModelMessage = {
                       role: "tool",
                       content: [
                         {
                           type: "tool-result",
                           toolCallId: toolCall.toolCallId,
                           toolName: toolCall.toolName,
-                          result: `Error executing tool: ${mcpError}`,
+                          output: {
+                            value: `Error executing tool: ${mcpError}`,
+                            type: "text",
+                          },
                         },
                       ],
                     };
@@ -338,7 +343,7 @@ export function defaultWorkflow(
             hooks.onError(error);
           }
 
-          const errorMessage: CoreMessage = {
+          const errorMessage: ModelMessage = {
             role: "assistant",
             content: `Error: ${(error as Error).message}`,
           };
@@ -370,7 +375,6 @@ export function defaultWorkflow(
 
             // Generate summary using the model
             const response = await generateText({
-              maxSteps: 1,
               model,
               messages: [
                 {

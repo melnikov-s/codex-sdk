@@ -1,7 +1,7 @@
 import type { ApprovalPolicy } from "./approvals";
 import type { LibraryConfig } from "./lib.js";
 import type { WorkflowFactory } from "./workflow";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import TerminalChat from "./components/chat/terminal-chat";
 import TerminalChatPastRollout from "./components/chat/terminal-chat-past-rollout";
@@ -14,7 +14,7 @@ import React, { useMemo, useState } from "react";
 
 export type AppRollout = {
   session: TerminalChatSession;
-  items: Array<CoreMessage>;
+  items: Array<ModelMessage>;
 };
 
 type Props = {

@@ -1,4 +1,4 @@
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import { getMessageType, getTextContent } from "./ai";
 
@@ -14,7 +14,7 @@ export function buildBugReportUrl({
   platform,
 }: {
   /** Chat history so we can summarise user steps */
-  items: Array<CoreMessage>;
+  items: Array<ModelMessage>;
   /** CLI revision string (e.g. output of `codex --revision`) */
   cliVersion: string;
   /** Active model name */

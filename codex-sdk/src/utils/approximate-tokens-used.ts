@@ -1,4 +1,4 @@
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 /**
  * Roughly estimate the number of language‑model tokens represented by a list
@@ -13,7 +13,7 @@ import type { CoreMessage } from "ai";
  * encounter and then converts that char count to tokens by dividing by four
  * and rounding up.
  */
-export function approximateTokensUsed(items: Array<CoreMessage>): number {
+export function approximateTokensUsed(items: Array<ModelMessage>): number {
   let charCount = 0;
 
   for (const item of items) {

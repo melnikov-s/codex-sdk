@@ -120,9 +120,9 @@ function formatHistoryForDisplay(items: Array<UIMessage>): {
       continue;
     }
 
-    const { toolName, args } = getToolCall(item)!;
+    const { toolName, input } = getToolCall(item)!;
 
-    const argsObj = args as Record<string, unknown> | undefined;
+    const argsObj = input as Record<string, unknown> | undefined;
     const cmdArray: Array<string> | undefined = Array.isArray(argsObj?.["cmd"])
       ? (argsObj!["cmd"] as Array<string>)
       : Array.isArray(argsObj?.["command"])
@@ -138,7 +138,7 @@ function formatHistoryForDisplay(items: Array<UIMessage>): {
     //    short argument representation to give users an idea of what
     //    happened.
     if (typeof toolName === "string" && toolName.length > 0) {
-      commands.push(processNonExecTool(toolName, args, filesSet));
+      commands.push(processNonExecTool(toolName, input, filesSet));
     }
   }
 

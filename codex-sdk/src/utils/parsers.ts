@@ -2,7 +2,7 @@ import type {
   ExecInput,
   ExecOutputMetadata,
 } from "./agent/sandbox/interface.js";
-import type { CoreMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import { getMessageType, getToolCall } from "./ai.js";
 import { formatCommandForDisplay } from "src/format-command.js";
@@ -40,7 +40,7 @@ export type CommandReviewDetails = {
  * - a human-readable string to display to the user
  */
 export function parseToolCall(
-  message: CoreMessage,
+  message: ModelMessage,
 ): CommandReviewDetails | undefined {
   if (getMessageType(message) !== "function_call") {
     return undefined;
@@ -65,14 +65,14 @@ export function parseToolCall(
  * that array. Otherwise, returns undefined.
  */
 export function parseToolCallArguments(
-  message: CoreMessage,
+  message: ModelMessage,
 ): ExecInput | undefined {
   const toolCall = getToolCall(message);
   if (toolCall == null) {
     return undefined;
   }
 
-  const args = toolCall.args;
+  const args = toolCall.input as Record<string, unknown>;
 
   const { cmd, command } = args as Record<string, unknown>;
   // The OpenAI model sometimes produces a single string instead of an array.
@@ -86,7 +86,6 @@ export function parseToolCallArguments(
     return undefined;
   }
 
-  // @ts-expect-error timeout and workdir may not exist on json.
   const { timeout, workdir } = args;
   return {
     cmd: commandArray,

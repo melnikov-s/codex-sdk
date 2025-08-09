@@ -54,7 +54,7 @@ function createFunctionCall(name: string, args: unknown): UIMessage {
         type: "tool-call",
         toolCallId: toolCallId,
         toolName: name,
-        args,
+        input: args,
       },
     ],
   };
