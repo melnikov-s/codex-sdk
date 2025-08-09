@@ -266,30 +266,112 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
           error: "#dc3545",          // Red for incorrect answers
           muted: "#6c757d"           // Gray for secondary text
         },
+        onMessage: (message) => {
+          const content = Array.isArray(message.content) 
+            ? message.content.find(part => part.type === 'text')?.text || ''
+            : message.content;
+          
+          // Handle different message types based on role
+          if (message.role === 'assistant') {
+            // Check if this is a tool call message
+            if (Array.isArray(message.content)) {
+              const toolCall = message.content.find(part => part.type === 'tool-call');
+              if (toolCall?.toolName === 'user_select') {
+                const args = toolCall.args;
+                return `📚 ${args.message}\n\n📋 Choose your answer: ${args.options.map(opt => opt.label).join(' | ')}`;
+              }
+              if (toolCall?.toolName === 'shell') {
+                return `🔧 Reading: ${toolCall.args.command}`;
+              }
+              if (toolCall) {
+                return '⚙️ Processing...';
+              }
+            }
+            
+            // Regular assistant messages
+            if (content.includes('question') || content.includes('Quiz question')) {
+              return `❓ ${content}`;
+            }
+            if (content.includes('analysis') || content.includes('analyzing')) {
+              return `🔍 ${content}`;
+            }
+            if (content.includes('correct') || content.includes('right')) {
+              return `✅ ${content}`;
+            }
+            if (content.includes('incorrect') || content.includes('wrong')) {
+              return `❌ ${content}`;
+            }
+            return `🎯 ${content}`;
+          }
+          
+          if (message.role === 'tool') {
+            if (Array.isArray(message.content)) {
+              const result = message.content.find(part => part.type === 'tool-result');
+              if (result?.output) {
+                try {
+                  // Handle new AI SDK structure: result.output.value instead of result.result
+                  const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
+                  if (typeof outputValue === 'string') {
+                    const parsed = JSON.parse(outputValue);
+                    if (parsed.output) {
+                      return `🎯 Selected: ${parsed.output}`;
+                    }
+                  } else if (typeof outputValue === 'object' && outputValue.output) {
+                    return `🎯 Selected: ${outputValue.output}`;
+                  }
+                } catch (e) {
+                  // For shell commands, try to parse the JSON output
+                  try {
+                    if (typeof result.output.value === 'string') {
+                      const shellResult = JSON.parse(result.output.value);
+                      const output = shellResult.output || "";
+                      if (output.length > 200) {
+                        return `📄 File content loaded (${output.length} chars)`;
+                      }
+                      return `📄 ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`;
+                    }
+                  } catch (parseError) {
+                    // Ultimate fallback
+                    const output = typeof result.output.value === 'string' ? result.output.value : "";
+                    return `📄 Tool output (${output.length} chars)`;
+                  }
+                  return `📄 Tool executed`;
+                }
+              }
+            }
+            return message.content;
+          }
+          
+          if (message.role === 'ui') {
+            if (content.includes('Score:') || content.includes('Final Score')) {
+              return `📈 ${content}`;
+            }
+            if (content.includes('Correct') || content.includes('✅')) {
+              return `🎉 ${content}`;
+            }
+            if (content.includes('Not quite') || content.includes('❌')) {
+              return `💡 ${content}`;
+            }
+            if (content.includes('Complete') || content.includes('Quiz Complete')) {
+              return `🏆 ${content}`;
+            }
+            if (content.includes('Analyzing') || content.includes('🔍')) {
+              return `🔬 ${content}`;
+            }
+            if (content.includes('Error') || content.includes('failed')) {
+              return `⚠️ ${content}`;
+            }
+            return `📋 ${content}`;
+          }
+          
+          // Default fallback
+          return content;
+        },
         messageTypes: {
           assistant: {
             label: "🤖 Quiz Master",
             color: "primary",
-            bold: true,
-            onMessage: (message) => {
-              const content = Array.isArray(message.content) 
-                ? message.content.find(part => part.type === 'text')?.text || ''
-                : message.content;
-              
-              if (content.includes('question') || content.includes('Quiz question')) {
-                return `❓ ${content}`;
-              }
-              if (content.includes('analysis') || content.includes('analyzing')) {
-                return `🔍 ${content}`;
-              }
-              if (content.includes('correct') || content.includes('right')) {
-                return `✅ ${content}`;
-              }
-              if (content.includes('incorrect') || content.includes('wrong')) {
-                return `❌ ${content}`;
-              }
-              return `🎯 ${content}`;
-            }
+            bold: true
           },
           user: {
             label: "🧑‍💻 Student",
@@ -306,19 +388,6 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
             spacing: {
               marginLeft: 1,
               marginTop: 1
-            },
-            onMessage: (message) => {
-              if (Array.isArray(message.content)) {
-                const toolCall = message.content.find(part => part.type === 'tool-call');
-                if (toolCall?.toolName === 'user_select') {
-                  const args = toolCall.args;
-                  return `📚 ${args.message}\n\n📋 Choose your answer: ${args.options.map(opt => opt.label).join(' | ')}`;
-                }
-                if (toolCall?.toolName === 'shell') {
-                  return `🔧 Reading: ${toolCall.args.command}`;
-                }
-              }
-              return '⚙️ Processing...';
             }
           },
           toolResponse: {
@@ -327,71 +396,12 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
             bold: true,
             spacing: {
               marginLeft: 2
-            },
-            onMessage: (message) => {
-              if (Array.isArray(message.content)) {
-                const result = message.content.find(part => part.type === 'tool-result');
-                if (result?.output) {
-                  try {
-                    // Handle new AI SDK structure: result.output.value instead of result.result
-                    const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
-                    if (typeof outputValue === 'string') {
-                      const parsed = JSON.parse(outputValue);
-                      if (parsed.output) {
-                        return `🎯 Selected: ${parsed.output}`;
-                      }
-                    } else if (typeof outputValue === 'object' && outputValue.output) {
-                      return `🎯 Selected: ${outputValue.output}`;
-                    }
-                  } catch (e) {
-                    // For shell commands, try to parse the JSON output
-                    try {
-                      if (typeof result.output.value === 'string') {
-                        const shellResult = JSON.parse(result.output.value);
-                        const output = shellResult.output || "";
-                        if (output.length > 200) {
-                          return `📄 File content loaded (${output.length} chars)`;
-                        }
-                        return `📄 ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`;
-                      }
-                    } catch (parseError) {
-                      // Ultimate fallback
-                      const output = typeof result.output.value === 'string' ? result.output.value : "";
-                      return `📄 Tool output (${output.length} chars)`;
-                    }
-                    return `📄 Tool executed`;
-                  }
-                }
-              }
-              return message.content;
             }
           },
           ui: {
             label: "📊 Quiz System",
             color: "warning",
-            bold: true,
-            onMessage: (message) => {
-              const content = message.content;
-              if (content.includes('Score:') || content.includes('Final Score')) {
-                return `📈 ${content}`;
-              }
-              if (content.includes('Correct') || content.includes('✅')) {
-                return `🎉 ${content}`;
-              }
-              if (content.includes('Not quite') || content.includes('❌')) {
-                return `💡 ${content}`;
-              }
-              if (content.includes('Complete') || content.includes('Quiz Complete')) {
-                return `🏆 ${content}`;
-              }
-              if (content.includes('Analyzing') || content.includes('🔍')) {
-                return `🔬 ${content}`;
-              }
-              if (content.includes('Error') || content.includes('failed')) {
-                return `⚠️ ${content}`;
-              }
-              return `📋 ${content}`;
-            }
+            bold: true
           }
         }
       },

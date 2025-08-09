@@ -143,10 +143,10 @@ function TerminalChatResponseMessage({
   // Get label (default to messageType if not specified)
   const label = displayOptions?.label || messageType;
 
-  // Transform message content if onMessage provided
+  // Transform message content if global onMessage provided
   let content = getTextContent(message);
-  if (displayOptions?.onMessage) {
-    content = displayOptions.onMessage(message);
+  if (displayConfig?.onMessage) {
+    content = displayConfig.onMessage(message);
   }
 
   // Get colors with theme support

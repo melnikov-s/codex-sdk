@@ -72,9 +72,6 @@ export interface MessageDisplayOptions {
   /** Simple string label for the message type */
   label?: string;
 
-  /** Function to transform the entire message display */
-  onMessage?: (message: UIMessage) => string;
-
   /** Text color (chalk color name, hex, or theme reference) */
   color?: ChalkColor | string;
 
@@ -102,6 +99,9 @@ export interface MessageDisplayOptions {
 }
 
 export interface DisplayConfig {
+  /** Function to transform the entire message display based on message role */
+  onMessage?: (message: UIMessage) => string;
+
   /** Message type customization - 5 types only */
   messageTypes?: {
     toolCall?: MessageDisplayOptions;

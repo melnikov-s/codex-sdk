@@ -185,31 +185,94 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
           error: "#dc143c",        // Crimson for errors/combat
           muted: "#696969"         // Dim gray for secondary text
         },
+        onMessage: (message) => {
+          const content = Array.isArray(message.content) 
+            ? message.content.find(part => part.type === 'text')?.text || ''
+            : message.content;
+          
+          // Handle different message types based on role
+          if (message.role === 'assistant') {
+            // Check if this is a tool call message
+            if (Array.isArray(message.content)) {
+              const toolCall = message.content.find(part => part.type === 'tool-call');
+              if (toolCall?.toolName === 'user_select') {
+                const args = toolCall.args;
+                return `🗡️ ${args.message}\n⚡ Actions: ${args.options.map(opt => opt.label).join(' | ')}`;
+              }
+              if (toolCall) {
+                return '🎮 Preparing your options...';
+              }
+            }
+            
+            // Regular assistant message - add atmospheric indicators for different types of narration
+            if (content.includes('combat') || content.includes('attack') || content.includes('damage')) {
+              return `⚔️ ${content}`;
+            }
+            if (content.includes('magic') || content.includes('spell') || content.includes('enchant')) {
+              return `✨ ${content}`;
+            }
+            if (content.includes('treasure') || content.includes('gold') || content.includes('loot')) {
+              return `💰 ${content}`;
+            }
+            if (content.includes('quest') || content.includes('mission')) {
+              return `📜 ${content}`;
+            }
+            return `🎭 ${content}`;
+          }
+          
+          if (message.role === 'tool') {
+            if (Array.isArray(message.content)) {
+              const result = message.content.find(part => part.type === 'tool-result');
+              if (result?.output) {
+                try {
+                  // Handle new AI SDK structure: result.output.value instead of result.result
+                  const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
+                  if (typeof outputValue === 'string') {
+                    const parsed = JSON.parse(outputValue);
+                    if (parsed.output) {
+                      return `🎯 You chose: "${parsed.output}"`;
+                    }
+                  } else if (typeof outputValue === 'object' && outputValue.output) {
+                    return `🎯 You chose: "${outputValue.output}"`;
+                  }
+                } catch (e) {
+                  // fallback
+                }
+              }
+            }
+            return message.content;
+          }
+          
+          if (message.role === 'ui') {
+            if (content.includes('Welcome') || content.includes('adventure begins')) {
+              return `🌟 ${content}`;
+            }
+            if (content.includes('died') || content.includes('Game Over')) {
+              return `💀 ${content}`;
+            }
+            if (content.includes('level up') || content.includes('victory')) {
+              return `🏆 ${content}`;
+            }
+            if (content.includes('paused') || content.includes('stopped')) {
+              return `⏸️ ${content}`;
+            }
+            if (content.includes('Error')) {
+              return `❌ ${content}`;
+            }
+            if (content.includes('Health:') || content.includes('Status:')) {
+              return `📊 ${content}`;
+            }
+            return `🌍 ${content}`;
+          }
+          
+          // Default fallback
+          return content;
+        },
         messageTypes: {
           assistant: {
             label: "🧙‍♂️ Dungeon Master",
             color: "primary",
-            bold: true,
-            onMessage: (message) => {
-              const content = Array.isArray(message.content) 
-                ? message.content.find(part => part.type === 'text')?.text || ''
-                : message.content;
-              
-              // Add atmospheric indicators for different types of narration
-              if (content.includes('combat') || content.includes('attack') || content.includes('damage')) {
-                return `⚔️ ${content}`;
-              }
-              if (content.includes('magic') || content.includes('spell') || content.includes('enchant')) {
-                return `✨ ${content}`;
-              }
-              if (content.includes('treasure') || content.includes('gold') || content.includes('loot')) {
-                return `💰 ${content}`;
-              }
-              if (content.includes('quest') || content.includes('mission')) {
-                return `📜 ${content}`;
-              }
-              return `🎭 ${content}`;
-            }
+            bold: true
           },
           user: {
             label: "🦸‍♀️ Adventurer", 
@@ -226,16 +289,6 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
             spacing: {
               marginLeft: 1,
               marginTop: 1
-            },
-            onMessage: (message) => {
-              if (Array.isArray(message.content)) {
-                const toolCall = message.content.find(part => part.type === 'tool-call');
-                if (toolCall?.toolName === 'user_select') {
-                  const args = toolCall.args;
-                  return `🗡️ ${args.message}\n⚡ Actions: ${args.options.map(opt => opt.label).join(' | ')}`;
-                }
-              }
-              return '🎮 Preparing your options...';
             }
           },
           toolResponse: {
@@ -244,56 +297,12 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
             bold: true,
             spacing: {
               marginLeft: 2
-            },
-            onMessage: (message) => {
-              if (Array.isArray(message.content)) {
-                const result = message.content.find(part => part.type === 'tool-result');
-                if (result?.output) {
-                  try {
-                    // Handle new AI SDK structure: result.output.value instead of result.result
-                    const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
-                    if (typeof outputValue === 'string') {
-                      const parsed = JSON.parse(outputValue);
-                      if (parsed.output) {
-                        return `🎯 You chose: "${parsed.output}"`;
-                      }
-                    } else if (typeof outputValue === 'object' && outputValue.output) {
-                      return `🎯 You chose: "${outputValue.output}"`;
-                    }
-                  } catch (e) {
-                    // fallback
-                  }
-                }
-              }
-              return message.content;
             }
           },
           ui: {
             label: "🏰 Game World",
             color: "warning",
-            bold: true,
-            onMessage: (message) => {
-              const content = message.content;
-              if (content.includes('Welcome') || content.includes('adventure begins')) {
-                return `🌟 ${content}`;
-              }
-              if (content.includes('died') || content.includes('Game Over')) {
-                return `💀 ${content}`;
-              }
-              if (content.includes('level up') || content.includes('victory')) {
-                return `🏆 ${content}`;
-              }
-              if (content.includes('paused') || content.includes('stopped')) {
-                return `⏸️ ${content}`;
-              }
-              if (content.includes('Error')) {
-                return `❌ ${content}`;
-              }
-              if (content.includes('Health:') || content.includes('Status:')) {
-                return `📊 ${content}`;
-              }
-              return `🌍 ${content}`;
-            }
+            bold: true
           }
         }
       },
