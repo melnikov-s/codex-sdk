@@ -29,7 +29,7 @@ describe("TerminalChatInput multiline functionality", () => {
 
     const props: ComponentProps<typeof TerminalChatInput> = {
       loading: false,
-    queue: [],
+      queue: [],
       submitInput,
       confirmationPrompt: null,
       explanation: undefined,
@@ -40,7 +40,6 @@ describe("TerminalChatInput multiline functionality", () => {
       openHelpOverlay: () => {},
       interruptAgent: () => {},
       active: true,
-
     };
 
     const { stdin, lastFrameStripped, flush, cleanup } = renderTui(
@@ -75,7 +74,7 @@ describe("TerminalChatInput multiline functionality", () => {
 
     const props: ComponentProps<typeof TerminalChatInput> = {
       loading: false,
-    queue: [],
+      queue: [],
       submitInput,
       confirmationPrompt: null,
       explanation: undefined,
@@ -86,7 +85,6 @@ describe("TerminalChatInput multiline functionality", () => {
       openHelpOverlay: () => {},
       interruptAgent: () => {},
       active: true,
-
     };
 
     const { stdin, lastFrameStripped, flush, cleanup } = renderTui(

@@ -257,7 +257,7 @@ function TerminalChatResponseToolCallOutput({
   fullStdout: boolean;
 }) {
   const toolResult = getToolCallResult(message)!;
-  
+
   // Handle the new tool result output structure safely
   const jsonResult = (() => {
     if (toolResult.output?.type === "json") {
@@ -270,7 +270,7 @@ function TerminalChatResponseToolCallOutput({
       } catch (e) {
         // Fallback if parsing fails
         return {
-          output: toolResult.output.value as string || "",
+          output: (toolResult.output.value as string) || "",
           metadata: { exit_code: 0, duration_seconds: 0 },
         };
       }

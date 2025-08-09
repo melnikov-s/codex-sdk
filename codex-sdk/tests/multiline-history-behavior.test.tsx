@@ -77,7 +77,6 @@ function stubProps(): any {
     onCompact: () => {},
     interruptAgent: () => {},
     active: true,
-    
   };
 }
 

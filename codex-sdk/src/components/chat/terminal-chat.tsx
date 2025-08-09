@@ -179,7 +179,9 @@ export default function TerminalChat({
   const [, forceUpdate] = React.useReducer((c) => c + 1, 0); // trigger re‑render
 
   // Store displayConfig from workflow
-  const [displayConfig, setDisplayConfig] = useState<DisplayConfig | undefined>(undefined);
+  const [displayConfig, setDisplayConfig] = useState<DisplayConfig | undefined>(
+    undefined,
+  );
 
   // ────────────────────────────────────────────────────────────────
   // DEBUG: log every render w/ key bits of state
@@ -526,8 +528,6 @@ export default function TerminalChat({
     getCommandConfirmation,
   ]);
 
-
-
   // Notify desktop with a preview when an assistant response arrives.
   const prevLoadingRef = useRef<boolean>(false);
   useEffect(() => {
@@ -623,7 +623,8 @@ export default function TerminalChat({
               colorsByPolicy,
               headers,
               statusLine,
-              workflowHeader: displayConfig?.header || "Codex (Default workflow)",
+              workflowHeader:
+                displayConfig?.header || "Codex (Default workflow)",
             }}
           />
         ) : (

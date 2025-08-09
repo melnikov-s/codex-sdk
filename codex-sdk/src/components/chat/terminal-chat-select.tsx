@@ -37,12 +37,10 @@ export function TerminalChatSelect({
 
   const timeoutOptions = isTimeoutOptions(options) ? options : null;
   const [timeoutActive, setTimeoutActive] = useState(Boolean(timeoutOptions));
-  
+
   // Custom input state
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customInputValue, setCustomInputValue] = useState("");
-  
-
 
   const defaultIndex = React.useMemo(() => {
     const defaultValue = options?.defaultValue || options?.default;
@@ -79,7 +77,7 @@ export function TerminalChatSelect({
       setShowCustomInput(true);
       return;
     }
-    
+
     onSelect(value);
   };
 
@@ -111,8 +109,6 @@ export function TerminalChatSelect({
         }
         return;
       }
-
-
 
       if (key.escape) {
         if (options?.required) {
@@ -163,7 +159,10 @@ export function TerminalChatSelect({
             <CountdownTimer
               timeoutSeconds={timeoutOptions.timeout}
               onTimeout={handleTimeout}
-              defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
+              defaultLabel={
+                items.find((item) => item.value === timeoutOptions.defaultValue)
+                  ?.label || timeoutOptions.defaultValue
+              }
             />
           </Box>
         )}
@@ -193,8 +192,12 @@ export function TerminalChatSelect({
                 const defaultValue = options?.defaultValue || options?.default;
                 if (defaultValue) {
                   // Find the label for the default value to match capitalization
-                  const defaultItem = items.find(item => item.value === defaultValue);
-                  const displayValue = defaultItem ? defaultItem.label : defaultValue;
+                  const defaultItem = items.find(
+                    (item) => item.value === defaultValue,
+                  );
+                  const displayValue = defaultItem
+                    ? defaultItem.label
+                    : defaultValue;
                   return `↵ to select • esc to select default (${displayValue})`;
                 }
                 return "↵ to select • esc to select (none)";
@@ -206,7 +209,10 @@ export function TerminalChatSelect({
           <CountdownTimer
             timeoutSeconds={timeoutOptions.timeout}
             onTimeout={handleTimeout}
-            defaultLabel={items.find(item => item.value === timeoutOptions.defaultValue)?.label || timeoutOptions.defaultValue}
+            defaultLabel={
+              items.find((item) => item.value === timeoutOptions.defaultValue)
+                ?.label || timeoutOptions.defaultValue
+            }
           />
         </Box>
       )}

@@ -1,4 +1,4 @@
-import type {  ModelMessage } from "ai";
+import type { ModelMessage } from "ai";
 
 import { loadConfig } from "../config";
 import { log } from "../logger/log.js";

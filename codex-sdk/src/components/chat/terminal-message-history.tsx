@@ -75,4 +75,3 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
 };
 
 export default React.memo(TerminalMessageHistory);
-

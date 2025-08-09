@@ -12,7 +12,9 @@ test("Workflow interface includes optional displayConfig with header", () => {
     terminate: () => {},
   };
 
-  expect(workflowWithHeader.displayConfig?.header).toBe("Custom Workflow Header");
+  expect(workflowWithHeader.displayConfig?.header).toBe(
+    "Custom Workflow Header",
+  );
   expect(typeof workflowWithHeader.displayConfig?.header).toBe("string");
 });
 
@@ -29,14 +31,16 @@ test("Workflow can exist without displayConfig header", () => {
 
 test("Header fallback behavior", () => {
   // Test fallback logic similar to what's used in the component
-  const workflowWithHeader = { 
-    displayConfig: { 
-      header: "My Custom Header" 
-    } 
+  const workflowWithHeader = {
+    displayConfig: {
+      header: "My Custom Header",
+    },
   };
   const workflowWithoutHeader = {};
 
-  const getDisplayHeader = (workflow?: { displayConfig?: { header?: string } }) => {
+  const getDisplayHeader = (workflow?: {
+    displayConfig?: { header?: string };
+  }) => {
     return workflow?.displayConfig?.header || "Codex (Default workflow)";
   };
 
