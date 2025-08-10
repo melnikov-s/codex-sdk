@@ -7,6 +7,8 @@
 import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { Text } from "ink";
+import React from "react";
 
 const workflow = createAgentWorkflow(
   ({ setState, state, addMessage, handleModelResult, tools }) => {
@@ -52,8 +54,45 @@ const workflow = createAgentWorkflow(
       }
     };
 
+    // Helper function to create dynamic status line
+    function createStatusLine(type, message) {
+      switch (type) {
+        case 'ready':
+          return React.createElement(Text, { bold: true, color: 'green' }, 
+            `🏰 ${gameWorld[playerState.location].name} | ❤️ ${playerState.health}/100 | 💰 ${playerState.gold}g | ${message || 'Ready for adventure!'}`
+          );
+        case 'thinking':
+          return React.createElement(Text, { bold: true, color: 'magenta' }, 
+            `🎭 ${message || 'The Dungeon Master contemplates...'}`
+          );
+        case 'processing':
+          return React.createElement(Text, { bold: true, color: 'yellow' }, 
+            `⚡ ${message || 'Processing your action...'}`
+          );
+        case 'combat':
+          return React.createElement(Text, { bold: true, color: 'red' }, 
+            `⚔️ ${message || 'Combat in progress!'}`
+          );
+        case 'exploration':
+          return React.createElement(Text, { bold: true, color: 'cyan' }, 
+            `🗺️ ${message || 'Exploring new areas...'}`
+          );
+        case 'waiting':
+          return React.createElement(Text, { bold: true, color: 'gray' }, 
+            `⏳ ${message || 'Awaiting your command...'}`
+          );
+        default:
+          return React.createElement(Text, { bold: true, color: 'blue' }, 
+            `🌟 ${message || 'Adventure continues...'}`
+          );
+      }
+    }
+
     async function runAgent() {
-      setState({ loading: true });
+      setState({ 
+        loading: true,
+        statusLine: createStatusLine('thinking', 'The Dungeon Master prepares your adventure...')
+      });
 
       while (state.loading) {
         try {
@@ -135,13 +174,20 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
               role: "ui",
               content: "💭 What would you like to do? (Type your action or wait for options...)",
             });
-            setState({ loading: false });
+            setState({ 
+              loading: false,
+              statusLine: createStatusLine('ready', 'Awaiting your next move...')
+            });
             break;
           }
         } catch (error) {
           addMessage({
             role: "ui",
             content: `❌ Error: ${error.message || "Unknown error"}`,
+          });
+          setState({ 
+            loading: false,
+            statusLine: createStatusLine('waiting', 'Error occurred - ready to try again')
           });
           break;
         }
@@ -160,6 +206,9 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
         );
         if (location && gameWorld[playerState.location].exits.includes(location)) {
           playerState.location = location;
+          setState({
+            statusLine: createStatusLine('exploration', `Arrived at ${gameWorld[location].name}`)
+          });
         }
       }
       
@@ -167,7 +216,16 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
         if (playerState.inventory.includes("health_potion")) {
           playerState.health = Math.min(100, playerState.health + 30);
           playerState.inventory = playerState.inventory.filter(item => item !== "health_potion");
+          setState({
+            statusLine: createStatusLine('ready', `Used health potion! Health: ${playerState.health}/100`)
+          });
         }
+      }
+      
+      if (actionLower.includes("combat") || actionLower.includes("attack") || actionLower.includes("fight")) {
+        setState({
+          statusLine: createStatusLine('combat', 'Engaged in combat!')
+        });
       }
     }
 
@@ -319,6 +377,7 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
                 "Type 'start' to begin your adventure, or describe what you'd like to do! 🌟",
             },
           ],
+          statusLine: createStatusLine('waiting', 'Type "start" to begin your quest!')
         });
       },
       message: async (userInput) => {
@@ -336,6 +395,9 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
                 "🎭 The Dungeon Master will now present you with choices. You can always type custom actions too! ⚔️",
             },
           ]);
+          setState({
+            statusLine: createStatusLine('exploration', `Adventure begins in ${gameWorld[playerState.location].name}!`)
+          });
           runAgent();
         } else if (!gameActive) {
           addMessage([
@@ -355,11 +417,17 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
               content: `📜 The Dungeon Master considers your action... (Location: ${gameWorld[playerState.location].name})`,
             },
           ]);
+          setState({
+            statusLine: createStatusLine('processing', `Processing action in ${gameWorld[playerState.location].name}...`)
+          });
           runAgent();
         }
       },
       stop: () => {
-        setState({ loading: false });
+        setState({ 
+          loading: false,
+          statusLine: createStatusLine('waiting', 'Adventure paused - resting in ' + gameWorld[playerState.location].name)
+        });
         addMessage({
           role: "ui",
           content: "⏸️ Adventure paused. Your character rests briefly... Type anything to continue your quest!",
@@ -377,6 +445,7 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
         setState({
           loading: false,
           messages: [],
+          statusLine: undefined,
         });
       },
     };

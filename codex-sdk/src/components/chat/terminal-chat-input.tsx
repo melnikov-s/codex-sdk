@@ -47,6 +47,7 @@ export default function TerminalChatInput({
   interruptAgent,
   active,
   statusLine,
+  workflowStatusLine,
   workflow,
   inputDisabled,
 }: {
@@ -67,6 +68,7 @@ export default function TerminalChatInput({
   interruptAgent: () => void;
   active: boolean;
   statusLine?: string;
+  workflowStatusLine?: React.ReactNode;
   workflow?: Workflow | null;
   inputDisabled?: boolean;
 }): React.ReactElement {
@@ -570,6 +572,11 @@ export default function TerminalChatInput({
             onInterrupt={interruptAgent}
             active={active}
           />
+        </Box>
+      )}
+      {workflowStatusLine && (
+        <Box marginTop={1} marginBottom={0}>
+          {workflowStatusLine}
         </Box>
       )}
       <Box borderStyle="round">
