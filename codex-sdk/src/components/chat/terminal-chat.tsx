@@ -93,6 +93,7 @@ export default function TerminalChat({
     messages: [],
     inputDisabled: false,
     queue: [],
+    statusLine: undefined,
   });
 
   // Separate synchronous state for immediate getState access
@@ -101,6 +102,7 @@ export default function TerminalChat({
     messages: [],
     inputDisabled: false,
     queue: [],
+    statusLine: undefined,
   });
 
   // Smart setState that updates both sync state immediately and React state for UI
@@ -319,6 +321,9 @@ export default function TerminalChat({
           return syncStateRef.current.messages.filter(
             (msg) => msg.role !== "ui",
           );
+        },
+        get statusLine() {
+          return syncStateRef.current.statusLine;
         },
       },
       addMessage: (message: UIMessage | Array<UIMessage>) => {
@@ -665,7 +670,8 @@ export default function TerminalChat({
           </Box>
         )}
         {overlayMode === "none" && workflow && (
-          <TerminalChatInput
+          <Box marginTop={2}>
+            <TerminalChatInput
             loading={loading}
             queue={workflowState.queue || []}
             setItems={(updater) => {
@@ -691,6 +697,7 @@ export default function TerminalChat({
               })
             }
             statusLine={statusLine}
+            workflowStatusLine={workflowState.statusLine}
             openOverlay={() => setOverlayMode("history")}
             openApprovalOverlay={() => setOverlayMode("approval")}
             openHelpOverlay={() => setOverlayMode("help")}
@@ -742,7 +749,8 @@ export default function TerminalChat({
               }
               return {};
             }}
-          />
+            />
+          </Box>
         )}
         {overlayMode === "history" && (
           <HistoryOverlay items={items} onExit={() => setOverlayMode("none")} />

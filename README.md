@@ -239,10 +239,13 @@ interface WorkflowState {
   inputDisabled: boolean;
   queue?: Array<string>; // Optional queue of pending messages
   transcript?: Array<UIMessage>; // Derived: messages filtered to exclude UI messages
+  statusLine?: ReactNode; // Optional status line displayed above the input
 }
 ```
 
 The `state.transcript` property provides a clean message history (excluding "ui" messages) that is perfect for sending to an LLM.
+
+The `state.statusLine` property allows you to display custom status information above the terminal input. You can set it to any React component or simple text using `setState({statusLine: "Processing..."})` or `setState({statusLine: <Text color="green">✓ Ready</Text>})`.
 
 ---
 

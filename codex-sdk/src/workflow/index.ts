@@ -1,6 +1,7 @@
 import type { UIMessage } from "../utils/ai";
 import type { ModelMessage, ToolSet } from "ai";
 import type { ForegroundColorName } from "chalk";
+import type { ReactNode } from "react";
 
 export interface SelectItem {
   label: string;
@@ -49,6 +50,7 @@ export interface WorkflowState {
   inputDisabled: boolean;
   queue?: Array<string>;
   transcript?: Array<UIMessage>;
+  statusLine?: ReactNode;
 }
 
 export type ChalkColor = ForegroundColorName;
@@ -187,6 +189,7 @@ export interface WorkflowHooks {
     readonly inputDisabled: boolean;
     readonly queue: Array<string>;
     readonly transcript: Array<UIMessage>;
+    readonly statusLine?: ReactNode;
   };
 
   /**
