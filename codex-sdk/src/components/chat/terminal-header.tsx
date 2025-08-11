@@ -1,4 +1,5 @@
 import type { HeaderConfig } from "../../lib.js";
+import type { ReactNode } from "react";
 
 import { Box, Text } from "ink";
 import path from "node:path";
@@ -14,7 +15,7 @@ export interface TerminalHeaderProps {
   flexModeEnabled?: boolean;
   headers?: Array<HeaderConfig>;
   statusLine?: string;
-  workflowHeader?: string;
+  workflowHeader?: ReactNode;
 }
 
 const TerminalHeader: React.FC<TerminalHeaderProps> = ({
@@ -50,7 +51,7 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
             <Text>
               ●{" "}
               {workflowHeader ? (
-                <Text bold>{workflowHeader}</Text>
+                workflowHeader
               ) : (
                 <>
                   OpenAI <Text bold>Codex</Text>{" "}
