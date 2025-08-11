@@ -1,9 +1,10 @@
 import { test, expect } from "vitest";
 import type { Workflow } from "../src/workflow";
+import React from "react";
 
-test("Workflow interface includes optional displayConfig with header", () => {
-  // Test that displayConfig.header is optional and accepts string values
-  const workflowWithHeader: Partial<Workflow> = {
+test("Workflow interface includes optional displayConfig with ReactNode header", () => {
+  // Test that displayConfig.header accepts string values (backwards compatibility)
+  const workflowWithStringHeader: Partial<Workflow> = {
     displayConfig: {
       header: "Custom Workflow Header",
     },
@@ -12,10 +13,22 @@ test("Workflow interface includes optional displayConfig with header", () => {
     terminate: () => {},
   };
 
-  expect(workflowWithHeader.displayConfig?.header).toBe(
+  expect(workflowWithStringHeader.displayConfig?.header).toBe(
     "Custom Workflow Header",
   );
-  expect(typeof workflowWithHeader.displayConfig?.header).toBe("string");
+  expect(typeof workflowWithStringHeader.displayConfig?.header).toBe("string");
+
+  // Test that displayConfig.header accepts ReactNode values
+  const workflowWithReactHeader: Partial<Workflow> = {
+    displayConfig: {
+      header: React.createElement("span", {}, "React Header"),
+    },
+    message: () => {},
+    stop: () => {},
+    terminate: () => {},
+  };
+
+  expect(React.isValidElement(workflowWithReactHeader.displayConfig?.header)).toBe(true);
 });
 
 test("Workflow can exist without displayConfig header", () => {
@@ -29,24 +42,26 @@ test("Workflow can exist without displayConfig header", () => {
   expect(workflowWithoutHeader.displayConfig?.header).toBeUndefined();
 });
 
-test("Header fallback behavior", () => {
-  // Test fallback logic similar to what's used in the component
-  const workflowWithHeader = {
+test("New ReactNode formatter functions", () => {
+  // Test that the new formatter functions are available and optional
+  const workflowWithFormatters: Partial<Workflow> = {
     displayConfig: {
-      header: "My Custom Header",
+      formatRoleHeader: (message) => React.createElement("span", {}, message.role),
+      formatMessage: (_message) => React.createElement("div", {}, "Formatted message"),
     },
-  };
-  const workflowWithoutHeader = {};
-
-  const getDisplayHeader = (workflow?: {
-    displayConfig?: { header?: string };
-  }) => {
-    return workflow?.displayConfig?.header || "Codex (Default workflow)";
+    message: () => {},
+    stop: () => {},
+    terminate: () => {},
   };
 
-  expect(getDisplayHeader(workflowWithHeader)).toBe("My Custom Header");
-  expect(getDisplayHeader(workflowWithoutHeader)).toBe(
-    "Codex (Default workflow)",
-  );
-  expect(getDisplayHeader(undefined)).toBe("Codex (Default workflow)");
+  expect(typeof workflowWithFormatters.displayConfig?.formatRoleHeader).toBe("function");
+  expect(typeof workflowWithFormatters.displayConfig?.formatMessage).toBe("function");
+
+  // Test that functions return ReactNodes
+  const mockMessage = { role: "user", content: "test" } as any;
+  const roleHeader = workflowWithFormatters.displayConfig?.formatRoleHeader?.(mockMessage);
+  const formattedMessage = workflowWithFormatters.displayConfig?.formatMessage?.(mockMessage);
+
+  expect(React.isValidElement(roleHeader)).toBe(true);
+  expect(React.isValidElement(formattedMessage)).toBe(true);
 });

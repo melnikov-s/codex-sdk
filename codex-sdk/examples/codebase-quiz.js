@@ -7,6 +7,8 @@
 import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { Text } from "ink";
+import React from "react";
 
 const workflow = createAgentWorkflow(
   ({ setState, state, addMessage, handleModelResult, tools }) => {
@@ -244,16 +246,57 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
     return {
       // Academic/tech theme with progress indicators
       displayConfig: {
-        header: "🎓 Codebase Knowledge Quiz 📚",
-        theme: {
-          primary: "#0066cc",        // Professional blue
-          accent: "#ff6b35",         // Orange for highlights
-          success: "#28a745",        // Green for correct answers
-          warning: "#ffc107",        // Yellow for warnings
-          error: "#dc3545",          // Red for incorrect answers
-          muted: "#6c757d"           // Gray for secondary text
+        header: (
+          <Text bold color="#0066cc">
+            🎓 Codebase Knowledge Quiz 📚
+          </Text>
+        ),
+        
+        formatRoleHeader: (message) => {
+          if (message.role === 'assistant') {
+            return (
+              <Text bold color="#0066cc">
+                🤖 Quiz Master
+              </Text>
+            );
+          }
+          
+          if (message.role === 'user') {
+            return (
+              <Text bold color="#ff6b35">
+                🧑‍💻 Student
+              </Text>
+            );
+          }
+          
+          if (message.role === 'tool') {
+            return (
+              <Text bold color="#28a745">
+                ✍️ Your Answer
+              </Text>
+            );
+          }
+          
+          // Check if this is a tool call
+          if (Array.isArray(message.content)) {
+            const toolCall = message.content.find(part => part.type === 'tool-call');
+            if (toolCall) {
+              return (
+                <Text bold color="#0066cc">
+                  📝 Quiz Question
+                </Text>
+              );
+            }
+          }
+          
+          return (
+            <Text bold color="#ffc107">
+              📊 Quiz System
+            </Text>
+          );
         },
-        onMessage: (message) => {
+        
+        formatMessage: (message) => {
           const content = Array.isArray(message.content) 
             ? message.content.find(part => part.type === 'text')?.text || ''
             : message.content;
@@ -264,31 +307,37 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
             if (Array.isArray(message.content)) {
               const toolCall = message.content.find(part => part.type === 'tool-call');
               if (toolCall?.toolName === 'user_select') {
-                const args = toolCall.args;
-                return `📚 ${args.message}\n\n📋 Choose your answer: ${args.options.join(' | ')}`;
+                const args = toolCall.args || toolCall.input || {};
+                const prompt = args.message || args.prompt || 'Choose an option';
+                const options = args.options || [];
+                return React.createElement(React.Fragment, null,
+                  React.createElement(Text, { color: "#0066cc", bold: true }, `📚 ${prompt}`),
+                  React.createElement(Text, { color: "#ff6b35" }, `📋 Choose your answer: ${options.join(' | ')}`)
+                );
               }
               if (toolCall?.toolName === 'shell') {
-                return `🔧 Reading: ${toolCall.args.command}`;
+                const command = toolCall.args?.command || toolCall.input?.command || 'unknown command';
+                return React.createElement(Text, { color: "#6c757d", italic: true }, `🔧 Reading: ${command}`);
               }
               if (toolCall) {
-                return '⚙️ Processing...';
+                return React.createElement(Text, { color: "#6c757d", italic: true }, "⚙️ Processing...");
               }
             }
             
             // Regular assistant messages
             if (content.includes('question') || content.includes('Quiz question')) {
-              return `❓ ${content}`;
+              return React.createElement(Text, { color: "#0066cc" }, `❓ ${content}`);
             }
             if (content.includes('analysis') || content.includes('analyzing')) {
-              return `🔍 ${content}`;
+              return React.createElement(Text, { color: "#6c757d" }, `🔍 ${content}`);
             }
             if (content.includes('correct') || content.includes('right')) {
-              return `✅ ${content}`;
+              return React.createElement(Text, { color: "#28a745" }, `✅ ${content}`);
             }
             if (content.includes('incorrect') || content.includes('wrong')) {
-              return `❌ ${content}`;
+              return React.createElement(Text, { color: "#dc3545" }, `❌ ${content}`);
             }
-            return `🎯 ${content}`;
+            return React.createElement(Text, null, `🎯 ${content}`);
           }
           
           if (message.role === 'tool') {
@@ -301,10 +350,10 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
                   if (typeof outputValue === 'string') {
                     const parsed = JSON.parse(outputValue);
                     if (parsed.output) {
-                      return `🎯 Selected: ${parsed.output}`;
+                      return React.createElement(Text, { color: "#28a745", bold: true }, `🎯 Selected: ${parsed.output}`);
                     }
                   } else if (typeof outputValue === 'object' && outputValue.output) {
-                    return `🎯 Selected: ${outputValue.output}`;
+                    return React.createElement(Text, { color: "#28a745", bold: true }, `🎯 Selected: ${outputValue.output}`);
                   }
                 } catch (e) {
                   // For shell commands, try to parse the JSON output
@@ -313,83 +362,46 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
                       const shellResult = JSON.parse(result.output.value);
                       const output = shellResult.output || "";
                       if (output.length > 200) {
-                        return `📄 File content loaded (${output.length} chars)`;
+                        return React.createElement(Text, { color: "#6c757d" }, `📄 File content loaded (${output.length} chars)`);
                       }
-                      return `📄 ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`;
+                      return React.createElement(Text, { color: "#6c757d" }, `📄 ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`);
                     }
                   } catch (parseError) {
                     // Ultimate fallback
                     const output = typeof result.output.value === 'string' ? result.output.value : "";
-                    return `📄 Tool output (${output.length} chars)`;
+                    return React.createElement(Text, { color: "#6c757d" }, `📄 Tool output (${output.length} chars)`);
                   }
-                  return `📄 Tool executed`;
+                  return React.createElement(Text, { color: "#6c757d" }, "📄 Tool executed");
                 }
               }
             }
-            return message.content;
+            return React.createElement(Text, null, message.content);
           }
           
           if (message.role === 'ui') {
             if (content.includes('Score:') || content.includes('Final Score')) {
-              return `📈 ${content}`;
+              return React.createElement(Text, { color: "#0066cc", bold: true }, `📈 ${content}`);
             }
             if (content.includes('Correct') || content.includes('✅')) {
-              return `🎉 ${content}`;
+              return React.createElement(Text, { color: "#28a745", bold: true }, `🎉 ${content}`);
             }
             if (content.includes('Not quite') || content.includes('❌')) {
-              return `💡 ${content}`;
+              return React.createElement(Text, { color: "#ffc107" }, `💡 ${content}`);
             }
             if (content.includes('Complete') || content.includes('Quiz Complete')) {
-              return `🏆 ${content}`;
+              return React.createElement(Text, { color: "#28a745", bold: true }, `🏆 ${content}`);
             }
             if (content.includes('Analyzing') || content.includes('🔍')) {
-              return `🔬 ${content}`;
+              return React.createElement(Text, { color: "#6c757d" }, `🔬 ${content}`);
             }
             if (content.includes('Error') || content.includes('failed')) {
-              return `⚠️ ${content}`;
+              return React.createElement(Text, { color: "#dc3545" }, `⚠️ ${content}`);
             }
-            return `📋 ${content}`;
+            return React.createElement(Text, { color: "#0066cc" }, `📋 ${content}`);
           }
           
           // Default fallback
-          return content;
-        },
-        messageTypes: {
-          assistant: {
-            label: "🤖 Quiz Master",
-            color: "primary",
-            bold: true
-          },
-          user: {
-            label: "🧑‍💻 Student",
-            color: "accent", 
-            bold: true
-          },
-          toolCall: {
-            label: "📝 Quiz Question",
-            color: "primary",
-            border: {
-              style: "round",
-              color: "success"
-            },
-            spacing: {
-              marginLeft: 1,
-              marginTop: 1
-            }
-          },
-          toolResponse: {
-            label: "✍️ Your Answer",
-            color: "success",
-            bold: true,
-            spacing: {
-              marginLeft: 2
-            }
-          },
-          ui: {
-            label: "📊 Quiz System",
-            color: "warning",
-            bold: true
-          }
+          return React.createElement(Text, null, content);
         }
       },
 

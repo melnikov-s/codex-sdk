@@ -792,6 +792,17 @@ export default function TerminalChat({
           />
         )}
 
+        {overlayMode === "selection" && (workflowState.statusLine || statusLine) && (
+          <Box flexDirection="column" marginTop={1}>
+            {workflowState.statusLine && <Box marginBottom={0}>{workflowState.statusLine}</Box>}
+            {statusLine && (
+              <Box paddingX={2} marginBottom={1}>
+                <Text dimColor>{statusLine}</Text>
+              </Box>
+            )}
+          </Box>
+        )}
+
         {overlayMode === "prompt" && promptState && (
           <PromptOverlay
             message={promptState.message}

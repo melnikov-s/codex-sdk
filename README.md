@@ -164,18 +164,58 @@ Wraps your function into a `WorkflowFactory` the UI can execute. This is the pri
 
 ### Display Customization
 
-You can provide a `displayConfig` object from your `agentLogicFunction`'s return value to customize the look and feel of your agent.
+You can provide a `displayConfig` object from your `agentLogicFunction`'s return value to customize the look and feel of your agent with full React component control.
 
 **Example:**
 
 ```javascript
+import { Text, Box } from "ink";
+import React from "react";
+
 // In your agentLogicFunction
 return {
   displayConfig: {
-    header: "My Custom Agent",
-    messageTypes: {
-      assistant: { label: "🤖 AI", color: "magentaBright" },
-      user: { label: "👤 You", color: "blueBright" },
+    // Custom header as ReactNode
+    header: (
+      <Text bold color="#d4af37">
+        🤖 My Custom Agent
+      </Text>
+    ),
+
+    // Format role headers for each message
+    formatRoleHeader: (message) => {
+      if (message.role === "assistant") {
+        return (
+          <Text bold color="magentaBright">
+            🤖 AI Assistant
+          </Text>
+        );
+      }
+      if (message.role === "user") {
+        return (
+          <Text bold color="blueBright">
+            👤 You
+          </Text>
+        );
+      }
+      return <Text bold>{message.role}</Text>;
+    },
+
+    // Format message content with full React control
+    formatMessage: (message) => {
+      const content = Array.isArray(message.content)
+        ? message.content.find((part) => part.type === "text")?.text || ""
+        : message.content;
+
+      if (message.role === "assistant" && content.includes("error")) {
+        return <Text color="red">❌ {content}</Text>;
+      }
+
+      return (
+        <Box borderStyle="round" paddingX={1}>
+          <Text>{content}</Text>
+        </Box>
+      );
     },
   },
   // ... other workflow methods
@@ -184,10 +224,11 @@ return {
 
 #### `DisplayConfig` Object
 
-- **`header`**: A string to display as a custom header for the workflow.
-- **`onMessage`**: A function `(message: UIMessage) => string` that transforms an entire message object into a custom string for display. This gives you full control over how messages are rendered.
-- **`messageTypes`**: An object to customize labels, colors, and borders for different message roles (`assistant`, `user`, `toolCall`, `toolResponse`, `ui`).
-- **`theme`**: An object to define a reusable color palette (`primary`, `accent`, `success`, etc.) that can be referenced by name in other display options.
+- **`header`**: A `ReactNode` to display as a custom header for the workflow. Use Ink components like `<Text>` and `<Box>` for styling.
+- **`formatRoleHeader`**: A function `(message: UIMessage) => ReactNode` that renders the role/label for each message. Return any React component with full control over styling, colors, and layout.
+- **`formatMessage`**: A function `(message: UIMessage) => ReactNode` that renders the message content. Use this for complete customization of message appearance, including conditional styling, borders, colors, and complex layouts.
+
+The ReactNode approach gives you complete control over styling with Ink's `<Text>`, `<Box>`, and other components, allowing for dynamic colors, borders, conditional formatting, and complex layouts that weren't possible with the previous string-based API.
 
 ---
 

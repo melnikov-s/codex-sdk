@@ -1,5 +1,5 @@
 import type { UIMessage } from "../../utils/ai";
-import type { DisplayConfig, ThemeOptions } from "../../workflow/index";
+import type { DisplayConfig } from "../../workflow/index";
 import type { ModelMessage, CoreToolMessage } from "ai";
 import type { TerminalRendererOptions } from "marked-terminal";
 import type { ExecOutputMetadata } from "src/utils/agent/sandbox/interface";
@@ -14,7 +14,7 @@ import {
 } from "../../utils/ai";
 import { getDisplayMessageType } from "../../utils/display";
 import { parseToolCall } from "../../utils/parsers";
-import chalk, { type ForegroundColorName } from "chalk";
+import chalk from "chalk";
 import { Box, Text } from "ink";
 import { parse, setOptions } from "marked";
 import TerminalRenderer from "marked-terminal";
@@ -103,32 +103,26 @@ export function TerminalChatResponseReasoning({
   );
 }
 
-// Helper function to resolve color from display config
-function resolveColor(
-  color: string | undefined,
-  theme: ThemeOptions | undefined,
-  fallback: ForegroundColorName = "gray",
-): ForegroundColorName | string {
-  if (!color) {
-    return fallback;
-  }
+// Default fallback component for messages
+function DefaultMessageDisplay({ message }: { message: UIMessage }) {
+  const messageType = getDisplayMessageType(message);
+  const defaultColors: Record<string, string> = {
+    assistant: "magentaBright",
+    user: "blueBright",
+    toolCall: "cyan",
+    toolResponse: "green",
+    ui: "yellow",
+  };
 
-  // Check if it's a theme reference
-  if (theme && color in theme) {
-    return theme[color as keyof ThemeOptions] || fallback;
-  }
-
-  return color;
+  return (
+    <Box flexDirection="column">
+      <Text bold color={defaultColors[messageType] || "gray"}>
+        {messageType}
+      </Text>
+      <Markdown>{getTextContent(message)}</Markdown>
+    </Box>
+  );
 }
-
-// Default colors for each message type
-const defaultColors: Record<string, ForegroundColorName> = {
-  assistant: "magentaBright",
-  user: "blueBright",
-  toolCall: "cyan",
-  toolResponse: "green",
-  ui: "yellow",
-};
 
 function TerminalChatResponseMessage({
   message,
@@ -137,33 +131,21 @@ function TerminalChatResponseMessage({
   message: UIMessage;
   displayConfig?: DisplayConfig;
 }) {
-  const messageType = getDisplayMessageType(message);
-  const displayOptions = displayConfig?.messageTypes?.[messageType];
+  // If custom formatters are provided, use them
+  if (displayConfig?.formatMessage || displayConfig?.formatRoleHeader) {
+    const roleHeader = displayConfig.formatRoleHeader?.(message);
+    const messageContent = displayConfig.formatMessage?.(message);
 
-  // Get label (default to messageType if not specified)
-  const label = displayOptions?.label || messageType;
-
-  // Transform message content if global onMessage provided
-  let content = getTextContent(message);
-  if (displayConfig?.onMessage) {
-    content = displayConfig.onMessage(message);
+    return (
+      <Box flexDirection="column">
+        {roleHeader}
+        {messageContent}
+      </Box>
+    );
   }
 
-  // Get colors with theme support
-  const color = resolveColor(
-    displayOptions?.color,
-    displayConfig?.theme,
-    defaultColors[messageType] || "gray",
-  );
-
-  return (
-    <Box flexDirection="column">
-      <Text bold={displayOptions?.bold !== false} color={color}>
-        {label}
-      </Text>
-      <Markdown>{content}</Markdown>
-    </Box>
-  );
+  // Fallback to default display
+  return <DefaultMessageDisplay message={message} />;
 }
 
 function TerminalChatResponseToolCall({
@@ -173,22 +155,24 @@ function TerminalChatResponseToolCall({
   message: ModelMessage;
   displayConfig?: DisplayConfig;
 }) {
+  // If custom formatters are provided, use them
+  if (displayConfig?.formatMessage || displayConfig?.formatRoleHeader) {
+    const roleHeader = displayConfig.formatRoleHeader?.(message);
+    const messageContent = displayConfig.formatMessage?.(message);
+
+    return (
+      <Box flexDirection="column">
+        {roleHeader}
+        {messageContent}
+      </Box>
+    );
+  }
+
+  // Fallback to default display for tool calls
   const details = parseToolCall(message);
   const text = getTextContent(message);
   const toolCall = getToolCall(message);
-
   const messageType = getDisplayMessageType(message);
-  const displayOptions = displayConfig?.messageTypes?.[messageType];
-
-  // Get label (default to messageType if not specified)
-  const label = displayOptions?.label || messageType;
-
-  // Get colors with theme support
-  const color = resolveColor(
-    displayOptions?.color,
-    displayConfig?.theme,
-    defaultColors[messageType] || "gray",
-  );
 
   // Handle user_select tool calls differently - show the selection prompt
   if (toolCall?.toolName === "user_select") {
@@ -207,8 +191,8 @@ function TerminalChatResponseToolCall({
           />
         )}
         <Box flexDirection="column">
-          <Text bold color={color}>
-            {label}
+          <Text bold color="cyan">
+            {messageType}
           </Text>
           <Box flexDirection="column" marginLeft={2}>
             <Text color="cyan" bold>
@@ -231,8 +215,8 @@ function TerminalChatResponseToolCall({
         />
       )}
       <Box flexDirection="column">
-        <Text bold color={color}>
-          {label}
+        <Text bold color="cyan">
+          {messageType}
         </Text>
         <Box flexDirection="column" marginLeft={2}>
           <Text color="cyan" bold>

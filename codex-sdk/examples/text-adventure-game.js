@@ -8,129 +8,51 @@ import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { Text } from "ink";
-import React from "react";
+import {createElement as h} from "react";
 
 const workflow = createAgentWorkflow(
   ({ setState, state, addMessage, handleModelResult, tools }) => {
     let gameActive = false;
     let playerState = {
-      location: "village_square",
+      location: "The Crossroads",
       inventory: ["rusty_sword", "health_potion"],
       health: 100,
-      gold: 50,
-      quests: []
     };
 
-    const gameWorld = {
-      village_square: {
-        name: "Village Square",
-        description: "A bustling square with cobblestone paths. The village fountain gurgles peacefully in the center.",
-        npcs: ["merchant", "guard", "old_woman"],
-        exits: ["tavern", "blacksmith", "forest_path", "temple"]
-      },
-      tavern: {
-        name: "The Prancing Pony Tavern",
-        description: "A warm, dimly lit tavern filled with the aroma of ale and roasted meat.",
-        npcs: ["bartender", "mysterious_stranger", "bard"],
-        exits: ["village_square", "tavern_upstairs"]
-      },
-      blacksmith: {
-        name: "Ironforge Smithy",
-        description: "Hot forge fires crackle as the blacksmith hammers away at glowing metal.",
-        npcs: ["blacksmith"],
-        exits: ["village_square"]
-      },
-      forest_path: {
-        name: "Forest Path",
-        description: "A winding dirt path leading into the dark woods. Strange sounds echo from within.",
-        npcs: ["forest_hermit"],
-        exits: ["village_square", "deep_forest"]
-      },
-      temple: {
-        name: "Temple of Light",
-        description: "A serene temple with golden light streaming through stained glass windows.",
-        npcs: ["priest", "temple_guard"],
-        exits: ["village_square"]
-      }
-    };
-
-    // Helper function to create dynamic status line
-    function createStatusLine(type, message) {
-      switch (type) {
-        case 'ready':
-          return React.createElement(Text, { bold: true, color: 'green' }, 
-            `🏰 ${gameWorld[playerState.location].name} | ❤️ ${playerState.health}/100 | 💰 ${playerState.gold}g | ${message || 'Ready for adventure!'}`
-          );
-        case 'thinking':
-          return React.createElement(Text, { bold: true, color: 'magenta' }, 
-            `🎭 ${message || 'The Dungeon Master contemplates...'}`
-          );
-        case 'processing':
-          return React.createElement(Text, { bold: true, color: 'yellow' }, 
-            `⚡ ${message || 'Processing your action...'}`
-          );
-        case 'combat':
-          return React.createElement(Text, { bold: true, color: 'red' }, 
-            `⚔️ ${message || 'Combat in progress!'}`
-          );
-        case 'exploration':
-          return React.createElement(Text, { bold: true, color: 'cyan' }, 
-            `🗺️ ${message || 'Exploring new areas...'}`
-          );
-        case 'waiting':
-          return React.createElement(Text, { bold: true, color: 'gray' }, 
-            `⏳ ${message || 'Awaiting your command...'}`
-          );
-        default:
-          return React.createElement(Text, { bold: true, color: 'blue' }, 
-            `🌟 ${message || 'Adventure continues...'}`
-          );
-      }
+    // Helper function to create a persistent status line. Keeps surface area minimal.
+    function createStatusLine() {
+      return h(
+        Text,
+        { bold: true, color: '#a8e6cf' },
+        `${playerState.location} • Health: ${playerState.health}/100 • Items: ${playerState.inventory.join(', ') || 'none'}`
+      );
     }
 
     async function runAgent() {
       setState({ 
         loading: true,
-        statusLine: createStatusLine('thinking', 'The Dungeon Master prepares your adventure...')
+        statusLine: createStatusLine()
       });
 
       while (state.loading) {
         try {
-          const currentLocation = gameWorld[playerState.location];
-          const systemPrompt = `You are a Dungeon Master running a fantasy adventure game! Create an immersive D&D-style experience.
+          const systemPrompt = `You are a Dungeon Master for a free-form, open-world medieval fantasy adventure (Dungeons & Dragons tone). Maintain continuity across turns.
 
-PLAYER STATUS:
-- Location: ${currentLocation.name}
+PLAYER STATE (persisted between turns):
+- Location: ${playerState.location}
 - Health: ${playerState.health}/100
-- Gold: ${playerState.gold}
-- Inventory: ${playerState.inventory.join(", ")}
-- Active Quests: ${playerState.quests.length > 0 ? playerState.quests.join(", ") : "None"}
+- Inventory: ${playerState.inventory.join(", ") || "empty"}
 
-CURRENT LOCATION: ${currentLocation.name}
-${currentLocation.description}
+DIRECTIVES:
+1) Use the user_select tool for ALL player actions. Do not narrate outcomes without first presenting choices.
+2) Provide 4-6 concise, meaningful options that advance the story: movement, interaction, exploration, items, or combat.
+3) Movement options MUST use the format: "Move to: <Location Name>".
+4) Item usage options SHOULD use the format: "Use: <Item Name>" matching items in inventory when relevant.
+5) Keep the setting coherent and medieval fantasy themed; invent locations, NPCs, and challenges freely.
+6) After the user chooses, you may narrate outcomes, but do not assume inventory or health changes; prefer proposing explicit actions that lead to those changes.
+7) Avoid referencing any predefined map or exits; this is a free-form world.
 
-AVAILABLE NPCS: ${currentLocation.npcs.join(", ")}
-AVAILABLE EXITS: ${currentLocation.exits.join(", ")}
-
-GAME MASTER RULES:
-1. Use user_select for ALL player actions - never just narrate without giving choices
-2. Always provide 4-6 meaningful action options using user_select
-3. Include options like: "Talk to [NPC]", "Go to [Location]", "Examine [Object]", "Use [Item]"
-4. Create engaging dialogue for NPCs with personality
-5. Add random encounters, quests, and discoveries
-6. Manage player health, inventory, and gold based on actions
-7. Make the world feel alive and reactive to player choices
-
-ACTION TYPES TO INCLUDE:
-- Movement: "Go to the Tavern", "Enter the Forest"
-- Social: "Talk to the Merchant", "Chat with the Guard"
-- Exploration: "Examine the fountain", "Search the area"
-- Combat: "Attack the bandit", "Defend yourself"
-- Items: "Use health potion", "Buy from merchant"
-- Special: "Cast a spell", "Attempt to pickpocket"
-
-Always include timeout (30000) and defaultValue parameters in user_select calls.
-Be descriptive and immersive - this is high fantasy roleplay!`;
+Always include timeout (30000) and defaultValue in user_select calls.`;
 
           const result = await generateText({
             model: openai("gpt-4o"),
@@ -176,7 +98,7 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
             });
             setState({ 
               loading: false,
-              statusLine: createStatusLine('ready', 'Awaiting your next move...')
+              statusLine: createStatusLine()
             });
             break;
           }
@@ -187,7 +109,7 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
           });
           setState({ 
             loading: false,
-            statusLine: createStatusLine('waiting', 'Error occurred - ready to try again')
+            statusLine: createStatusLine()
           });
           break;
         }
@@ -195,171 +117,105 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
     }
 
     function updateGameState(action) {
-      // Parse common actions and update player state
-      const actionLower = action.toLowerCase();
-      
-      if (actionLower.includes("go to") || actionLower.includes("enter")) {
-        // Handle movement
-        const location = Object.keys(gameWorld).find(key => 
-          actionLower.includes(key.replace(/_/g, " ")) || 
-          actionLower.includes(gameWorld[key].name.toLowerCase())
-        );
-        if (location && gameWorld[playerState.location].exits.includes(location)) {
-          playerState.location = location;
-          setState({
-            statusLine: createStatusLine('exploration', `Arrived at ${gameWorld[location].name}`)
-          });
+      const selected = String(action).trim();
+      const actionLower = selected.toLowerCase();
+
+      // Movement: "Move to: <Location Name>" or common verbs
+      const movePrefixes = ["move to:", "move to ", "go to ", "travel to ", "enter "];
+      for (const prefix of movePrefixes) {
+        if (actionLower.startsWith(prefix)) {
+          const newLocationRaw = selected.slice(prefix.length).trim();
+          if (newLocationRaw) {
+            playerState.location = newLocationRaw;
+            setState({
+              statusLine: createStatusLine()
+            });
+            return;
+          }
         }
       }
-      
-      if (actionLower.includes("health potion") && actionLower.includes("use")) {
-        if (playerState.inventory.includes("health_potion")) {
+
+      // Items: "Use: <Item Name>" or "use <item>"
+      const useMatch = selected.match(/^Use:\s*(.+)$/i) || selected.match(/^use\s+(.+)$/i);
+      if (useMatch) {
+        const itemName = useMatch[1].trim().toLowerCase().replace(/\s+/g, "_");
+        if (itemName === "health_potion" && playerState.inventory.includes("health_potion")) {
           playerState.health = Math.min(100, playerState.health + 30);
           playerState.inventory = playerState.inventory.filter(item => item !== "health_potion");
           setState({
-            statusLine: createStatusLine('ready', `Used health potion! Health: ${playerState.health}/100`)
+            statusLine: createStatusLine()
           });
+          return;
         }
       }
-      
+
       if (actionLower.includes("combat") || actionLower.includes("attack") || actionLower.includes("fight")) {
         setState({
-          statusLine: createStatusLine('combat', 'Engaged in combat!')
+          statusLine: createStatusLine()
         });
       }
     }
 
     return {
-      // Custom display configuration for fantasy adventure theme
+      // Beautiful, elegant display configuration
       displayConfig: {
-        header: "⚔️ Fantasy Adventure Quest ⚔️",
-        theme: {
-          primary: "#d4af37",      // Gold for primary actions
-          accent: "#8a2be2",       // Purple for magical elements  
-          success: "#228b22",      // Forest green for success
-          warning: "#ff8c00",      // Dark orange for warnings
-          error: "#dc143c",        // Crimson for errors/combat
-          muted: "#696969"         // Dim gray for secondary text
+        header: h(Text, { bold: true, color: "#e8b4ff" }, "✨ Fantasy Adventure Quest"),
+
+        formatRoleHeader: (message) => {
+          const styles = {
+            assistant: { color: "#ff9a9e", label: "🧙 Dungeon Master" },
+            user: { color: "#a8e6cf", label: "⚔️ You" },
+            tool: { color: "#ffd93d", label: "✨ Action" },
+            ui: { color: "#88d3ce", label: "📖 Story" },
+          };
+          const style = styles[message.role] || { color: "#b19cd9", label: message.role };
+          return h(Text, { bold: true, color: style.color }, style.label);
         },
-        onMessage: (message) => {
-          const content = Array.isArray(message.content) 
+
+        formatMessage: (message) => {
+          const content = Array.isArray(message.content)
             ? message.content.find(part => part.type === 'text')?.text || ''
             : message.content;
-          
-          // Handle different message types based on role
+
           if (message.role === 'assistant') {
-            // Check if this is a tool call message
             if (Array.isArray(message.content)) {
               const toolCall = message.content.find(part => part.type === 'tool-call');
               if (toolCall?.toolName === 'user_select') {
-                const args = toolCall.args;
-                return `🗡️ ${args.message}\n⚡ Actions: ${args.options.join(' | ')}`;
-              }
-              if (toolCall) {
-                return '🎮 Preparing your options...';
+                const args = toolCall.args || toolCall.input || {};
+                const prompt = args.message || args.prompt || 'What would you like to do?';
+                return h(Text, { color: "#ffa8cc", italic: true }, `${prompt}`);
               }
             }
-            
-            // Regular assistant message - add atmospheric indicators for different types of narration
-            if (content.includes('combat') || content.includes('attack') || content.includes('damage')) {
-              return `⚔️ ${content}`;
-            }
-            if (content.includes('magic') || content.includes('spell') || content.includes('enchant')) {
-              return `✨ ${content}`;
-            }
-            if (content.includes('treasure') || content.includes('gold') || content.includes('loot')) {
-              return `💰 ${content}`;
-            }
-            if (content.includes('quest') || content.includes('mission')) {
-              return `📜 ${content}`;
-            }
-            return `🎭 ${content}`;
+            return h(Text, { color: "#f8f8ff" }, content);
           }
-          
+
           if (message.role === 'tool') {
             if (Array.isArray(message.content)) {
               const result = message.content.find(part => part.type === 'tool-result');
               if (result?.output) {
                 try {
-                  // Handle new AI SDK structure: result.output.value instead of result.result
-                  const outputValue = result.output.type === 'json' ? result.output.value : result.output.value;
+                  const outputValue = result.output.value;
                   if (typeof outputValue === 'string') {
                     const parsed = JSON.parse(outputValue);
                     if (parsed.output) {
-                      return `🎯 You chose: "${parsed.output}"`;
+                      return h(Text, { color: "#98fb98", bold: true }, `→ "${parsed.output}"`);
                     }
                   } else if (typeof outputValue === 'object' && outputValue.output) {
-                    return `🎯 You chose: "${outputValue.output}"`;
+                    return h(Text, { color: "#98fb98", bold: true }, `→ "${outputValue.output}"`);
                   }
                 } catch (e) {
-                  // fallback
+                  // fall through to default below
                 }
               }
             }
-            return message.content;
+            return h(Text, { color: "#dda0dd" }, String(content ?? ''));
           }
-          
+
           if (message.role === 'ui') {
-            if (content.includes('Welcome') || content.includes('adventure begins')) {
-              return `🌟 ${content}`;
-            }
-            if (content.includes('died') || content.includes('Game Over')) {
-              return `💀 ${content}`;
-            }
-            if (content.includes('level up') || content.includes('victory')) {
-              return `🏆 ${content}`;
-            }
-            if (content.includes('paused') || content.includes('stopped')) {
-              return `⏸️ ${content}`;
-            }
-            if (content.includes('Error')) {
-              return `❌ ${content}`;
-            }
-            if (content.includes('Health:') || content.includes('Status:')) {
-              return `📊 ${content}`;
-            }
-            return `🌍 ${content}`;
+            return h(Text, { color: "#87ceeb" }, content);
           }
-          
-          // Default fallback
-          return content;
-        },
-        messageTypes: {
-          assistant: {
-            label: "🧙‍♂️ Dungeon Master",
-            color: "primary",
-            bold: true
-          },
-          user: {
-            label: "🦸‍♀️ Adventurer", 
-            color: "accent",
-            bold: true
-          },
-          toolCall: {
-            label: "🎲 Action Menu",
-            color: "success", 
-            border: {
-              style: "round",
-              color: "accent"
-            },
-            spacing: {
-              marginLeft: 1,
-              marginTop: 1
-            }
-          },
-          toolResponse: {
-            label: "⚡ Your Choice",
-            color: "success",
-            bold: true,
-            spacing: {
-              marginLeft: 2
-            }
-          },
-          ui: {
-            label: "🏰 Game World",
-            color: "warning",
-            bold: true
-          }
+
+          return h(Text, { color: "#fff8dc" }, content);
         }
       },
 
@@ -370,14 +226,13 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
               role: "ui",
               content:
                 "🏰 Welcome to the Fantasy Adventure Quest! ⚔️\n\n" +
-                "You are a brave adventurer who has just arrived in the peaceful village of Millbrook.\n" +
-                "The village square bustles with activity, and adventure awaits around every corner!\n\n" +
-                `📊 STATUS: Health: ${playerState.health}/100 | Gold: ${playerState.gold} | Location: ${gameWorld[playerState.location].name}\n` +
+                "This is a free-form medieval fantasy adventure. There is no fixed map—discover locations, NPCs, and mysteries as you go.\n\n" +
+                `📊 STATUS: Health: ${playerState.health}/100 | Location: ${playerState.location}\n` +
                 `🎒 INVENTORY: ${playerState.inventory.join(", ")}\n\n` +
                 "Type 'start' to begin your adventure, or describe what you'd like to do! 🌟",
             },
           ],
-          statusLine: createStatusLine('waiting', 'Type "start" to begin your quest!')
+          statusLine: createStatusLine()
         });
       },
       message: async (userInput) => {
@@ -390,13 +245,12 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
             {
               role: "ui",
               content:
-                `🌟 Your adventure begins in ${gameWorld[playerState.location].name}!\n\n` +
-                `${gameWorld[playerState.location].description}\n\n` +
+                `🌟 Your adventure begins at ${playerState.location}!\n\n` +
                 "🎭 The Dungeon Master will now present you with choices. You can always type custom actions too! ⚔️",
             },
           ]);
           setState({
-            statusLine: createStatusLine('exploration', `Adventure begins in ${gameWorld[playerState.location].name}!`)
+            statusLine: createStatusLine()
           });
           runAgent();
         } else if (!gameActive) {
@@ -414,11 +268,11 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
             userInput,
             {
               role: "ui",
-              content: `📜 The Dungeon Master considers your action... (Location: ${gameWorld[playerState.location].name})`,
+              content: `📜 The Dungeon Master considers your action... (Location: ${playerState.location})`,
             },
           ]);
           setState({
-            statusLine: createStatusLine('processing', `Processing action in ${gameWorld[playerState.location].name}...`)
+            statusLine: createStatusLine()
           });
           runAgent();
         }
@@ -426,7 +280,7 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
       stop: () => {
         setState({ 
           loading: false,
-          statusLine: createStatusLine('waiting', 'Adventure paused - resting in ' + gameWorld[playerState.location].name)
+          statusLine: createStatusLine()
         });
         addMessage({
           role: "ui",
@@ -436,11 +290,9 @@ Be descriptive and immersive - this is high fantasy roleplay!`;
       terminate: () => {
         gameActive = false;
         playerState = {
-          location: "village_square",
+          location: "The Crossroads",
           inventory: ["rusty_sword", "health_potion"],
           health: 100,
-          gold: 50,
-          quests: []
         };
         setState({
           loading: false,

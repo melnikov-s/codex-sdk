@@ -1,6 +1,5 @@
 import type { UIMessage } from "../utils/ai";
 import type { ModelMessage, ToolSet } from "ai";
-import type { ForegroundColorName } from "chalk";
 import type { ReactNode } from "react";
 
 export interface SelectItem {
@@ -53,71 +52,17 @@ export interface WorkflowState {
   statusLine?: ReactNode;
 }
 
-export type ChalkColor = ForegroundColorName;
 
-export interface ThemeOptions {
-  /** Primary brand color */
-  primary?: ChalkColor | string;
-  /** Secondary accent color */
-  accent?: ChalkColor | string;
-  /** Success/positive color */
-  success?: ChalkColor | string;
-  /** Warning color */
-  warning?: ChalkColor | string;
-  /** Error/danger color */
-  error?: ChalkColor | string;
-  /** Muted/secondary text color */
-  muted?: ChalkColor | string;
-}
-
-export interface MessageDisplayOptions {
-  /** Simple string label for the message type */
-  label?: string;
-
-  /** Text color (chalk color name, hex, or theme reference) */
-  color?: ChalkColor | string;
-
-  /** Whether to display as bold */
-  bold?: boolean;
-
-  /** Container styling */
-  border?: {
-    style?: "single" | "double" | "round" | "bold";
-    color?: ChalkColor | string;
-  };
-
-  /** Background color */
-  backgroundColor?: ChalkColor | string;
-
-  /** Text color override */
-  textColor?: ChalkColor | string;
-
-  /** Margin/padding adjustments */
-  spacing?: {
-    marginLeft?: number;
-    marginTop?: number;
-    marginBottom?: number;
-  };
-}
 
 export interface DisplayConfig {
-  /** Function to transform the entire message display based on message role */
-  onMessage?: (message: UIMessage) => string;
-
-  /** Message type customization - 5 types only */
-  messageTypes?: {
-    toolCall?: MessageDisplayOptions;
-    assistant?: MessageDisplayOptions;
-    user?: MessageDisplayOptions;
-    toolResponse?: MessageDisplayOptions;
-    ui?: MessageDisplayOptions;
-  };
-
-  /** Global theme overrides */
-  theme?: ThemeOptions;
-
   /** Custom header for the workflow */
-  header?: string;
+  header?: ReactNode;
+
+  /** Function to format the role header for each message */
+  formatRoleHeader?: (message: UIMessage) => ReactNode;
+
+  /** Function to format the message content */
+  formatMessage?: (message: UIMessage) => ReactNode;
 }
 
 export interface Workflow {
