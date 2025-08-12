@@ -11,7 +11,7 @@ import { Text } from "ink";
 import React from "react";
 
 const workflow = createAgentWorkflow(
-  ({ setState, state, addMessage, handleModelResult, tools }) => {
+  ({ setState, state, actions, tools }) => {
     let quizActive = false;
     let quizState = {
       codebaseAnalyzed: false,
@@ -31,7 +31,7 @@ const workflow = createAgentWorkflow(
         await simpleFileAnalysis("package.json", "project dependencies");
         
         // Finish analysis after reading key files
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: "✅ Basic codebase analysis complete! Ready to generate quiz questions..."
         });
@@ -39,7 +39,7 @@ const workflow = createAgentWorkflow(
         finishAnalysis();
         
       } catch (error) {
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: `❌ Analysis failed: ${error.message}`
         });
@@ -59,13 +59,13 @@ const workflow = createAgentWorkflow(
             role: "user",
             content: `Please read ${filename} to understand the ${purpose}.`
           }],
-          tools,
+          tools: tools.definitions,
           toolChoice: "required"
         });
 
-        await handleModelResult(result);
+        await actions.handleModelResult(result);
       } catch (error) {
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: `⚠️ Could not read ${filename}: ${error.message}`
         });
@@ -78,7 +78,7 @@ const workflow = createAgentWorkflow(
       quizState.analyzing = false;
       quizState.codebaseAnalyzed = true;
       
-      addMessage({
+      actions.addMessage({
         role: "ui",
         content: "✅ Codebase analysis complete! Generating your first quiz question..."
       });
@@ -90,7 +90,7 @@ const workflow = createAgentWorkflow(
       setState({ loading: true });
       quizState.analyzing = true;
       
-      addMessage({
+      actions.addMessage({
         role: "ui",
         content: "🔍 Starting codebase analysis..."
       });
@@ -99,7 +99,7 @@ const workflow = createAgentWorkflow(
     }
 
     async function startQuiz() {
-      addMessage({
+      actions.addMessage({
         role: "ui",
         content: `📊 Score: ${quizState.score}/${quizState.totalQuestions} | Question: ${quizState.currentQuestion + 1}/${quizState.totalQuestions}`
       });
@@ -144,14 +144,14 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
           model: openai("gpt-4o"),
           system: questionPrompt,
           messages: state.transcript,
-          tools: {user_select: tools.user_select},
+          tools: {user_select: tools.definitions.user_select},
           toolChoice: "required"
         });
 
-        const toolResponses = await handleModelResult(result);
+        const toolResponses = await actions.handleModelResult(result);
         if (toolResponses.length === 0) {
           // No tool response means user chose "None of the above"
-          addMessage({
+          actions.addMessage({
             role: "ui", 
             content: "📝 Please provide your own answer..."
           });
@@ -161,7 +161,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
           handleQuizAnswer(toolResponses[toolResponses.length - 1]);
         }
       } catch (error) {
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: `❌ Question generation failed: ${error.message}`
         });
@@ -200,12 +200,12 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
       
       if (isCorrect) {
         quizState.score++;
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: `✅ Correct! Your answer: ${userAnswer}\n📊 Score: ${quizState.score}/${quizState.totalQuestions}`
         });
       } else {
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: `❌ Not quite right. Your answer: ${userAnswer}\n📊 Score: ${quizState.score}/${quizState.totalQuestions}`
         });
@@ -237,7 +237,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
         performance = "📚 Consider spending more time with the codebase.";
       }
 
-      addMessage({
+      actions.addMessage({
         role: "ui",
         content: `🏁 Quiz Complete!\n\n📊 Final Score: ${quizState.score}/${quizState.totalQuestions} (${percentage}%)\n${performance}\n\nType 'restart' to take the quiz again or 'analyze' to re-analyze the codebase!`
       });
@@ -435,7 +435,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
 
         if (!quizActive && (content === "start" || content.includes("start") || content.includes("begin"))) {
           quizActive = true;
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -453,7 +453,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
             score: 0,
             analyzing: false
           };
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -467,7 +467,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
           quizState.codebaseAnalyzed = false;
           quizState.currentQuestion = 0;
           quizState.score = 0;
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -477,7 +477,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
           ]);
           await analyzeCodebase();
         } else if (!quizActive) {
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -487,7 +487,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
           ]);
         } else {
           // Quiz is active, handle as custom input
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -499,7 +499,7 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
       
       stop: () => {
         setState({ loading: false });
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: "⏸️ Quiz paused. Type anything to continue or 'restart' for a new quiz!"
         });

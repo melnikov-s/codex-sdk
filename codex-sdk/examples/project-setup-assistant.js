@@ -8,7 +8,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const workflow = createAgentWorkflow(
-  ({ setState, state, addMessage, handleModelResult, tools }) => {
+  ({ setState, state, actions, tools }) => {
     let projectConfig = {};
     let setupActive = false;
 
@@ -39,22 +39,22 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
             model: openai("gpt-4o"),
             system: systemPrompt,
             messages: state.transcript,
-            tools,
+            tools: tools.definitions,
           });
 
-          await handleModelResult(result);
+          await actions.handleModelResult(result);
 
           if (result.finishReason === "stop") {
             // User selected "None of the above" - they'll provide custom input
-            addMessage({
+            actions.addMessage({
               role: "ui",
               content: "💬 Please tell me more about what you have in mind...",
             });
-            setState({ loading: false });
+            actions.setLoading(false);
             break;
           }
         } catch (error) {
-            addMessage({
+            actions.addMessage({
             role: "ui",
             content: `❌ Error: ${error.message || "Unknown error"}`,
           });
@@ -87,7 +87,7 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
         ) {
           setupActive = true;
           projectConfig = {};
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -98,7 +98,7 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
           ]);
           runAssistant();
         } else if (!setupActive) {
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -108,7 +108,7 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
           ]);
         } else {
           // Setup is active, user provided custom input after "None of the above"
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -121,7 +121,7 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
       },
       stop: () => {
         setState({ loading: false });
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content:
             "⏸️ Setup paused. Type anything to continue configuring your project!",

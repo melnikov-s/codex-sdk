@@ -4,7 +4,7 @@ import { generateText } from "ai";
 import { run, createAgentWorkflow } from "codex-sdk";
 
 const workflow = createAgentWorkflow(
-  ({ state, setState, addMessage, handleModelResult, tools }) => {
+  ({ state, setState, actions, tools }) => {
     return {
       // Set an initial "Ready" message
       initialize: async () => {
@@ -12,24 +12,24 @@ const workflow = createAgentWorkflow(
       },
       // This is the core loop, called on every user input
       message: async (userInput) => {
-        addMessage(userInput);
-        setState({ loading: true });
+        actions.addMessage(userInput);
+        actions.setLoading(true);
 
         const result = await generateText({
           model: openai("gpt-4o"),
           system: "You are a helpful assistant.",
           messages: state.transcript, // transcript conveniently excludes UI messages
-          tools,
+          tools: tools.definitions,
         });
 
         // handleModelResult adds the AI response, executes tools,
         // and adds tool results to the message history automatically.
-        await handleModelResult(result);
+        await actions.handleModelResult(result);
 
-        setState({ loading: false });
+        actions.setLoading(false);
       },
       // Cleanup methods for user interruption
-      stop: () => setState({ loading: false }),
+      stop: () => actions.setLoading(false),
       terminate: () => setState({ loading: false, messages: [] }),
     };
   },

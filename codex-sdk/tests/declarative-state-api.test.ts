@@ -150,6 +150,50 @@ describe("Declarative State API", () => {
         content: "Message 2",
       });
     });
+
+    it("should replace objects completely (not merge) - slots example", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [],
+        inputDisabled: false,
+        slots: {
+          aboveInput: "Initial slot content",
+          belowInput: "Another slot",
+        },
+      };
+
+      // Simulate the setState behavior from terminal-chat.tsx
+      const setState = (
+        updater:
+          | Partial<WorkflowState>
+          | ((prev: WorkflowState) => WorkflowState),
+      ) => {
+        if (typeof updater === "function") {
+          currentState = updater(currentState);
+        } else {
+          // Simple top-level shallow merge - everything else replaced
+          currentState = { ...currentState, ...updater };
+        }
+      };
+
+      // Test slots replacement - should replace ALL slots, not merge
+      setState({
+        slots: {
+          aboveInput: "New content only",
+        },
+      });
+
+      // Should completely replace slots object (belowInput is gone)
+      expect(currentState.slots).toEqual({
+        aboveInput: "New content only",
+      });
+      expect(currentState.slots?.belowInput).toBeUndefined();
+
+      // Other state properties should be preserved
+      expect(currentState.loading).toBe(false);
+      expect(currentState.messages).toEqual([]);
+      expect(currentState.inputDisabled).toBe(false);
+    });
   });
 
   describe("addMessage behavior", () => {
@@ -246,16 +290,28 @@ describe("Declarative State API", () => {
           queue: [],
           transcript: [],
         },
-        addMessage: vi.fn(),
-        pushQueue: vi.fn(),
-        shiftQueue: vi.fn(() => undefined),
-        tools: {},
-        handleToolCall: vi.fn(),
-        onConfirm: vi.fn(),
-        onPrompt: vi.fn(),
-        onSelect: vi.fn(),
-        
-        handleModelResult: vi.fn(),
+        actions: {
+          addMessage: vi.fn(),
+          setLoading: vi.fn(),
+          setInputDisabled: vi.fn(),
+          setStatusLine: vi.fn(),
+          setSlot: vi.fn(),
+          clearSlot: vi.fn(),
+          clearAllSlots: vi.fn(),
+          addToQueue: vi.fn(),
+          removeFromQueue: vi.fn(() => undefined),
+          clearQueue: vi.fn(),
+          handleModelResult: vi.fn(),
+        },
+        tools: {
+          definitions: {},
+          execute: vi.fn(),
+        },
+        prompts: {
+          select: vi.fn(),
+          confirm: vi.fn(),
+          input: vi.fn(),
+        },
       };
 
       const workflow = createAgentWorkflow((hooks) => {
@@ -314,16 +370,28 @@ describe("Declarative State API", () => {
             return workflowState.messages.filter((msg) => msg.role !== "ui");
           },
         },
-        addMessage: vi.fn(),
-        pushQueue: vi.fn(),
-        shiftQueue: vi.fn(() => undefined),
-        tools: {},
-        handleToolCall: vi.fn(),
-        onConfirm: vi.fn(),
-        onPrompt: vi.fn(),
-        onSelect: vi.fn(),
-        
-        handleModelResult: vi.fn(),
+        actions: {
+          addMessage: vi.fn(),
+          setLoading: vi.fn(),
+          setInputDisabled: vi.fn(),
+          setStatusLine: vi.fn(),
+          setSlot: vi.fn(),
+          clearSlot: vi.fn(),
+          clearAllSlots: vi.fn(),
+          addToQueue: vi.fn(),
+          removeFromQueue: vi.fn(() => undefined),
+          clearQueue: vi.fn(),
+          handleModelResult: vi.fn(),
+        },
+        tools: {
+          definitions: {},
+          execute: vi.fn(),
+        },
+        prompts: {
+          select: vi.fn(),
+          confirm: vi.fn(),
+          input: vi.fn(),
+        },
       };
 
       const workflow = createAgentWorkflow((hooks) => {
@@ -452,16 +520,28 @@ describe("Declarative State API", () => {
               return state.messages.filter((msg) => msg.role !== "ui");
             },
           },
-          addMessage: vi.fn(),
-          pushQueue: vi.fn(),
-          shiftQueue: vi.fn(() => undefined),
-          tools: {},
-          handleToolCall: vi.fn(),
-          onConfirm: vi.fn(),
-          onPrompt: vi.fn(),
-          onSelect: vi.fn(),
-          
-          handleModelResult: vi.fn(),
+          actions: {
+            addMessage: vi.fn(),
+            setLoading: vi.fn(),
+            setInputDisabled: vi.fn(),
+            setStatusLine: vi.fn(),
+            setSlot: vi.fn(),
+            clearSlot: vi.fn(),
+            clearAllSlots: vi.fn(),
+            addToQueue: vi.fn(),
+            removeFromQueue: vi.fn(() => undefined),
+            clearQueue: vi.fn(),
+            handleModelResult: vi.fn(),
+          },
+          tools: {
+            definitions: {},
+            execute: vi.fn(),
+          },
+          prompts: {
+            select: vi.fn(),
+            confirm: vi.fn(),
+            input: vi.fn(),
+          },
         };
       };
 

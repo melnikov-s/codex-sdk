@@ -11,7 +11,7 @@ import { Text } from "ink";
 import {createElement as h} from "react";
 
 const workflow = createAgentWorkflow(
-  ({ setState, state, addMessage, handleModelResult, tools }) => {
+  ({ setState, state, actions, tools }) => {
     let gameActive = false;
     let playerState = {
       location: "The Crossroads",
@@ -61,11 +61,11 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
             model: openai("gpt-4o"),
             system: systemPrompt,
             messages: state.transcript,
-            tools: {user_select: tools.user_select},
+            tools: {user_select: tools.definitions.user_select},
             toolChoice: "required",
           });
 
-          const toolResponses = await handleModelResult(result);
+          const toolResponses = await actions.handleModelResult(result);
 
             // Parse each tool response and update game state if applicable
             for (const tr of toolResponses) {
@@ -95,7 +95,7 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
               }
             }
           if (result.finishReason === "stop") {
-            addMessage({
+            actions.addMessage({
               role: "ui",
               content: "💭 What would you like to do? (Type your action or wait for options...)",
             });
@@ -107,7 +107,7 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
             break;
           }
         } catch (error) {
-          addMessage({
+          actions.addMessage({
             role: "ui",
             content: `❌ Error: ${error.message || "Unknown error"}`,
           });
@@ -247,7 +247,7 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
 
         if (!gameActive && (content === "start" || content.includes("start") || content.includes("adventure"))) {
           gameActive = true;
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -261,7 +261,7 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
           });
           runAgent();
         } else if (!gameActive) {
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -271,7 +271,7 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
           ]);
         } else {
           // Game is active, user provided custom input
-          addMessage([
+          actions.addMessage([
             userInput,
             {
               role: "ui",
@@ -290,7 +290,7 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
            statusLine: createStatusLine(),
            slots: { aboveInput: null }
          });
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: "⏸️ Adventure paused. Your character rests briefly... Type anything to continue your quest!",
         });
