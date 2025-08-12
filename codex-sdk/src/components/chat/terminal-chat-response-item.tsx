@@ -134,7 +134,9 @@ function TerminalChatResponseMessage({
   // If custom formatters are provided, use them
   if (displayConfig?.formatMessage || displayConfig?.formatRoleHeader) {
     const roleHeader = displayConfig.formatRoleHeader?.(message);
-    const messageContent = displayConfig.formatMessage?.(message);
+    const messageContent = displayConfig.formatMessage?.(message) || (
+      <Markdown>{getTextContent(message)}</Markdown>
+    );
 
     return (
       <Box flexDirection="column">

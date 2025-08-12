@@ -43,11 +43,17 @@ export interface PromptOptionsWithTimeout {
   defaultValue: string;
 }
 
+export interface TaskItem {
+  completed: boolean;
+  label: string;
+}
+
 export interface WorkflowState {
   loading: boolean;
   messages: Array<UIMessage>;
   inputDisabled: boolean;
   queue?: Array<string>;
+  taskList?: Array<TaskItem>;
   transcript?: Array<UIMessage>;
   statusLine?: ReactNode;
   /**
@@ -135,6 +141,7 @@ export interface WorkflowHooks {
     readonly messages: Array<UIMessage>;
     readonly inputDisabled: boolean;
     readonly queue: Array<string>;
+    readonly taskList: Array<TaskItem>;
     readonly transcript: Array<UIMessage>;
     readonly statusLine?: ReactNode;
     readonly slots?: Partial<Record<SlotRegion, ReactNode | null>>;
@@ -202,6 +209,23 @@ export interface WorkflowHooks {
      * Clear the entire queue
      */
     clearQueue: () => void;
+
+    /**
+     * Add task(s) to the task list
+     * @param task Single task, string, array of tasks, or array of strings to add to task list
+     */
+    addTask: (task: string | TaskItem | Array<string | TaskItem>) => void;
+
+    /**
+     * Toggle the completion status of a task by index, or the next incomplete task if no index provided
+     * @param index The index of the task to toggle (optional - defaults to next incomplete task)
+     */
+    toggleTask: (index?: number) => void;
+
+    /**
+     * Clear the entire task list
+     */
+    clearTaskList: () => void;
 
     /**
      * Convenience helper: apply a model result by adding its messages and executing tool calls.
@@ -301,12 +325,16 @@ export function createAgentWorkflow(
 /**
  * Vertical regions where slot content can be injected.
  * Ordering (top to bottom):
- *  aboveHeader → header → belowHeader → aboveHistory → history → belowHistory → aboveInput → input → belowInput
+ *  aboveHeader → header → belowHeader → aboveHistory → history → belowHistory → aboveTaskList → taskList → belowTaskList → aboveQueue → queue → belowQueue → aboveInput → input → belowInput
  */
 export type SlotRegion =
   | "aboveHeader"
   | "belowHeader"
   | "aboveHistory"
   | "belowHistory"
+  | "aboveTaskList"
+  | "belowTaskList"
+  | "aboveQueue"
+  | "belowQueue"
   | "aboveInput"
   | "belowInput";

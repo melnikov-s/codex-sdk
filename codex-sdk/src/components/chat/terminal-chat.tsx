@@ -16,6 +16,7 @@ import type {
   DisplayConfig,
   PromptOptionsWithTimeout,
   SlotRegion,
+  TaskItem,
 } from "../../workflow";
 import type { ModelMessage } from "ai";
 import type { ColorName } from "chalk";
@@ -95,6 +96,7 @@ export default function TerminalChat({
     messages: [],
     inputDisabled: false,
     queue: [],
+    taskList: [],
     statusLine: undefined,
     slots: undefined,
   });
@@ -105,6 +107,7 @@ export default function TerminalChat({
     messages: [],
     inputDisabled: false,
     queue: [],
+    taskList: [],
     statusLine: undefined,
     slots: undefined,
   });
@@ -344,6 +347,56 @@ export default function TerminalChat({
       return firstItem;
     };
 
+    const addTask = (task: string | TaskItem | Array<string | TaskItem>) => {
+      const tasks = Array.isArray(task) ? task : [task];
+      const taskItems: Array<TaskItem> = tasks.map((t) => {
+        if (typeof t === "string") {
+          return { completed: false, label: t };
+        } else {
+          return { completed: t.completed, label: t.label };
+        }
+      });
+      void smartSetState((prev) => ({
+        ...prev,
+        taskList: [...(prev.taskList || []), ...taskItems],
+      }));
+    };
+
+    const toggleTask = (index?: number) => {
+      void smartSetState((prev) => {
+        const taskList = prev.taskList || [];
+        
+        let targetIndex = index;
+        
+        // If no index provided, find the next incomplete task
+        if (targetIndex === undefined) {
+          targetIndex = taskList.findIndex(task => !task.completed);
+          if (targetIndex === -1) {
+            // No incomplete tasks found, return unchanged
+            return prev;
+          }
+        }
+        
+        // Validate index bounds
+        if (targetIndex < 0 || targetIndex >= taskList.length) {
+          return prev;
+        }
+        
+        const newTaskList = [...taskList];
+        const currentTask = newTaskList[targetIndex];
+        if (currentTask) {
+          newTaskList[targetIndex] = {
+            ...currentTask,
+            completed: !currentTask.completed,
+          };
+        }
+        return {
+          ...prev,
+          taskList: newTaskList,
+        };
+      });
+    };
+
     const handleToolCall = (async (
       messageOrMessages: ModelMessage | Array<ModelMessage>,
       { abortSignal } = {},
@@ -468,6 +521,9 @@ export default function TerminalChat({
         get queue() {
           return syncStateRef.current.queue || [];
         },
+        get taskList() {
+          return syncStateRef.current.taskList || [];
+        },
         get transcript() {
           return syncStateRef.current.messages.filter(
             (msg) => msg.role !== "ui",
@@ -511,6 +567,11 @@ export default function TerminalChat({
         removeFromQueue,
         clearQueue: () => {
           void smartSetState({ queue: [] });
+        },
+        addTask,
+        toggleTask,
+        clearTaskList: () => {
+          void smartSetState({ taskList: [] });
         },
         handleModelResult: async (result, opts) => {
           const messages = result?.response?.messages ?? [];
@@ -722,6 +783,7 @@ export default function TerminalChat({
             <TerminalChatInput
             loading={loading}
             queue={workflowState.queue || []}
+            taskList={workflowState.taskList || []}
             setItems={(updater) => {
               // Bridge setItems to smartSetState
               // TODO: Remove this when TerminalChatInput is refactored to use workflow directly
