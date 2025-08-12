@@ -242,7 +242,7 @@ This is the function you provide to `createAgentWorkflow`. It's where your agent
   - `inputDisabled`: `boolean` - Whether the user input is currently disabled.
   - `queue`: `Array<string>` - The current queue of pending tasks for display.
   - `transcript`: `Array<UIMessage>` - A clean version of `messages` excluding "ui" messages, perfect for sending to an LLM.
-- **`setState(newState)`**: Updates the workflow state. It merges top-level properties, like React's `setState`.
+- **`setState(newState)`**: Updates the workflow state. See merge semantics below.
 - **`addMessage(message)`**: A convenience method to append one or more messages to the history.
 - **`tools`**: An array of tool definitions that the library supports. Pass these to your AI model so it knows what tools it can call.
 - **`handleModelResult(result)`**: A powerful convenience function that takes the raw result from an AI model call and orchestrates the next steps: it adds the AI's response messages to the history, securely executes any requested tool calls, and then adds the tool results back to the history, returning the tool responses.
@@ -250,9 +250,7 @@ This is the function you provide to `createAgentWorkflow`. It's where your agent
 - **`onSelect(items, options?)`**: Prompts the user to choose from a list of options. Returns a promise with the selected value.
 - **`onConfirm(message, options?)`**: Prompts the user with a yes/no question. Returns a promise with the boolean result.
 - **`onPrompt(message, options?)`**: Prompts the user for freeform text input. Returns a promise with the string result.
-- **`addToQueue(items)` / `unshiftQueue()`**: Methods to manage the task queue displayed in the UI.
-- **`logger(message)`**: A function to log debug messages.
-- **`onError(error)`**: An optional error handler callback for the workflow.
+- **`pushQueue(items)` / `shiftQueue()`**: Methods to manage the task queue displayed in the UI.
 
 ---
 
@@ -274,6 +272,14 @@ This is the object your `agentLogicFunction` must return. It defines the lifecyc
 The `state` object managed by your workflow has the following structure:
 
 ```typescript
+type SlotRegion =
+  | "aboveHeader"
+  | "belowHeader"
+  | "aboveHistory"
+  | "belowHistory"
+  | "aboveInput"
+  | "belowInput";
+
 interface WorkflowState {
   loading: boolean;
   messages: Array<UIMessage>;
@@ -281,6 +287,7 @@ interface WorkflowState {
   queue?: Array<string>; // Optional queue of pending messages
   transcript?: Array<UIMessage>; // Derived: messages filtered to exclude UI messages
   statusLine?: ReactNode; // Optional status line displayed above the input
+  slots?: Partial<Record<SlotRegion, ReactNode | null>>; // Optional slot UI regions
 }
 ```
 
@@ -289,6 +296,52 @@ The `state.transcript` property provides a clean message history (excluding "ui"
 The `state.statusLine` property allows you to display custom status information above the terminal input. You can set it to any React component or simple text using `setState({statusLine: "Processing..."})` or `setState({statusLine: <Text color="green">✓ Ready</Text>})`.
 
 ---
+
+### State update semantics (merge behavior)
+
+`setState` performs predictable shallow merges:
+
+- Objects: shallow-merged by key (e.g., `slots`)
+- Arrays: replaced
+- Primitives/ReactNode: replaced
+- Functional updater: full control; you can replace any field explicitly
+
+Examples:
+
+```ts
+// Add a slot without spreading previous keys
+setState({ slots: { aboveInput: <Text>Deploying…</Text> } });
+
+// Clear one slot
+setState({ slots: { aboveInput: null } });
+
+// Replace all slots (functional form bypasses object merge)
+setState(prev => ({ ...prev, slots: {} }));
+```
+
+### Slots API
+
+Slots let you render arbitrary React/Ink UI in known regions around the layout:
+
+- `aboveHeader`, `belowHeader`
+- `aboveHistory`, `belowHistory`
+- `aboveInput`, `belowInput`
+
+Rendering order is top → bottom: `aboveHeader`, header, `belowHeader`, `aboveHistory`, history, `belowHistory`, `aboveInput`, input, `belowInput`.
+
+Example:
+
+```ts
+setState({
+  slots: {
+    aboveInput: (
+      <Box borderStyle="round" paddingX={1}>
+        <Text color="yellow">Deploy in progress…</Text>
+      </Box>
+    )
+  }
+});
+```
 
 ## License
 

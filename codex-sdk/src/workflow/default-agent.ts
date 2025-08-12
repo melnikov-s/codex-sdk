@@ -113,7 +113,7 @@ export function defaultWorkflow(
   async function initializeMcp() {
     if (mcpClientManager && !mcpInitialized) {
       try {
-        hooks.logger("Initializing MCP Client Manager...");
+        // debug: initializing MCP Client Manager
         hooks.addMessage({
           role: "ui",
           content: "Initializing MCP Client Manager...",
@@ -122,11 +122,11 @@ export function defaultWorkflow(
         mcpTools = await mcpClientManager.getAllTools();
         mcpInitialized = true;
         const msg = `MCP Client Manager initialized. Tools found: ${Object.keys(mcpTools).join(", ") || "None"}`;
-        hooks.logger(msg);
+        // debug: mcp initialized
         hooks.addMessage({ role: "ui", content: msg });
       } catch (error) {
         const errorMsg = `Error initializing MCP Client Manager: ${error instanceof Error ? error.message : String(error)}`;
-        hooks.logger(errorMsg);
+        // debug: mcp init error
         hooks.addMessage({ role: "ui", content: errorMsg });
         // Optionally, handle this error more gracefully, e.g., by notifying the user
       }
@@ -148,7 +148,6 @@ export function defaultWorkflow(
       // Still, ensure the current execution abort controller is handled.
       if (execAbortController && !execAbortController.signal.aborted) {
         execAbortController.abort();
-        hooks.logger("Workflow.stop(): execAbortController.abort() called");
       }
       // Re-initialize for potential future runs if not fully terminated.
       if (!terminated) {
@@ -168,12 +167,12 @@ export function defaultWorkflow(
         return;
       }
       terminated = true;
-      hooks.logger("Workflow.terminate(): Terminating workflow.");
+      // debug: terminating workflow
 
       // Abort any ongoing operations managed by hardAbort first
       if (!hardAbort.signal.aborted) {
         hardAbort.abort();
-        hooks.logger("Workflow.terminate(): hardAbort.abort() called");
+        // debug: hard abort triggered
       }
 
       // Then call stop to ensure execAbortController is also handled
@@ -181,13 +180,13 @@ export function defaultWorkflow(
       this.stop();
 
       if (mcpClientManager) {
-        hooks.logger("Closing MCP Client Manager...");
+        // debug: closing mcp client manager
         hooks.addMessage({
           role: "ui",
           content: "Closing MCP Client Manager connections...",
         });
         await mcpClientManager.closeAll();
-        hooks.logger("MCP Client Manager closed.");
+        // debug: mcp client manager closed
         hooks.addMessage({
           role: "ui",
           content: "MCP Client Manager connections closed.",
@@ -294,7 +293,7 @@ export function defaultWorkflow(
                     hooks.addMessage(toolResponseMessage);
                   } catch (mcpError) {
                     const errorText = `Error calling MCP tool ${toolCall.toolName}: ${mcpError}`;
-                    hooks.logger(errorText);
+                    // debug: MCP tool call failed
                     hooks.addMessage({ role: "ui", content: errorText });
                     const errorResult: ModelMessage = {
                       role: "tool",
@@ -335,13 +334,10 @@ export function defaultWorkflow(
         } catch (error) {
           // Log the error and end the loop
           const runErrorMsg = `Error in workflow run: ${(error as Error).message}`;
-          hooks.logger(runErrorMsg);
           hooks.addMessage({ role: "ui", content: runErrorMsg });
 
           // Call the error handler if provided
-          if (hooks.onError) {
-            hooks.onError(error);
-          }
+          // no onError hook
 
           const errorMessage: ModelMessage = {
             role: "assistant",
@@ -363,7 +359,7 @@ export function defaultWorkflow(
           "Clear conversation history but keep a summary in context. Optional: /compact [instructions for summarization]",
         handler: async (args?: string) => {
           try {
-            hooks.logger("Executing /compact command");
+            // debug: executing /compact
             hooks.setState({ loading: true });
 
             const customInstructions = args?.trim();
@@ -415,7 +411,6 @@ Keep the summary concise but comprehensive.`,
             hooks.setState({ loading: false });
           } catch (error) {
             const errorMsg = `Error executing /compact command: ${(error as Error).message}`;
-            hooks.logger(errorMsg);
             hooks.addMessage({ role: "ui", content: errorMsg });
             hooks.setState({ loading: false });
           }
@@ -425,7 +420,7 @@ Keep the summary concise but comprehensive.`,
         description: "Show the current git diff of modified files",
         handler: async () => {
           try {
-            hooks.logger("Executing /diff command");
+            // debug: executing /diff
 
             const { isGitRepo, diff } = getGitDiff();
             let content: string;
@@ -442,7 +437,6 @@ Keep the summary concise but comprehensive.`,
             });
           } catch (error) {
             const errorMsg = `Error executing /diff command: ${(error as Error).message}`;
-            hooks.logger(errorMsg);
             hooks.addMessage({ role: "ui", content: errorMsg });
           }
         },

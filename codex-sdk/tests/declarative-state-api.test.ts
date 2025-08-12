@@ -247,14 +247,14 @@ describe("Declarative State API", () => {
           transcript: [],
         },
         addMessage: vi.fn(),
-        addToQueue: vi.fn(),
-        unshiftQueue: vi.fn(() => undefined),
+        pushQueue: vi.fn(),
+        shiftQueue: vi.fn(() => undefined),
         tools: {},
         handleToolCall: vi.fn(),
         onConfirm: vi.fn(),
         onPrompt: vi.fn(),
         onSelect: vi.fn(),
-        logger: vi.fn(),
+        
         handleModelResult: vi.fn(),
       };
 
@@ -315,14 +315,14 @@ describe("Declarative State API", () => {
           },
         },
         addMessage: vi.fn(),
-        addToQueue: vi.fn(),
-        unshiftQueue: vi.fn(() => undefined),
+        pushQueue: vi.fn(),
+        shiftQueue: vi.fn(() => undefined),
         tools: {},
         handleToolCall: vi.fn(),
         onConfirm: vi.fn(),
         onPrompt: vi.fn(),
         onSelect: vi.fn(),
-        logger: vi.fn(),
+        
         handleModelResult: vi.fn(),
       };
 
@@ -453,14 +453,14 @@ describe("Declarative State API", () => {
             },
           },
           addMessage: vi.fn(),
-          addToQueue: vi.fn(),
-          unshiftQueue: vi.fn(() => undefined),
+          pushQueue: vi.fn(),
+          shiftQueue: vi.fn(() => undefined),
           tools: {},
           handleToolCall: vi.fn(),
           onConfirm: vi.fn(),
           onPrompt: vi.fn(),
           onSelect: vi.fn(),
-          logger: vi.fn(),
+          
           handleModelResult: vi.fn(),
         };
       };

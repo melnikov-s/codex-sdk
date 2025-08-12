@@ -94,6 +94,7 @@ export default function TerminalChat({
     inputDisabled: false,
     queue: [],
     statusLine: undefined,
+    slots: undefined,
   });
 
   // Separate synchronous state for immediate getState access
@@ -103,6 +104,7 @@ export default function TerminalChat({
     inputDisabled: false,
     queue: [],
     statusLine: undefined,
+    slots: undefined,
   });
 
   // Smart setState that updates both sync state immediately and React state for UI
@@ -117,7 +119,32 @@ export default function TerminalChat({
       if (typeof updater === "function") {
         newState = updater(syncStateRef.current);
       } else {
-        newState = { ...syncStateRef.current, ...updater };
+        // Top-level shallow merge
+        const baseMerged = { ...syncStateRef.current, ...updater } as WorkflowState;
+        // Nested object shallow-merge for object-valued fields (exclude arrays and React elements)
+        const isMergableObject = (value: unknown): value is Record<string, unknown> => {
+          return (
+            value != null &&
+            typeof value === "object" &&
+            !Array.isArray(value) &&
+            // exclude React elements which carry $$typeof
+            !(value as { $$typeof?: unknown }).$$typeof
+          );
+        };
+        // For each provided key, if both prev and next are mergable objects, shallow-merge them
+        const prevState = syncStateRef.current as unknown as Record<string, unknown>;
+        const upd = updater as Record<string, unknown>;
+        for (const key of Object.keys(upd)) {
+          const prevVal = prevState[key];
+          const nextVal = upd[key];
+          if (isMergableObject(prevVal) && isMergableObject(nextVal)) {
+            (baseMerged as unknown as Record<string, unknown>)[key] = {
+              ...(prevVal as Record<string, unknown>),
+              ...(nextVal as Record<string, unknown>),
+            };
+          }
+        }
+        newState = baseMerged;
       }
       syncStateRef.current = newState;
 
@@ -300,9 +327,7 @@ export default function TerminalChat({
         apply_patch: applyPatchTool,
         user_select: userSelectTool,
       },
-      logger: (message) => {
-        log(message);
-      },
+      
       setState: smartSetState,
       state: {
         get loading() {
@@ -325,6 +350,9 @@ export default function TerminalChat({
         get statusLine() {
           return syncStateRef.current.statusLine;
         },
+        get slots() {
+          return syncStateRef.current.slots;
+        },
       },
       addMessage: (message: UIMessage | Array<UIMessage>) => {
         const messages = Array.isArray(message) ? message : [message];
@@ -333,7 +361,7 @@ export default function TerminalChat({
           messages: [...prev.messages, ...messages],
         }));
       },
-      addToQueue: (item: string | Array<string>) => {
+      pushQueue: (item: string | Array<string>) => {
         const items = Array.isArray(item) ? item : [item];
         // Convert any non-string items to strings
         const stringItems = items.map((i) => {
@@ -355,7 +383,7 @@ export default function TerminalChat({
           queue: [...(prev.queue || []), ...stringItems],
         }));
       },
-      unshiftQueue: () => {
+      shiftQueue: () => {
         const currentState = syncStateRef.current;
         const queue = currentState.queue || [];
         if (queue.length === 0) {
@@ -368,10 +396,7 @@ export default function TerminalChat({
         }));
         return firstItem;
       },
-      onError: (error) => {
-        log(`Workflow error: ${(error as Error).message}`);
-        // Error is already handled in the workflow's run method
-      },
+      
       onConfirm: async (
         msg: string,
         options?: ConfirmOptions | ConfirmOptionsWithTimeout,
@@ -652,6 +677,7 @@ export default function TerminalChat({
             loading={loading}
             fullStdout={fullStdout}
             displayConfig={displayConfig}
+            slots={workflowState.slots}
             headerProps={{
               terminalRows,
               version: CLI_VERSION,
@@ -670,7 +696,9 @@ export default function TerminalChat({
           </Box>
         )}
         {overlayMode === "none" && workflow && (
-          <Box marginTop={2}>
+          <Box marginTop={2} flexDirection="column">
+            {/* Slot above input */}
+            {workflowState.slots?.aboveInput ?? null}
             <TerminalChatInput
             loading={loading}
             queue={workflowState.queue || []}
@@ -750,6 +778,8 @@ export default function TerminalChat({
               return {};
             }}
             />
+            {/* Slot below input */}
+            {workflowState.slots?.belowInput ?? null}
           </Box>
         )}
         {overlayMode === "history" && (

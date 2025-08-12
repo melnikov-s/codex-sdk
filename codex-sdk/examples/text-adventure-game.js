@@ -31,7 +31,10 @@ const workflow = createAgentWorkflow(
     async function runAgent() {
       setState({ 
         loading: true,
-        statusLine: createStatusLine()
+        statusLine: createStatusLine(),
+        slots: {
+          aboveInput: h(Text, { color: '#ffd93d' }, 'Tip: Use items with "Use: <Item>" or move with "Move to: <Place>"')
+        }
       });
 
       while (state.loading) {
@@ -98,7 +101,8 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
             });
             setState({ 
               loading: false,
-              statusLine: createStatusLine()
+              statusLine: createStatusLine(),
+              slots: { aboveInput: null }
             });
             break;
           }
@@ -109,7 +113,8 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
           });
           setState({ 
             loading: false,
-            statusLine: createStatusLine()
+            statusLine: createStatusLine(),
+            slots: { aboveInput: null }
           });
           break;
         }
@@ -128,7 +133,8 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
           if (newLocationRaw) {
             playerState.location = newLocationRaw;
             setState({
-              statusLine: createStatusLine()
+              statusLine: createStatusLine(),
+              slots: { aboveInput: h(Text, { color: '#ffd93d' }, `Path chosen: ${playerState.location}`) }
             });
             return;
           }
@@ -143,7 +149,8 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
           playerState.health = Math.min(100, playerState.health + 30);
           playerState.inventory = playerState.inventory.filter(item => item !== "health_potion");
           setState({
-            statusLine: createStatusLine()
+            statusLine: createStatusLine(),
+            slots: { aboveInput: h(Text, { color: '#ffd93d' }, 'Potion used!') }
           });
           return;
         }
@@ -278,10 +285,11 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
         }
       },
       stop: () => {
-        setState({ 
-          loading: false,
-          statusLine: createStatusLine()
-        });
+         setState({ 
+           loading: false,
+           statusLine: createStatusLine(),
+           slots: { aboveInput: null }
+         });
         addMessage({
           role: "ui",
           content: "⏸️ Adventure paused. Your character rests briefly... Type anything to continue your quest!",
@@ -298,6 +306,7 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
           loading: false,
           messages: [],
           statusLine: undefined,
+          slots: { aboveInput: null },
         });
       },
     };
