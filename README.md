@@ -283,6 +283,62 @@ const workflow = createAgentWorkflow(
 - `pushQueue` → `actions.addToQueue`
 - `shiftQueue` → `actions.removeFromQueue`
 
+## Task List Management
+
+Codex SDK includes a built-in task list system for managing todos and tracking progress. The task list is completely controlled by your agent and appears above the queue with its own bordered interface.
+
+### TaskItem Structure
+
+```typescript
+interface TaskItem {
+  completed: boolean;
+  label: string;
+}
+```
+
+### Usage Example
+
+```javascript
+const workflow = createAgentWorkflow(({ actions, state }) => {
+  return {
+    initialize: async () => {
+      // Add initial tasks
+      actions.addTask([
+        "Setup project structure",
+        { label: "Write documentation", completed: true },
+        "Deploy to production",
+      ]);
+    },
+
+    message: async (input) => {
+      // Toggle task completion based on user input
+      if (input.content.includes("finished task 1")) {
+        actions.toggleTask(0); // Toggle specific task by index
+      }
+
+      if (
+        input.content.includes("done") ||
+        input.content.includes("finished")
+      ) {
+        actions.toggleTask(); // Toggle next incomplete task automatically
+      }
+
+      // Add new tasks dynamically
+      if (input.content.startsWith("add task:")) {
+        const newTask = input.content.replace("add task:", "").trim();
+        actions.addTask(newTask);
+      }
+
+      // Access current task list
+      const completedTasks = state.taskList.filter((t) => t.completed).length;
+      console.log(`${completedTasks}/${state.taskList.length} tasks completed`);
+    },
+  };
+});
+```
+
+The task list appears in the terminal with checkmarks (✓) for completed tasks and bullets (•) for pending ones, providing clear visual feedback to users.
+
 ## Examples
 
 For more advanced use cases, check out the examples directory:
@@ -291,6 +347,7 @@ For more advanced use cases, check out the examples directory:
 - `examples/codebase-quiz.js`: An agent that quizzes you on your own codebase.
 - `examples/text-adventure-game.js`: A mini D&D-style text adventure that shows off advanced display customization and human-in-the-loop interaction.
 - `examples/project-setup-assistant.js`: A multi-step agent that helps set up a new project.
+- `examples/task-list-demo.js`: Interactive task management agent demonstrating the task list functionality.
 
 ## Security & Approvals
 
@@ -425,6 +482,9 @@ All actions are shortcuts for common `setState` operations:
 - **`actions.addToQueue(items)`**: Add items to the task queue.
 - **`actions.removeFromQueue()`**: Remove and return the first queue item.
 - **`actions.clearQueue()`**: Clear the entire task queue.
+- **`actions.addTask(task)`**: Add task(s) to the task list. Accepts a string, TaskItem object, or arrays of either.
+- **`actions.toggleTask(index?)`**: Toggle the completion status of a task by index, or the next incomplete task if no index provided.
+- **`actions.clearTaskList()`**: Clear the entire task list.
 - **`actions.handleModelResult(result)`**: A powerful convenience function that takes the raw result from an AI model call and orchestrates the next steps: it adds the AI's response messages to the history, securely executes any requested tool calls, and then adds the tool results back to the history, returning the tool responses.
 
 #### **`tools` - Tool System**
@@ -463,6 +523,10 @@ type SlotRegion =
   | "belowHeader"
   | "aboveHistory"
   | "belowHistory"
+  | "aboveTaskList"
+  | "belowTaskList"
+  | "aboveQueue"
+  | "belowQueue"
   | "aboveInput"
   | "belowInput";
 
@@ -471,6 +535,7 @@ interface WorkflowState {
   messages: Array<UIMessage>;
   inputDisabled: boolean;
   queue?: Array<string>; // Optional queue of pending messages
+  taskList?: Array<TaskItem>; // Optional task list for todo management
   transcript?: Array<UIMessage>; // Derived: messages filtered to exclude UI messages
   statusLine?: ReactNode; // Optional status line displayed above the input
   slots?: Partial<Record<SlotRegion, ReactNode | null>>; // Optional slot UI regions
@@ -478,6 +543,8 @@ interface WorkflowState {
 ```
 
 The `state.transcript` property provides a clean message history (excluding "ui" messages) that is perfect for sending to an LLM.
+
+The `state.taskList` property contains an array of TaskItem objects representing the current todo list. Each task has a `completed` boolean and a `label` string.
 
 The `state.statusLine` property allows you to display custom status information above the terminal input. You can set it to any React component or simple text using `setState({statusLine: "Processing..."})` or `setState({statusLine: <Text color="green">✓ Ready</Text>})`.
 
@@ -518,9 +585,11 @@ Slots let you render arbitrary React/Ink UI in known regions around the layout:
 
 - `aboveHeader`, `belowHeader`
 - `aboveHistory`, `belowHistory`
+- `aboveTaskList`, `belowTaskList`
+- `aboveQueue`, `belowQueue`
 - `aboveInput`, `belowInput`
 
-Rendering order is top → bottom: `aboveHeader`, header, `belowHeader`, `aboveHistory`, history, `belowHistory`, `aboveInput`, input, `belowInput`.
+Rendering order is top → bottom: `aboveHeader`, header, `belowHeader`, `aboveHistory`, history, `belowHistory`, `aboveTaskList`, taskList, `belowTaskList`, `aboveQueue`, queue, `belowQueue`, `aboveInput`, input, `belowInput`.
 
 Example:
 

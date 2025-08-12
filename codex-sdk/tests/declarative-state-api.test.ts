@@ -288,6 +288,7 @@ describe("Declarative State API", () => {
           messages: [],
           inputDisabled: false,
           queue: [],
+          taskList: [],
           transcript: [],
         },
         actions: {
@@ -301,6 +302,9 @@ describe("Declarative State API", () => {
           addToQueue: vi.fn(),
           removeFromQueue: vi.fn(() => undefined),
           clearQueue: vi.fn(),
+          addTask: vi.fn(),
+          toggleTask: vi.fn(),
+          clearTaskList: vi.fn(),
           handleModelResult: vi.fn(),
         },
         tools: {
@@ -366,6 +370,9 @@ describe("Declarative State API", () => {
           get queue() {
             return workflowState.queue || [];
           },
+          get taskList() {
+            return workflowState.taskList || [];
+          },
           get transcript() {
             return workflowState.messages.filter((msg) => msg.role !== "ui");
           },
@@ -381,6 +388,9 @@ describe("Declarative State API", () => {
           addToQueue: vi.fn(),
           removeFromQueue: vi.fn(() => undefined),
           clearQueue: vi.fn(),
+          addTask: vi.fn(),
+          toggleTask: vi.fn(),
+          clearTaskList: vi.fn(),
           handleModelResult: vi.fn(),
         },
         tools: {
@@ -491,6 +501,7 @@ describe("Declarative State API", () => {
           loading: false,
           messages: [],
           inputDisabled: false,
+          taskList: [],
         };
 
         return {
@@ -516,6 +527,9 @@ describe("Declarative State API", () => {
             get queue() {
               return state.queue || [];
             },
+            get taskList() {
+              return state.taskList || [];
+            },
             get transcript() {
               return state.messages.filter((msg) => msg.role !== "ui");
             },
@@ -531,6 +545,9 @@ describe("Declarative State API", () => {
             addToQueue: vi.fn(),
             removeFromQueue: vi.fn(() => undefined),
             clearQueue: vi.fn(),
+            addTask: vi.fn(),
+            toggleTask: vi.fn(),
+            clearTaskList: vi.fn(),
             handleModelResult: vi.fn(),
           },
           tools: {

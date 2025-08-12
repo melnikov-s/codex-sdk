@@ -31,6 +31,9 @@ test("input disabled state can be controlled through setState", () => {
       get queue() {
         return currentState.queue || [];
       },
+      get taskList() {
+        return currentState.taskList || [];
+      },
       get transcript() {
         return currentState.messages.filter((msg) => msg.role !== "ui");
       },

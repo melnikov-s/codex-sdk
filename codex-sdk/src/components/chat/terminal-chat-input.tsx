@@ -2,13 +2,14 @@ import type { MultilineTextEditorHandle } from "./multiline-editor";
 import type { ReviewDecision } from "../../utils/agent/review.js";
 import type { UIMessage } from "../../utils/ai";
 import type { HistoryEntry } from "../../utils/storage/command-history.js";
-import type { Workflow } from "../../workflow";
+import type { Workflow, TaskItem } from "../../workflow";
 import type { ModelMessage } from "ai";
 
 import MultilineTextEditor from "./multiline-editor";
 import { TerminalChatCommandReview } from "./terminal-chat-command-review.js";
 import TextCompletions from "./terminal-chat-completions.js";
 import TerminalChatQueue from "./terminal-chat-queue.js";
+import TerminalChatTaskList from "./terminal-chat-task-list.js";
 import { useFileSystemSuggestions } from "../../hooks/use-file-system-suggestions.js";
 import { loadConfig } from "../../utils/config.js";
 import { processFileTokens } from "../../utils/file-tag-utils";
@@ -36,6 +37,7 @@ import { useInterval } from "use-interval";
 export default function TerminalChatInput({
   loading,
   queue,
+  taskList,
   submitInput,
   confirmationPrompt,
   explanation,
@@ -53,6 +55,7 @@ export default function TerminalChatInput({
 }: {
   loading: boolean;
   queue: Array<string>;
+  taskList?: Array<TaskItem>;
   submitInput: (input: ModelMessage) => void;
   confirmationPrompt: React.ReactNode | null;
   explanation?: string;
@@ -565,6 +568,7 @@ export default function TerminalChatInput({
 
   return (
     <Box flexDirection="column">
+      <TerminalChatTaskList taskList={taskList || []} />
       <TerminalChatQueue queue={queue} />
       {loading && (
         <Box marginTop={1} marginBottom={0}>
