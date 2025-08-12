@@ -50,6 +50,11 @@ export interface WorkflowState {
   queue?: Array<string>;
   transcript?: Array<UIMessage>;
   statusLine?: ReactNode;
+  /**
+   * Named UI slots rendered around core layout regions.
+   * Values are arbitrary React nodes; set to null/undefined to clear.
+   */
+  slots?: Partial<Record<SlotRegion, ReactNode | null>>;
 }
 
 
@@ -135,6 +140,7 @@ export interface WorkflowHooks {
     readonly queue: Array<string>;
     readonly transcript: Array<UIMessage>;
     readonly statusLine?: ReactNode;
+    readonly slots?: Partial<Record<SlotRegion, ReactNode | null>>;
   };
 
   /**
@@ -161,13 +167,13 @@ export interface WorkflowHooks {
    * Add item(s) to the end of the queue
    * @param item Single string or array of strings to add to queue
    */
-  addToQueue: (item: string | Array<string>) => void;
+  pushQueue: (item: string | Array<string>) => void;
 
   /**
    * Remove and return the first item from the queue
    * @returns The first queue item, or undefined if queue is empty
    */
-  unshiftQueue: () => string | undefined;
+  shiftQueue: () => string | undefined;
 
   /**
    * Send a confirmation prompt to the user
@@ -207,18 +213,6 @@ export interface WorkflowHooks {
   };
 
   /**
-   * Optional error handler
-   * @param error The error that occurred
-   */
-  onError?: (error: unknown) => void;
-
-  /**
-   * Logging function for debug messages
-   * @param message The log message
-   */
-  logger: (message: string) => void;
-
-  /**
    * Show a selection dialog to the user
    * @param items Array of items to select from
    * @param options Selection options (required, default, timeout)
@@ -245,3 +239,16 @@ export function createAgentWorkflow(
     return factory(hooks);
   };
 }
+
+/**
+ * Vertical regions where slot content can be injected.
+ * Ordering (top to bottom):
+ *  aboveHeader → header → belowHeader → aboveHistory → history → belowHistory → aboveInput → input → belowInput
+ */
+export type SlotRegion =
+  | "aboveHeader"
+  | "belowHeader"
+  | "aboveHistory"
+  | "belowHistory"
+  | "aboveInput"
+  | "belowInput";

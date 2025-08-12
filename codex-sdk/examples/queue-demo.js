@@ -1,7 +1,7 @@
 import { run, createAgentWorkflow } from "../dist/lib.js";
 
 const queueDemoWorkflow = createAgentWorkflow(
-  ({ setState, addMessage, addToQueue, unshiftQueue }) => {
+  ({ setState, addMessage, pushQueue, shiftQueue }) => {
     let processing = false;
 
     async function processNextInQueue() {
@@ -12,7 +12,7 @@ const queueDemoWorkflow = createAgentWorkflow(
       processing = true;
       setState({ loading: true });
 
-      let nextMessage = unshiftQueue();
+      let nextMessage = shiftQueue();
       while (nextMessage) {
         addMessage({
           role: "assistant",
@@ -26,7 +26,7 @@ const queueDemoWorkflow = createAgentWorkflow(
           content: `Completed: "${nextMessage}"`,
         });
 
-        nextMessage = unshiftQueue();
+        nextMessage = shiftQueue();
       }
 
       processing = false;
@@ -46,7 +46,7 @@ const queueDemoWorkflow = createAgentWorkflow(
         const userMessage = input.content;
 
         addMessage(input);
-        addToQueue(userMessage);
+        pushQueue(userMessage);
 
         addMessage({
           role: "ui",

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WorkflowState } from "../src/workflow/index.js";
 
 describe("Queue Convenience Methods", () => {
-  it("addToQueue should add items to the queue", () => {
+it("pushQueue should add items to the queue", () => {
     let workflowState: WorkflowState = {
       loading: false,
       messages: [],
@@ -10,7 +10,7 @@ describe("Queue Convenience Methods", () => {
       queue: [],
     };
 
-    const addToQueue = (item: string | Array<string>) => {
+  const pushQueue = (item: string | Array<string>) => {
       const items = Array.isArray(item) ? item : [item];
       workflowState = {
         ...workflowState,
@@ -18,14 +18,14 @@ describe("Queue Convenience Methods", () => {
       };
     };
 
-    addToQueue("item1");
+  pushQueue("item1");
     expect(workflowState.queue).toEqual(["item1"]);
 
-    addToQueue(["item2", "item3"]);
+  pushQueue(["item2", "item3"]);
     expect(workflowState.queue).toEqual(["item1", "item2", "item3"]);
   });
 
-  it("unshiftQueue should remove and return first item", () => {
+it("shiftQueue should remove and return first item", () => {
     let workflowState: WorkflowState = {
       loading: false,
       messages: [],
@@ -33,7 +33,7 @@ describe("Queue Convenience Methods", () => {
       queue: ["first", "second", "third"],
     };
 
-    const unshiftQueue = (): string | undefined => {
+  const shiftQueue = (): string | undefined => {
       const queue = workflowState.queue || [];
       if (queue.length === 0) {
         return undefined;
@@ -46,19 +46,19 @@ describe("Queue Convenience Methods", () => {
       return firstItem;
     };
 
-    const first = unshiftQueue();
+  const first = shiftQueue();
     expect(first).toBe("first");
     expect(workflowState.queue).toEqual(["second", "third"]);
 
-    const second = unshiftQueue();
+  const second = shiftQueue();
     expect(second).toBe("second");
     expect(workflowState.queue).toEqual(["third"]);
 
-    const third = unshiftQueue();
+  const third = shiftQueue();
     expect(third).toBe("third");
     expect(workflowState.queue).toEqual([]);
 
-    const empty = unshiftQueue();
+  const empty = shiftQueue();
     expect(empty).toBe(undefined);
     expect(workflowState.queue).toEqual([]);
   });

@@ -1,7 +1,7 @@
 import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
 import type { UIMessage } from "../../utils/ai.js";
-import type { DisplayConfig } from "../../workflow/index.js";
+import type { DisplayConfig, SlotRegion } from "../../workflow/index.js";
 
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
@@ -23,6 +23,7 @@ type TerminalMessageHistoryProps = {
   headerProps: TerminalHeaderProps;
   fullStdout: boolean;
   displayConfig?: DisplayConfig;
+  slots?: Partial<Record<SlotRegion, React.ReactNode | null>>;
 };
 
 const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
@@ -32,22 +33,27 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
   loading: _loading,
   fullStdout,
   displayConfig,
+  slots,
 }) => {
   // Flatten batch entries to response items.
   const messages = useMemo(() => batch.map(({ item }) => item!), [batch]);
 
   return (
     <Box flexDirection="column">
-      {/* The dedicated thinking indicator in the input area now displays the
-          elapsed time, so we no longer render a separate counter here. */}
-      <Static items={["header", ...messages]}>
-        {(item, index) => {
-          if (typeof item === "string") {
-            return <TerminalHeader key="header" {...headerProps} />;
-          }
+      {/* Pinned header at top */}
+      <Static items={["header"]}>
+        {() => <TerminalHeader key="header" {...headerProps} />}
+      </Static>
 
-          // After the guard above, item is a ResponseItem
-          const message = item;
+      {/* Below-header dynamic slot */}
+      {slots?.belowHeader ?? null}
+
+      {/* Above-history dynamic slot */}
+      {slots?.aboveHistory ?? null}
+
+      {/* History messages (static append-only) */}
+      <Static items={messages}>
+        {(message, index) => {
           // Suppress empty reasoning updates (i.e. items with an empty summary).
           const msg = message as unknown as { summary?: Array<unknown> };
           if (msg.summary?.length === 0) {
@@ -70,6 +76,9 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
           );
         }}
       </Static>
+
+      {/* Below-history dynamic slot */}
+      {slots?.belowHistory ?? null}
     </Box>
   );
 };
