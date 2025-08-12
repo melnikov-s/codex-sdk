@@ -41,45 +41,100 @@ pnpm add @ai-sdk/openai@^2
 This example creates a helpful assistant that can use tools.
 
 ```javascript
-// minimal-agent.js
+// simple-agent.js
 import { run, createAgentWorkflow } from "codex-sdk";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
-const workflow = createAgentWorkflow(
-  ({ state, setState, addMessage, handleModelResult, tools }) => {
-    return {
-      // Set an initial "Ready" message
-      initialize: async () => {
-        setState({ messages: [{ role: "ui", content: "Ready." }] });
-      },
-      // This is the core loop, called on every user input
-      message: async (userInput) => {
-        addMessage(userInput);
-        setState({ loading: true });
+const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
+  return {
+    // Set an initial "Ready" message
+    initialize: async () => {
+      setState({ messages: [{ role: "ui", content: "Ready." }] });
+    },
+    // This is the core loop, called on every user input
+    message: async (userInput) => {
+      actions.addMessage(userInput);
+      actions.setLoading(true);
 
-        const result = await generateText({
-          model: openai("gpt-4o"),
-          system: "You are a helpful assistant.",
-          messages: state.transcript, // transcript conveniently excludes UI messages
-          tools,
-        });
+      const result = await generateText({
+        model: openai("gpt-4o"),
+        system: "You are a helpful assistant.",
+        messages: state.transcript, // transcript conveniently excludes UI messages
+        tools: tools.definitions,
+      });
 
-        // handleModelResult adds the AI response, executes tools,
-        // and adds tool results to the message history automatically.
-        await handleModelResult(result);
+      // handleModelResult adds the AI response, executes tools,
+      // and adds tool results to the message history automatically.
+      await actions.handleModelResult(result);
 
-        setState({ loading: false });
-      },
-      // Cleanup methods for user interruption
-      stop: () => setState({ loading: false }),
-      terminate: () => setState({ loading: false, messages: [] }),
-    };
-  },
-);
+      actions.setLoading(false);
+    },
+    // Cleanup methods for user interruption
+    stop: () => actions.setLoading(false),
+    terminate: () => setState({ loading: false, messages: [] }),
+  };
+});
 
 run(workflow);
 ```
+
+## Understanding the API
+
+Codex SDK organizes its functionality into three clear namespaces to keep your code clean and intuitive:
+
+### 🎯 **Core State Management** (Top Level)
+
+- **`state`** - Read-only access to your agent's current state (messages, loading status, etc.)
+- **`setState`** - The primary way to update your agent's state
+
+### ⚡ **`actions` - Convenient Shortcuts**
+
+The `actions` namespace provides shortcuts for common setState operations:
+
+```javascript
+// Instead of writing this:
+setState({ loading: true });
+setState({ messages: [...state.messages, newMessage] });
+
+// You can write this:
+actions.setLoading(true);
+actions.addMessage(newMessage);
+```
+
+**All `actions` are just convenient shortcuts for `setState` calls.** The key insight:
+
+- **Use `actions.*` for incremental updates** (add message, update one slot, etc.)
+- **Use `setState` for wholesale replacement** (replace all slots, reset entire state, etc.)
+
+```javascript
+// Incremental: use actions
+actions.setLoading(true); // Just update loading
+actions.addMessage(response); // Add to messages array
+actions.setSlot("aboveInput", <UI />); // Update one slot
+
+// Wholesale replacement: use setState
+setState({
+  loading: false,
+  queue: [], // Replace entire queue
+  slots: { aboveInput: <StatusBar /> }, // Replace ALL slots with just this one
+});
+```
+
+This simple mental model makes it easy to choose the right method for any situation.
+
+### 🛠 **`tools` - AI Tool Integration**
+
+- **`tools.definitions`** - Pass this to your AI model so it knows what tools are available
+- **`tools.execute()`** - Directly execute tool calls (used internally by `actions.handleModelResult`)
+
+### 💬 **`prompts` - User Interactions**
+
+- **`prompts.select()`** - Show the user a list of options to choose from
+- **`prompts.confirm()`** - Ask yes/no questions
+- **`prompts.input()`** - Get freeform text input from the user
+
+This organized structure makes it easy to find what you need and keeps your agent code clean and readable.
 
 ## Why Codex SDK vs. Other Agents?
 
@@ -119,6 +174,114 @@ For example, when a user sends a message:
 4.  If the AI requested a tool, your code uses another hook to ask the SDK to execute it. The SDK handles the security and approval flow, then returns the result to your logic to continue the loop.
 
 This model gives you full control over the agent's brain while the SDK manages the body.
+
+## Practical Examples
+
+### Simple vs. Complex State Updates
+
+The organized API makes it easy to choose the right tool for the job:
+
+```javascript
+import { Text } from "ink";
+
+const workflow = createAgentWorkflow(
+  ({ state, setState, actions, tools, prompts }) => {
+    return {
+      message: async (userInput) => {
+        // Simple updates: use actions
+        actions.addMessage(userInput);
+        actions.setLoading(true);
+
+        // Get AI response
+        const result = await generateText({
+          model: openai("gpt-4o"),
+          messages: state.transcript,
+          tools: tools.definitions,
+        });
+
+        // High-level orchestration: use actions
+        await actions.handleModelResult(result);
+        actions.setLoading(false);
+      },
+
+      stop: () => {
+        // Complex state update: use setState directly
+        setState({
+          loading: false,
+          statusLine: "Paused",
+          slots: {
+            aboveInput: <Text color="yellow">⏸ Agent paused</Text>,
+          },
+        });
+      },
+    };
+  },
+);
+```
+
+### User Interaction Example
+
+```javascript
+const result = await prompts.select(
+  [
+    { label: "Create a new file", value: "create" },
+    { label: "Edit existing file", value: "edit" },
+    { label: "Delete file", value: "delete" },
+  ],
+  { defaultValue: "create" },
+);
+
+if (result === "delete") {
+  const confirmed = await prompts.confirm(
+    "Are you sure you want to delete this file?",
+  );
+  if (confirmed) {
+    // proceed with deletion
+  }
+}
+```
+
+## Migration from Previous API
+
+If you're upgrading from an earlier version, here's how the API has changed:
+
+```javascript
+// ❌ Old API (flat structure)
+const workflow = createAgentWorkflow(
+  ({
+    state,
+    setState,
+    addMessage,
+    tools,
+    handleModelResult,
+    onSelect,
+    onConfirm,
+  }) => {
+    // tools was passed directly to AI models
+    // everything was at the top level
+  },
+);
+
+// ✅ New API (organized namespaces)
+const workflow = createAgentWorkflow(
+  ({ state, setState, actions, tools, prompts }) => {
+    // Use actions.* for convenience methods
+    // Use tools.definitions for AI models
+    // Use prompts.* for user interactions
+  },
+);
+```
+
+**Quick Migration:**
+
+- `addMessage` → `actions.addMessage`
+- `handleModelResult` → `actions.handleModelResult`
+- `tools` → `tools.definitions` (when passing to AI models)
+- `onSelect` → `prompts.select`
+- `onConfirm` → `prompts.confirm`
+- `onPrompt` → `prompts.input`
+- `pushQueue` → `actions.addToQueue`
+- `shiftQueue` → `actions.removeFromQueue`
 
 ## Examples
 
@@ -236,21 +399,44 @@ The ReactNode approach gives you complete control over styling with Ink's `<Text
 
 This is the function you provide to `createAgentWorkflow`. It's where your agent's intelligence resides. It receives a `hooks` object with the following properties:
 
+#### **Core State Management**
+
 - **`state`**: A read-only object containing the current workflow state:
   - `loading`: `boolean` - Whether the agent is currently processing.
   - `messages`: `Array<UIMessage>` - The complete history of all message types.
   - `inputDisabled`: `boolean` - Whether the user input is currently disabled.
   - `queue`: `Array<string>` - The current queue of pending tasks for display.
   - `transcript`: `Array<UIMessage>` - A clean version of `messages` excluding "ui" messages, perfect for sending to an LLM.
+  - `statusLine`: `ReactNode` - Optional status line content displayed above the input.
+  - `slots`: `Record<SlotRegion, ReactNode>` - Optional UI slots for custom content placement.
 - **`setState(newState)`**: Updates the workflow state. See merge semantics below.
-- **`addMessage(message)`**: A convenience method to append one or more messages to the history.
-- **`tools`**: An array of tool definitions that the library supports. Pass these to your AI model so it knows what tools it can call.
-- **`handleModelResult(result)`**: A powerful convenience function that takes the raw result from an AI model call and orchestrates the next steps: it adds the AI's response messages to the history, securely executes any requested tool calls, and then adds the tool results back to the history, returning the tool responses.
-- **`handleToolCall(messages)`**: The underlying function to execute tool calls requested by the AI. `handleModelResult` uses this internally.
-- **`onSelect(items, options?)`**: Prompts the user to choose from a list of options. Returns a promise with the selected value.
-- **`onConfirm(message, options?)`**: Prompts the user with a yes/no question. Returns a promise with the boolean result.
-- **`onPrompt(message, options?)`**: Prompts the user for freeform text input. Returns a promise with the string result.
-- **`pushQueue(items)` / `shiftQueue()`**: Methods to manage the task queue displayed in the UI.
+
+#### **`actions` - Convenience Methods**
+
+All actions are shortcuts for common `setState` operations:
+
+- **`actions.addMessage(message)`**: Append one or more messages to the history.
+- **`actions.setLoading(boolean)`**: Set the loading state.
+- **`actions.setInputDisabled(boolean)`**: Enable/disable user input.
+- **`actions.setStatusLine(content)`**: Set status line content.
+- **`actions.setSlot(region, content)`**: Set content for a specific slot region.
+- **`actions.clearSlot(region)`**: Clear content from a slot region.
+- **`actions.clearAllSlots()`**: Clear all slot content.
+- **`actions.addToQueue(items)`**: Add items to the task queue.
+- **`actions.removeFromQueue()`**: Remove and return the first queue item.
+- **`actions.clearQueue()`**: Clear the entire task queue.
+- **`actions.handleModelResult(result)`**: A powerful convenience function that takes the raw result from an AI model call and orchestrates the next steps: it adds the AI's response messages to the history, securely executes any requested tool calls, and then adds the tool results back to the history, returning the tool responses.
+
+#### **`tools` - Tool System**
+
+- **`tools.definitions`**: Tool definitions that the library supports. Pass these to your AI model so it knows what tools it can call.
+- **`tools.execute(messages)`**: The underlying function to execute tool calls requested by the AI. `actions.handleModelResult` uses this internally.
+
+#### **`prompts` - User Interactions**
+
+- **`prompts.select(items, options?)`**: Prompts the user to choose from a list of options. Returns a promise with the selected value.
+- **`prompts.confirm(message, options?)`**: Prompts the user with a yes/no question. Returns a promise with the boolean result.
+- **`prompts.input(message, options?)`**: Prompts the user for freeform text input. Returns a promise with the string result.
 
 ---
 
@@ -299,25 +485,32 @@ The `state.statusLine` property allows you to display custom status information 
 
 ### State update semantics (merge behavior)
 
-`setState` performs predictable shallow merges:
+`setState` uses simple, predictable behavior:
 
-- Objects: shallow-merged by key (e.g., `slots`)
-- Arrays: replaced
-- Primitives/ReactNode: replaced
-- Functional updater: full control; you can replace any field explicitly
+- **Top-level shallow merge**: Preserves other state properties
+- **Everything else replaced**: Arrays, objects, primitives - all get completely replaced with what you provide
+- **Functional updater**: Full control to replace or merge anything
 
-Examples:
+This simple behavior makes `setState` predictable and intuitive:
 
 ```ts
-// Add a slot without spreading previous keys
+// Top-level merge: keeps loading, messages, etc.
+setState({ inputDisabled: true });
+
+// Complete replacement: replaces ALL slots with just this one
 setState({ slots: { aboveInput: <Text>Deploying…</Text> } });
 
-// Clear one slot
-setState({ slots: { aboveInput: null } });
+// To update just one slot, use the convenience method instead
+actions.setSlot('aboveInput', <Text>Deploying…</Text>);
 
-// Replace all slots (functional form bypasses object merge)
-setState(prev => ({ ...prev, slots: {} }));
+// Functional form gives you full control
+setState(prev => ({
+  ...prev,
+  slots: { ...prev.slots, aboveInput: null }
+}));
 ```
+
+**The key insight**: Use `actions.*` methods for incremental updates, use `setState` for wholesale replacement.
 
 ### Slots API
 

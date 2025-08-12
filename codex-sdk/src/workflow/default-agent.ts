@@ -114,7 +114,7 @@ export function defaultWorkflow(
     if (mcpClientManager && !mcpInitialized) {
       try {
         // debug: initializing MCP Client Manager
-        hooks.addMessage({
+        hooks.actions.addMessage({
           role: "ui",
           content: "Initializing MCP Client Manager...",
         });
@@ -123,11 +123,11 @@ export function defaultWorkflow(
         mcpInitialized = true;
         const msg = `MCP Client Manager initialized. Tools found: ${Object.keys(mcpTools).join(", ") || "None"}`;
         // debug: mcp initialized
-        hooks.addMessage({ role: "ui", content: msg });
+        hooks.actions.addMessage({ role: "ui", content: msg });
       } catch (error) {
         const errorMsg = `Error initializing MCP Client Manager: ${error instanceof Error ? error.message : String(error)}`;
         // debug: mcp init error
-        hooks.addMessage({ role: "ui", content: errorMsg });
+        hooks.actions.addMessage({ role: "ui", content: errorMsg });
         // Optionally, handle this error more gracefully, e.g., by notifying the user
       }
     }
@@ -155,7 +155,7 @@ export function defaultWorkflow(
       }
 
       hooks.setState({ loading: false });
-      hooks.addMessage({
+      hooks.actions.addMessage({
         role: "ui",
         content: "⏹️  Execution interrupted by user. You can continue typing.",
       });
@@ -181,13 +181,13 @@ export function defaultWorkflow(
 
       if (mcpClientManager) {
         // debug: closing mcp client manager
-        hooks.addMessage({
+        hooks.actions.addMessage({
           role: "ui",
           content: "Closing MCP Client Manager connections...",
         });
         await mcpClientManager.closeAll();
         // debug: mcp client manager closed
-        hooks.addMessage({
+        hooks.actions.addMessage({
           role: "ui",
           content: "MCP Client Manager connections closed.",
         });
@@ -205,7 +205,7 @@ export function defaultWorkflow(
 
       // Add input messages to transcript and UI
       transcript.push(input);
-      hooks.addMessage(input);
+      hooks.actions.addMessage(input);
 
       // Set up loop control variables
       let isRunning = true;
@@ -230,7 +230,7 @@ export function defaultWorkflow(
               ...transcript,
             ],
             tools: {
-              ...hooks.tools,
+              ...hooks.tools.definitions,
               ...mcpTools, // Add MCP tools here
             },
             ...(execAbortController?.signal
@@ -255,7 +255,7 @@ export function defaultWorkflow(
               // Add to transcript
               transcript.push(message);
               // Send to UI
-              hooks.addMessage(message);
+              hooks.actions.addMessage(message);
 
               // Check for tool calls
               const toolCall = getToolCall(message);
@@ -290,11 +290,11 @@ export function defaultWorkflow(
                       ],
                     };
                     transcript.push(toolResponseMessage);
-                    hooks.addMessage(toolResponseMessage);
+                    hooks.actions.addMessage(toolResponseMessage);
                   } catch (mcpError) {
                     const errorText = `Error calling MCP tool ${toolCall.toolName}: ${mcpError}`;
                     // debug: MCP tool call failed
-                    hooks.addMessage({ role: "ui", content: errorText });
+                    hooks.actions.addMessage({ role: "ui", content: errorText });
                     const errorResult: ModelMessage = {
                       role: "tool",
                       content: [
@@ -310,14 +310,14 @@ export function defaultWorkflow(
                       ],
                     };
                     transcript.push(errorResult);
-                    hooks.addMessage(errorResult);
+                    hooks.actions.addMessage(errorResult);
                   }
                 } else {
                   // Handle as a local tool
-                  const toolResult = await hooks.handleToolCall(message);
+                  const toolResult = await hooks.tools.execute(message);
                   if (toolResult) {
                     transcript.push(toolResult);
-                    hooks.addMessage(toolResult);
+                    hooks.actions.addMessage(toolResult);
                   }
                 }
               }
@@ -334,7 +334,7 @@ export function defaultWorkflow(
         } catch (error) {
           // Log the error and end the loop
           const runErrorMsg = `Error in workflow run: ${(error as Error).message}`;
-          hooks.addMessage({ role: "ui", content: runErrorMsg });
+          hooks.actions.addMessage({ role: "ui", content: runErrorMsg });
 
           // Call the error handler if provided
           // no onError hook
@@ -403,7 +403,7 @@ Keep the summary concise but comprehensive.`,
             });
 
             // Notify the hooks
-            hooks.addMessage({
+            hooks.actions.addMessage({
               role: "ui",
               content: "Conversation context compacted successfully.",
             });
@@ -411,7 +411,7 @@ Keep the summary concise but comprehensive.`,
             hooks.setState({ loading: false });
           } catch (error) {
             const errorMsg = `Error executing /compact command: ${(error as Error).message}`;
-            hooks.addMessage({ role: "ui", content: errorMsg });
+            hooks.actions.addMessage({ role: "ui", content: errorMsg });
             hooks.setState({ loading: false });
           }
         },
@@ -431,13 +431,13 @@ Keep the summary concise but comprehensive.`,
               content = "`/diff` — _not inside a git repository_";
             }
 
-            hooks.addMessage({
+            hooks.actions.addMessage({
               role: "system",
               content: content,
             });
           } catch (error) {
             const errorMsg = `Error executing /diff command: ${(error as Error).message}`;
-            hooks.addMessage({ role: "ui", content: errorMsg });
+            hooks.actions.addMessage({ role: "ui", content: errorMsg });
           }
         },
       },

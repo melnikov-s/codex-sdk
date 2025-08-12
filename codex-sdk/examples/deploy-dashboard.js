@@ -57,7 +57,7 @@ const STEPS = [
 ];
 
 export const workflow = createAgentWorkflow(
-  ({ setState, addMessage }) => {
+  ({ setState, actions }) => {
     let active = false;
     let cancelled = false;
     let percent = 0;
@@ -142,7 +142,7 @@ export const workflow = createAgentWorkflow(
       percent = 0;
       stepIndex = 0;
 
-      addMessage({ role: "ui", content: "Starting deployment…" });
+      actions.addMessage({ role: "ui", content: "Starting deployment…" });
 
       for (stepIndex = 0; stepIndex < STEPS.length; stepIndex++) {
         for (let i = 0; i < 20; i++) {
@@ -159,11 +159,11 @@ export const workflow = createAgentWorkflow(
         if (cancelled) {
           break;
         }
-        addMessage({ role: "ui", content: `✓ ${STEPS[stepIndex]} complete` });
+        actions.addMessage({ role: "ui", content: `✓ ${STEPS[stepIndex]} complete` });
       }
 
       if (cancelled) {
-        addMessage({ role: "ui", content: "Deployment cancelled." });
+        actions.addMessage({ role: "ui", content: "Deployment cancelled." });
         setState({
           statusLine: h(Text, { color: "red" }, "Cancelled"),
           slots: { aboveHistory: null, aboveInput: null },
@@ -174,7 +174,7 @@ export const workflow = createAgentWorkflow(
 
       percent = 100;
       renderProgress();
-      addMessage({ role: "ui", content: "🎉 Deployment complete" });
+      actions.addMessage({ role: "ui", content: "🎉 Deployment complete" });
       setState({ slots: { aboveHistory: null } });
       active = false;
     }
@@ -189,12 +189,12 @@ export const workflow = createAgentWorkflow(
           setSlotAboveInput(
             h(Text, { color: "magenta" }, `Canary: ${canaryPercent}%`),
           );
-          addMessage({
+          actions.addMessage({
             role: "ui",
             content: `Canary updated to ${canaryPercent}%`,
           });
         } else {
-          addMessage({
+          actions.addMessage({
             role: "ui",
             content: `Invalid canary value: ${parts[1]}`,
           });
@@ -241,19 +241,19 @@ export const workflow = createAgentWorkflow(
             ),
           },
         });
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: "Type /deploy to start a production rollout.",
         });
       },
 
       message: async (userInput) => {
-        addMessage(userInput);
+        actions.addMessage(userInput);
         if (parseCommand(userInput.content)) {
           return;
         }
         // Freeform chat could be handled here; keep it simple for the demo.
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: "Commands: /deploy, /cancel, /canary <pct>",
         });

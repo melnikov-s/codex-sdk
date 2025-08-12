@@ -22,7 +22,7 @@ function SourcesPanel({ sources }) {
   );
 }
 
-export const workflow = createAgentWorkflow(({ setState, state, addMessage, handleModelResult, tools }) => {
+export const workflow = createAgentWorkflow(({ setState, state, actions, tools }) => {
   let sources = [];
   let style = "APA";
 
@@ -52,16 +52,16 @@ export const workflow = createAgentWorkflow(({ setState, state, addMessage, hand
       if (next && ["APA", "MLA", "CHICAGO"].includes(next)) {
         style = next;
         updateSlots();
-        addMessage({ role: "ui", content: `Citation style set to ${style}` });
+        actions.addMessage({ role: "ui", content: `Citation style set to ${style}` });
       } else {
-        addMessage({ role: "ui", content: `Unknown style. Try: /style apa|mla|chicago` });
+        actions.addMessage({ role: "ui", content: `Unknown style. Try: /style apa|mla|chicago` });
       }
       return true;
     }
     if (t === "/clear-sources") {
       sources = [];
       updateSlots();
-      addMessage({ role: "ui", content: "Cleared sources." });
+      actions.addMessage({ role: "ui", content: "Cleared sources." });
       return true;
     }
     return false;
@@ -82,7 +82,7 @@ export const workflow = createAgentWorkflow(({ setState, state, addMessage, hand
     },
 
     message: async (userInput) => {
-      addMessage(userInput);
+      actions.addMessage(userInput);
 
       // Commands & source extraction
       if (handleUserCommands(String(userInput.content))) {
@@ -104,10 +104,10 @@ export const workflow = createAgentWorkflow(({ setState, state, addMessage, hand
         model: openai("gpt-4o"),
         system: `You are a research assistant. Incorporate user's sources when helpful. Cite inline in ${style} style. If you need more sources, ask for them.`,
         messages: state.transcript,
-        tools,
+        tools: tools.definitions,
       });
 
-      await handleModelResult(result);
+      await actions.handleModelResult(result);
       updateSlots();
     },
 

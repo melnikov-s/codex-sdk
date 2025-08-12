@@ -1,7 +1,7 @@
 import { run, createAgentWorkflow } from "../dist/lib.js";
 
 const queueDemoWorkflow = createAgentWorkflow(
-  ({ setState, addMessage, pushQueue, shiftQueue }) => {
+  ({ setState, actions }) => {
     let processing = false;
 
     async function processNextInQueue() {
@@ -10,32 +10,32 @@ const queueDemoWorkflow = createAgentWorkflow(
       }
 
       processing = true;
-      setState({ loading: true });
+      actions.setLoading(true);
 
-      let nextMessage = shiftQueue();
+      let nextMessage = actions.removeFromQueue();
       while (nextMessage) {
-        addMessage({
+        actions.addMessage({
           role: "assistant",
           content: `Processing: "${nextMessage}"`,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        addMessage({
+        actions.addMessage({
           role: "assistant",
           content: `Completed: "${nextMessage}"`,
         });
 
-        nextMessage = shiftQueue();
+        nextMessage = actions.removeFromQueue();
       }
 
       processing = false;
-      setState({ loading: false });
+      actions.setLoading(false);
     }
 
     return {
       initialize: async () => {
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content:
             "Queue Demo Agent ready! Type messages to see them queued while processing.",
@@ -45,10 +45,10 @@ const queueDemoWorkflow = createAgentWorkflow(
       message: async (input) => {
         const userMessage = input.content;
 
-        addMessage(input);
-        pushQueue(userMessage);
+        actions.addMessage(input);
+        actions.addToQueue(userMessage);
 
-        addMessage({
+        actions.addMessage({
           role: "ui",
           content: `Added "${userMessage}" to queue`,
         });
@@ -58,8 +58,8 @@ const queueDemoWorkflow = createAgentWorkflow(
 
       stop: () => {
         processing = false;
-        setState({ loading: false });
-        addMessage({
+        actions.setLoading(false);
+        actions.addMessage({
           role: "ui",
           content: "Processing stopped. Queue preserved.",
         });

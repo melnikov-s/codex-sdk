@@ -116,9 +116,6 @@ export interface Workflow {
 }
 
 export interface WorkflowHooks {
-  /** Tool definitions that can be used by the workflow */
-  tools: ToolSet;
-
   /**
    * Set the workflow state declaratively
    * State changes are applied synchronously and immediately visible via getState()
@@ -144,85 +141,146 @@ export interface WorkflowHooks {
   };
 
   /**
-   * Convenience helper: apply a model result by adding its messages and executing tool calls.
-   * Equivalent to:
-   *   const { messages } = result.response;
-   *   addMessage(messages);
-   *   const toolResponses = await handleToolCall(messages);
-   *   addMessage(toolResponses);
-   * Returns the array of tool responses (possibly empty).
+   * Convenience methods - shortcuts for common setState operations
    */
-  handleModelResult: (
-    result: { response: { messages: Array<UIMessage> }; finishReason?: string },
-    opts?: { abortSignal?: AbortSignal },
-  ) => Promise<Array<UIMessage>>;
+  actions: {
+    /**
+     * Add message(s) to the current messages array
+     * @param message Single message or array of messages to add
+     */
+    addMessage: (message: UIMessage | Array<UIMessage>) => void;
 
-  /**
-   * Add message(s) to the current messages array
-   * @param message Single message or array of messages to add
-   */
-  addMessage: (message: UIMessage | Array<UIMessage>) => void;
+    /**
+     * Set loading state
+     * @param loading Whether the agent is currently processing
+     */
+    setLoading: (loading: boolean) => void;
 
-  /**
-   * Add item(s) to the end of the queue
-   * @param item Single string or array of strings to add to queue
-   */
-  pushQueue: (item: string | Array<string>) => void;
+    /**
+     * Set input disabled state
+     * @param disabled Whether user input is disabled
+     */
+    setInputDisabled: (disabled: boolean) => void;
 
-  /**
-   * Remove and return the first item from the queue
-   * @returns The first queue item, or undefined if queue is empty
-   */
-  shiftQueue: () => string | undefined;
+    /**
+     * Set status line content
+     * @param content Status line content to display
+     */
+    setStatusLine: (content: ReactNode) => void;
 
-  /**
-   * Send a confirmation prompt to the user
-   * @param msg The confirmation message
-   * @param options Optional timeout and default configuration
-   * @returns Whether the user confirmed or not
-   */
-  onConfirm(msg: string): Promise<boolean>;
-  onConfirm(msg: string, options: ConfirmOptionsWithTimeout): Promise<boolean>;
-  onConfirm(msg: string, options?: ConfirmOptions): Promise<boolean>;
+    /**
+     * Set content for a specific slot region
+     * @param region The slot region to set content for
+     * @param content The content to set (null to clear)
+     */
+    setSlot: (region: SlotRegion, content: ReactNode | null) => void;
 
-  /**
-   * Send a prompt to the user and get their response
-   * @param msg The prompt message
-   * @param options Optional timeout and default configuration
-   * @returns The user's response as a string
-   */
-  onPrompt(msg: string): Promise<string>;
-  onPrompt(msg: string, options: PromptOptionsWithTimeout): Promise<string>;
-  onPrompt(msg: string, options?: PromptOptions): Promise<string>;
+    /**
+     * Clear content from a specific slot region
+     * @param region The slot region to clear
+     */
+    clearSlot: (region: SlotRegion) => void;
 
-  /**
-   * Handler for tool calls
-   * Overloads:
-   *  - single message → returns a single tool response message or null
-   *  - array of messages → returns an array of tool response messages (empty if none)
-   */
-  handleToolCall: {
-    (
-      message: ModelMessage,
+    /**
+     * Clear all slot content
+     */
+    clearAllSlots: () => void;
+
+    /**
+     * Add item(s) to the end of the queue
+     * @param item Single string or array of strings to add to queue
+     */
+    addToQueue: (item: string | Array<string>) => void;
+
+    /**
+     * Remove and return the first item from the queue
+     * @returns The first queue item, or undefined if queue is empty
+     */
+    removeFromQueue: () => string | undefined;
+
+    /**
+     * Clear the entire queue
+     */
+    clearQueue: () => void;
+
+    /**
+     * Convenience helper: apply a model result by adding its messages and executing tool calls.
+     * Equivalent to:
+     *   const { messages } = result.response;
+     *   addMessage(messages);
+     *   const toolResponses = await tools.execute(messages);
+     *   addMessage(toolResponses);
+     * Returns the array of tool responses (possibly empty).
+     */
+    handleModelResult: (
+      result: { response: { messages: Array<UIMessage> }; finishReason?: string },
       opts?: { abortSignal?: AbortSignal },
-    ): Promise<ModelMessage | null>;
-    (
-      messages: Array<ModelMessage>,
-      opts?: { abortSignal?: AbortSignal },
-    ): Promise<Array<ModelMessage>>;
+    ) => Promise<Array<UIMessage>>;
   };
 
   /**
-   * Show a selection dialog to the user
-   * @param items Array of items to select from
-   * @param options Selection options (required, default, timeout)
-   * @returns Promise that resolves with the selected value
+   * Tool execution and definitions
    */
-  onSelect(
-    items: Array<SelectItem>,
-    options: SelectOptionsWithTimeout,
-  ): Promise<string>;
-  onSelect(items: Array<SelectItem>, options?: SelectOptions): Promise<string>;
+  tools: {
+    /**
+     * Tool definitions that can be used by the workflow
+     */
+    definitions: ToolSet;
+
+    /**
+     * Execute tool calls directly
+     * @param toolCalls Tool calls to execute
+     * @param opts Optional abort signal
+     * @returns Promise that resolves with tool response messages
+     */
+    execute: {
+      (
+        message: ModelMessage,
+        opts?: { abortSignal?: AbortSignal },
+      ): Promise<ModelMessage | null>;
+      (
+        messages: Array<ModelMessage>,
+        opts?: { abortSignal?: AbortSignal },
+      ): Promise<Array<ModelMessage>>;
+    };
+  };
+
+  /**
+   * User interaction prompts
+   */
+  prompts: {
+    /**
+     * Show a selection dialog to the user
+     * @param items Array of items to select from
+     * @param options Selection options (required, default, timeout)
+     * @returns Promise that resolves with the selected value
+     */
+    select(
+      items: Array<SelectItem>,
+      options: SelectOptionsWithTimeout,
+    ): Promise<string>;
+    select(items: Array<SelectItem>, options?: SelectOptions): Promise<string>;
+
+    /**
+     * Send a confirmation prompt to the user
+     * @param msg The confirmation message
+     * @param options Optional timeout and default configuration
+     * @returns Whether the user confirmed or not
+     */
+    confirm(msg: string): Promise<boolean>;
+    confirm(msg: string, options: ConfirmOptionsWithTimeout): Promise<boolean>;
+    confirm(msg: string, options?: ConfirmOptions): Promise<boolean>;
+
+    /**
+     * Send a prompt to the user and get their response
+     * @param msg The prompt message
+     * @param options Optional timeout and default configuration
+     * @returns The user's response as a string
+     */
+    input(msg: string): Promise<string>;
+    input(msg: string, options: PromptOptionsWithTimeout): Promise<string>;
+    input(msg: string, options?: PromptOptions): Promise<string>;
+  };
 }
 
 export type WorkflowFactory = (hooks: WorkflowHooks) => Workflow;

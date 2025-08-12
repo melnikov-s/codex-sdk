@@ -15,9 +15,11 @@ import type {
   PromptOptions,
   DisplayConfig,
   PromptOptionsWithTimeout,
+  SlotRegion,
 } from "../../workflow";
 import type { ModelMessage } from "ai";
 import type { ColorName } from "chalk";
+import type { ReactNode } from "react";
 
 import TerminalChatInput from "./terminal-chat-input.js";
 import { TerminalChatSelect } from "./terminal-chat-select.js";
@@ -119,32 +121,8 @@ export default function TerminalChat({
       if (typeof updater === "function") {
         newState = updater(syncStateRef.current);
       } else {
-        // Top-level shallow merge
-        const baseMerged = { ...syncStateRef.current, ...updater } as WorkflowState;
-        // Nested object shallow-merge for object-valued fields (exclude arrays and React elements)
-        const isMergableObject = (value: unknown): value is Record<string, unknown> => {
-          return (
-            value != null &&
-            typeof value === "object" &&
-            !Array.isArray(value) &&
-            // exclude React elements which carry $$typeof
-            !(value as { $$typeof?: unknown }).$$typeof
-          );
-        };
-        // For each provided key, if both prev and next are mergable objects, shallow-merge them
-        const prevState = syncStateRef.current as unknown as Record<string, unknown>;
-        const upd = updater as Record<string, unknown>;
-        for (const key of Object.keys(upd)) {
-          const prevVal = prevState[key];
-          const nextVal = upd[key];
-          if (isMergableObject(prevVal) && isMergableObject(nextVal)) {
-            (baseMerged as unknown as Record<string, unknown>)[key] = {
-              ...(prevVal as Record<string, unknown>),
-              ...(nextVal as Record<string, unknown>),
-            };
-          }
-        }
-        newState = baseMerged;
+        // Simple top-level shallow merge - everything else gets replaced
+        newState = { ...syncStateRef.current, ...updater } as WorkflowState;
       }
       syncStateRef.current = newState;
 
@@ -320,14 +298,162 @@ export default function TerminalChat({
       }),
     });
 
-    // Create the workflow hooks
+    // Helper functions for the new namespaced API
+    const addMessage = (message: UIMessage | Array<UIMessage>) => {
+      const messages = Array.isArray(message) ? message : [message];
+      void smartSetState((prev) => ({
+        ...prev,
+        messages: [...prev.messages, ...messages],
+      }));
+    };
+
+    const addToQueue = (item: string | Array<string>) => {
+      const items = Array.isArray(item) ? item : [item];
+      // Convert any non-string items to strings
+      const stringItems = items.map((i) => {
+        if (typeof i === "string") {
+          return i;
+        } else if (typeof i === "object" && i && "content" in i) {
+          // Handle message objects by extracting content
+          return (i as { content: string }).content;
+        } else if (typeof i === "object" && i && "text" in i) {
+          // Handle objects with text property
+          return (i as { text: string }).text;
+        } else {
+          // Convert anything else to string
+          return String(i);
+        }
+      });
+      void smartSetState((prev) => ({
+        ...prev,
+        queue: [...(prev.queue || []), ...stringItems],
+      }));
+    };
+
+    const removeFromQueue = () => {
+      const currentState = syncStateRef.current;
+      const queue = currentState.queue || [];
+      if (queue.length === 0) {
+        return undefined;
+      }
+      const firstItem = queue[0];
+      void smartSetState((prev) => ({
+        ...prev,
+        queue: (prev.queue || []).slice(1),
+      }));
+      return firstItem;
+    };
+
+    const handleToolCall = (async (
+      messageOrMessages: ModelMessage | Array<ModelMessage>,
+      { abortSignal } = {},
+    ) => {
+      // Support single message or array of messages
+      const messages = Array.isArray(messageOrMessages)
+        ? messageOrMessages
+        : [messageOrMessages];
+
+      const toolResponses: Array<ModelMessage> = [];
+
+      for (const message of messages) {
+        const toolCall = getToolCall(message);
+        if (!toolCall || !isNativeTool(toolCall.toolName)) {
+          continue;
+        }
+
+        // Handle user interaction tools
+        if (toolCall.toolName === "user_select") {
+          const {
+            message: promptMessage,
+            options,
+            defaultValue,
+          } = toolCall.input as {
+            message: string;
+            options: Array<string>;
+            defaultValue: string;
+          };
+
+          // Transform string options to objects (using string as both label and key)
+          const transformedOptions = options.map((option) => ({
+            label: option,
+            value: option, // Same as label, but needed for Select component structure
+          }));
+
+          // Auto-add "None of the above" option
+          const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
+          const enhancedOptions = [
+            ...transformedOptions,
+            {
+              label: "None of the above (enter custom option)",
+              value: CUSTOM_INPUT_VALUE,
+            },
+          ];
+
+          // Ensure defaultValue exists in the original options (not custom input)
+          const originalOptions = transformedOptions; // The options without "None of the above"
+          const validDefaultValue = originalOptions.find(
+            (opt) => opt.value === defaultValue,
+          )
+            ? defaultValue
+            : (originalOptions[0]?.value ?? "yes"); // Fallback to first original option, not custom input
+
+          const userResponse = await new Promise<string>(
+            (resolve, reject) => {
+              setSelectionState({
+                items: enhancedOptions,
+                options: {
+                  label: promptMessage,
+                  timeout: 45, // Always 45 seconds
+                  defaultValue: validDefaultValue, // This is now always a valid string
+                },
+                resolve,
+                reject,
+              });
+              setOverlayMode("selection");
+            },
+          );
+
+          // Build tool response message and collect it
+          toolResponses.push({
+            role: "tool" as const,
+            content: [
+              {
+                type: "tool-result" as const,
+                toolCallId: toolCall.toolCallId,
+                output: {
+                  value: userResponse,
+                  type: "text",
+                },
+                toolName: toolCall.toolName,
+              },
+            ],
+          });
+          continue;
+        }
+
+        // Handle the tool call with existing system (shell/apply_patch)
+        const toolResults = await execToolCall(
+          getToolCall(message)!,
+          uiConfig,
+          approvalPolicy,
+          additionalWritableRoots,
+          getCommandConfirmation,
+          abortSignal,
+        );
+        if (toolResults[0]) {
+          toolResponses.push(toolResults[0]);
+        }
+      }
+
+      // Return single or array depending on input shape
+      if (Array.isArray(messageOrMessages)) {
+        return toolResponses; // possibly empty
+      }
+      return toolResponses[0] || null;
+    }) as WorkflowHooks["tools"]["execute"];
+
+    // Create the workflow hooks with new namespaced structure
     const workflowHooks: WorkflowHooks = {
-      tools: {
-        shell: shellTool,
-        apply_patch: applyPatchTool,
-        user_select: userSelectTool,
-      },
-      
       setState: smartSetState,
       state: {
         get loading() {
@@ -354,206 +480,100 @@ export default function TerminalChat({
           return syncStateRef.current.slots;
         },
       },
-      addMessage: (message: UIMessage | Array<UIMessage>) => {
-        const messages = Array.isArray(message) ? message : [message];
-        void smartSetState((prev) => ({
-          ...prev,
-          messages: [...prev.messages, ...messages],
-        }));
-      },
-      pushQueue: (item: string | Array<string>) => {
-        const items = Array.isArray(item) ? item : [item];
-        // Convert any non-string items to strings
-        const stringItems = items.map((i) => {
-          if (typeof i === "string") {
-            return i;
-          } else if (typeof i === "object" && i && "content" in i) {
-            // Handle message objects by extracting content
-            return (i as { content: string }).content;
-          } else if (typeof i === "object" && i && "text" in i) {
-            // Handle objects with text property
-            return (i as { text: string }).text;
-          } else {
-            // Convert anything else to string
-            return String(i);
-          }
-        });
-        void smartSetState((prev) => ({
-          ...prev,
-          queue: [...(prev.queue || []), ...stringItems],
-        }));
-      },
-      shiftQueue: () => {
-        const currentState = syncStateRef.current;
-        const queue = currentState.queue || [];
-        if (queue.length === 0) {
-          return undefined;
-        }
-        const firstItem = queue[0];
-        void smartSetState((prev) => ({
-          ...prev,
-          queue: (prev.queue || []).slice(1),
-        }));
-        return firstItem;
-      },
       
-      onConfirm: async (
-        msg: string,
-        options?: ConfirmOptions | ConfirmOptionsWithTimeout,
-      ) => {
-        // Show confirmation dialog using ephemeral UI
-        return new Promise<boolean>((resolve, reject) => {
-          setConfirmationState({
-            message: msg,
-            options,
-            resolve,
-            reject,
+      actions: {
+        addMessage,
+        setLoading: (loading: boolean) => {
+          void smartSetState({ loading });
+        },
+        setInputDisabled: (disabled: boolean) => {
+          void smartSetState({ inputDisabled: disabled });
+        },
+        setStatusLine: (content: ReactNode) => {
+          void smartSetState({ statusLine: content });
+        },
+        setSlot: (region: SlotRegion, content: ReactNode | null) => {
+          void smartSetState((prev) => ({
+            ...prev,
+            slots: { ...prev.slots, [region]: content },
+          }));
+        },
+        clearSlot: (region: SlotRegion) => {
+          void smartSetState((prev) => ({
+            ...prev,
+            slots: { ...prev.slots, [region]: null },
+          }));
+        },
+        clearAllSlots: () => {
+          void smartSetState({ slots: {} });
+        },
+        addToQueue,
+        removeFromQueue,
+        clearQueue: () => {
+          void smartSetState({ queue: [] });
+        },
+        handleModelResult: async (result, opts) => {
+          const messages = result?.response?.messages ?? [];
+          const msgsAsUI = messages as unknown as Array<UIMessage>;
+          addMessage(msgsAsUI);
+          const toolResponses = (await handleToolCall(
+            messages as unknown as Array<ModelMessage>,
+            opts,
+          )) as Array<ModelMessage>;
+          addMessage(toolResponses as unknown as Array<UIMessage>);
+          return toolResponses as unknown as Array<UIMessage>;
+        },
+      },
+
+      tools: {
+        definitions: {
+          shell: shellTool,
+          apply_patch: applyPatchTool,
+          user_select: userSelectTool,
+        },
+        execute: handleToolCall,
+      },
+
+      prompts: {
+        select: (
+          items: Array<SelectItem>,
+          options?: SelectOptions | SelectOptionsWithTimeout,
+        ) => {
+          return new Promise<string>((resolve, reject) => {
+            setSelectionState({ items, options, resolve, reject });
+            setOverlayMode("selection");
           });
-          setOverlayMode("confirmation");
-        });
-      },
-      onPrompt: async (
-        msg: string,
-        options?: PromptOptions | PromptOptionsWithTimeout,
-      ) => {
-        // Show text input prompt
-        return new Promise<string>((resolve, reject) => {
-          setPromptState({
-            message: msg,
-            options,
-            resolve,
-            reject,
-          });
-          setOverlayMode("prompt");
-        });
-      },
-      onSelect: (
-        items: Array<SelectItem>,
-        options?: SelectOptions | SelectOptionsWithTimeout,
-      ) => {
-        return new Promise<string>((resolve, reject) => {
-          setSelectionState({ items, options, resolve, reject });
-          setOverlayMode("selection");
-        });
-      },
-      handleToolCall: (async (
-        messageOrMessages: ModelMessage | Array<ModelMessage>,
-        { abortSignal } = {},
-      ) => {
-        // Support single message or array of messages
-        const messages = Array.isArray(messageOrMessages)
-          ? messageOrMessages
-          : [messageOrMessages];
-
-        const toolResponses: Array<ModelMessage> = [];
-
-        for (const message of messages) {
-          const toolCall = getToolCall(message);
-          if (!toolCall || !isNativeTool(toolCall.toolName)) {
-            continue;
-          }
-
-          // Handle user interaction tools
-          if (toolCall.toolName === "user_select") {
-            const {
-              message: promptMessage,
+        },
+        confirm: async (
+          msg: string,
+          options?: ConfirmOptions | ConfirmOptionsWithTimeout,
+        ) => {
+          // Show confirmation dialog using ephemeral UI
+          return new Promise<boolean>((resolve, reject) => {
+            setConfirmationState({
+              message: msg,
               options,
-              defaultValue,
-            } = toolCall.input as {
-              message: string;
-              options: Array<string>;
-              defaultValue: string;
-            };
-
-            // Transform string options to objects (using string as both label and key)
-            const transformedOptions = options.map((option) => ({
-              label: option,
-              value: option, // Same as label, but needed for Select component structure
-            }));
-
-            // Auto-add "None of the above" option
-            const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
-            const enhancedOptions = [
-              ...transformedOptions,
-              {
-                label: "None of the above (enter custom option)",
-                value: CUSTOM_INPUT_VALUE,
-              },
-            ];
-
-            // Ensure defaultValue exists in the original options (not custom input)
-            const originalOptions = transformedOptions; // The options without "None of the above"
-            const validDefaultValue = originalOptions.find(
-              (opt) => opt.value === defaultValue,
-            )
-              ? defaultValue
-              : (originalOptions[0]?.value ?? "yes"); // Fallback to first original option, not custom input
-
-            const userResponse = await new Promise<string>(
-              (resolve, reject) => {
-                setSelectionState({
-                  items: enhancedOptions,
-                  options: {
-                    label: promptMessage,
-                    timeout: 45, // Always 45 seconds
-                    defaultValue: validDefaultValue, // This is now always a valid string
-                  },
-                  resolve,
-                  reject,
-                });
-                setOverlayMode("selection");
-              },
-            );
-
-            // Build tool response message and collect it
-            toolResponses.push({
-              role: "tool" as const,
-              content: [
-                {
-                  type: "tool-result" as const,
-                  toolCallId: toolCall.toolCallId,
-                  output: {
-                    value: userResponse,
-                    type: "text",
-                  },
-                  toolName: toolCall.toolName,
-                },
-              ],
+              resolve,
+              reject,
             });
-            continue;
-          }
-
-          // Handle the tool call with existing system (shell/apply_patch)
-          const toolResults = await execToolCall(
-            getToolCall(message)!,
-            uiConfig,
-            approvalPolicy,
-            additionalWritableRoots,
-            getCommandConfirmation,
-            abortSignal,
-          );
-          if (toolResults[0]) {
-            toolResponses.push(toolResults[0]);
-          }
-        }
-
-        // Return single or array depending on input shape
-        if (Array.isArray(messageOrMessages)) {
-          return toolResponses; // possibly empty
-        }
-        return toolResponses[0] || null;
-      }) as WorkflowHooks["handleToolCall"],
-
-      handleModelResult: async (result, opts) => {
-        const messages = result?.response?.messages ?? [];
-        const msgsAsUI = messages as unknown as Array<UIMessage>;
-        workflowHooks.addMessage(msgsAsUI);
-        const toolResponses = (await workflowHooks.handleToolCall(
-          messages as unknown as Array<ModelMessage>,
-          opts,
-        )) as Array<ModelMessage>;
-        workflowHooks.addMessage(toolResponses as unknown as Array<UIMessage>);
-        return toolResponses as unknown as Array<UIMessage>;
+            setOverlayMode("confirmation");
+          });
+        },
+        input: async (
+          msg: string,
+          options?: PromptOptions | PromptOptionsWithTimeout,
+        ) => {
+          // Show text input prompt
+          return new Promise<string>((resolve, reject) => {
+            setPromptState({
+              message: msg,
+              options,
+              resolve,
+              reject,
+            });
+            setOverlayMode("prompt");
+          });
+        },
       },
     };
 
