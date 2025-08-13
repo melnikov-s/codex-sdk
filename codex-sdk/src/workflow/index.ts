@@ -153,9 +153,9 @@ export interface WorkflowHooks {
   actions: {
     /**
      * Add message(s) to the current messages array
-     * @param message Single message or array of messages to add
+     * @param message Single message, string (creates UI message), or array of messages/strings to add
      */
-    addMessage: (message: UIMessage | Array<UIMessage>) => void;
+    addMessage: (message: UIMessage | string | Array<UIMessage | string>) => void;
 
     /**
      * Set loading state
