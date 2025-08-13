@@ -14,6 +14,9 @@ export { createDefaultWorkflow } from "./workflow/default-agent.js";
 // Re-export approval mode constants for use by consumers
 export { AutoApprovalMode } from "./utils/auto-approval-mode.js";
 
+// Export approval types for use by consumers
+export type { ApprovalPolicy, SafetyAssessment } from "./approvals.js";
+
 // Import necessary components
 import type { ApprovalPolicy } from "./approvals.js";
 import type { FullAutoErrorMode } from "./utils/auto-approval-mode.js";

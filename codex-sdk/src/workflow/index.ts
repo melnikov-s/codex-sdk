@@ -1,3 +1,4 @@
+import type { ApprovalPolicy, SafetyAssessment } from "../approvals.js";
 import type { UIMessage } from "../utils/ai";
 import type { ModelMessage, ToolSet } from "ai";
 import type { ReactNode } from "react";
@@ -61,6 +62,10 @@ export interface WorkflowState {
    * Values are arbitrary React nodes; set to null/undefined to clear.
    */
   slots?: Partial<Record<SlotRegion, ReactNode | null>>;
+  /**
+   * Current approval policy for tool execution
+   */
+  approvalPolicy?: ApprovalPolicy;
 }
 
 
@@ -145,6 +150,7 @@ export interface WorkflowHooks {
     readonly transcript: Array<UIMessage>;
     readonly statusLine?: ReactNode;
     readonly slots?: Partial<Record<SlotRegion, ReactNode | null>>;
+    readonly approvalPolicy?: ApprovalPolicy;
   };
 
   /**
@@ -228,6 +234,12 @@ export interface WorkflowHooks {
     clearTaskList: () => void;
 
     /**
+     * Set the approval policy for tool execution
+     * @param policy The approval policy to set
+     */
+    setApprovalPolicy: (policy: ApprovalPolicy) => void;
+
+    /**
      * Convenience helper: apply a model result by adding its messages and executing tool calls.
      * Equivalent to:
      *   const { messages } = result.response;
@@ -304,6 +316,36 @@ export interface WorkflowHooks {
     input(msg: string): Promise<string>;
     input(msg: string, options: PromptOptionsWithTimeout): Promise<string>;
     input(msg: string, options?: PromptOptions): Promise<string>;
+  };
+
+  /**
+   * Approval policy management and control
+   */
+  approval: {
+    /**
+     * Get the current approval policy
+     * @returns The current approval policy
+     */
+    getPolicy(): ApprovalPolicy;
+
+    /**
+     * Set the approval policy dynamically
+     * @param policy The new approval policy to set
+     */
+    setPolicy(policy: ApprovalPolicy): void;
+
+    /**
+     * Check if a command would be auto-approved under current policy
+     * @param command The command to check as an array of strings
+     * @param workdir Optional working directory for the command
+     * @param writableRoots Optional array of writable root paths
+     * @returns Promise that resolves with the safety assessment
+     */
+    canAutoApprove(
+      command: ReadonlyArray<string>,
+      workdir?: string,
+      writableRoots?: ReadonlyArray<string>,
+    ): Promise<SafetyAssessment>;
   };
 }
 
