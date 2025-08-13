@@ -302,8 +302,18 @@ export default function TerminalChat({
     });
 
     // Helper functions for the new namespaced API
-    const addMessage = (message: UIMessage | Array<UIMessage>) => {
-      const messages = Array.isArray(message) ? message : [message];
+    const addMessage = (message: UIMessage | string | Array<UIMessage | string>) => {
+      const normalizeMessage = (msg: UIMessage | string): UIMessage => {
+        if (typeof msg === 'string') {
+          return { role: 'ui', content: msg };
+        }
+        return msg;
+      };
+
+      const messages = Array.isArray(message) 
+        ? message.map(normalizeMessage)
+        : [normalizeMessage(message)];
+      
       void smartSetState((prev) => ({
         ...prev,
         messages: [...prev.messages, ...messages],

@@ -46,11 +46,11 @@ import { run, createAgentWorkflow } from "codex-sdk";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
-const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
+const workflow = createAgentWorkflow(({ state, actions, tools }) => {
   return {
     // Set an initial "Ready" message
     initialize: async () => {
-      setState({ messages: [{ role: "ui", content: "Ready." }] });
+      actions.addMessage("Ready.");
     },
     // This is the core loop, called on every user input
     message: async (userInput) => {
@@ -72,7 +72,6 @@ const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
     },
     // Cleanup methods for user interruption
     stop: () => actions.setLoading(false),
-    terminate: () => setState({ loading: false, messages: [] }),
   };
 });
 
@@ -122,6 +121,29 @@ setState({
 ```
 
 This simple mental model makes it easy to choose the right method for any situation.
+
+### 📝 **String Convenience for Messages**
+
+The `addMessage` action has been enhanced with string convenience shortcuts. You can now pass strings directly instead of always creating message objects:
+
+```javascript
+// Instead of writing this:
+actions.addMessage({ role: "ui", content: "Processing complete" });
+
+// You can write this:
+actions.addMessage("Processing complete"); // Automatically becomes a UI message
+
+// Works with arrays too:
+actions.addMessage(["Starting task...", "Task complete!"]);
+```
+
+Strings are automatically converted to UI messages with `role: "ui"`, making it faster to add simple status updates and notifications.
+
+#### **Message Role Conventions**
+
+- **`role: "ui"`** - Status updates, notifications, and system messages added manually via `addMessage`
+- **`role: "assistant"`** - AI responses that come exclusively from LLM calls via `actions.handleModelResult()`
+- **`role: "user"`** - User input messages that come from actual user interaction
 
 ### 🛠 **`tools` - AI Tool Integration**
 
