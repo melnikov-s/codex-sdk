@@ -46,7 +46,7 @@ import { run, createAgentWorkflow } from "codex-sdk";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
-const workflow = createAgentWorkflow(({ state, actions, tools }) => {
+const workflow = createAgentWorkflow(({ state, actions, tools, approval }) => {
   return {
     // Set an initial "Ready" message
     initialize: async () => {
@@ -156,6 +156,12 @@ Strings are automatically converted to UI messages with `role: "ui"`, making it 
 - **`prompts.confirm()`** - Ask yes/no questions
 - **`prompts.input()`** - Get freeform text input from the user
 
+### 🔒 **`approval` - Security Policy Management**
+
+- **`approval.getPolicy()`** - Get the current approval policy for tool execution
+- **`approval.setPolicy(policy)`** - Dynamically change the approval policy during workflow execution
+- **`approval.canAutoApprove(command)`** - Preview whether a command would be auto-approved under the current policy
+
 This organized structure makes it easy to find what you need and keeps your agent code clean and readable.
 
 ## Why Codex SDK vs. Other Agents?
@@ -207,7 +213,7 @@ The organized API makes it easy to choose the right tool for the job:
 import { Text } from "ink";
 
 const workflow = createAgentWorkflow(
-  ({ state, setState, actions, tools, prompts }) => {
+  ({ state, setState, actions, tools, prompts, approval }) => {
     return {
       message: async (userInput) => {
         // Simple updates: use actions
@@ -507,6 +513,7 @@ All actions are shortcuts for common `setState` operations:
 - **`actions.addTask(task)`**: Add task(s) to the task list. Accepts a string, TaskItem object, or arrays of either.
 - **`actions.toggleTask(index?)`**: Toggle the completion status of a task by index, or the next incomplete task if no index provided.
 - **`actions.clearTaskList()`**: Clear the entire task list.
+- **`actions.setApprovalPolicy(policy)`**: Set the approval policy for tool execution dynamically.
 - **`actions.handleModelResult(result)`**: A powerful convenience function that takes the raw result from an AI model call and orchestrates the next steps: it adds the AI's response messages to the history, securely executes any requested tool calls, and then adds the tool results back to the history, returning the tool responses.
 
 #### **`tools` - Tool System**
@@ -519,6 +526,12 @@ All actions are shortcuts for common `setState` operations:
 - **`prompts.select(items, options?)`**: Prompts the user to choose from a list of options. Returns a promise with the selected value.
 - **`prompts.confirm(message, options?)`**: Prompts the user with a yes/no question. Returns a promise with the boolean result.
 - **`prompts.input(message, options?)`**: Prompts the user for freeform text input. Returns a promise with the string result.
+
+#### **`approval` - Security Policy Management**
+
+- **`approval.getPolicy()`**: Get the current approval policy for tool execution. Returns one of: "suggest", "auto-edit", or "full-auto".
+- **`approval.setPolicy(policy)`**: Dynamically change the approval policy during workflow execution. Also accessible via `actions.setApprovalPolicy(policy)`.
+- **`approval.canAutoApprove(command, workdir?, writableRoots?)`**: Preview whether a command would be auto-approved under the current policy. Returns a Promise<SafetyAssessment> indicating if the command is safe, requires approval, or would be rejected.
 
 ---
 
@@ -561,6 +574,7 @@ interface WorkflowState {
   transcript?: Array<UIMessage>; // Derived: messages filtered to exclude UI messages
   statusLine?: ReactNode; // Optional status line displayed above the input
   slots?: Partial<Record<SlotRegion, ReactNode | null>>; // Optional slot UI regions
+  approvalPolicy?: ApprovalPolicy; // Current approval policy for tool execution
 }
 ```
 
@@ -569,6 +583,8 @@ The `state.transcript` property provides a clean message history (excluding "ui"
 The `state.taskList` property contains an array of TaskItem objects representing the current todo list. Each task has a `completed` boolean and a `label` string.
 
 The `state.statusLine` property allows you to display custom status information above the terminal input. You can set it to any React component or simple text using `setState({statusLine: "Processing..."})` or `setState({statusLine: <Text color="green">✓ Ready</Text>})`.
+
+The `state.approvalPolicy` property contains the current approval policy for tool execution, which can be "suggest", "auto-edit", or "full-auto". This policy determines how shell commands and file modifications are approved by the user.
 
 ---
 

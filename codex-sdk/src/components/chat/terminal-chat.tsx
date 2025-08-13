@@ -1,4 +1,4 @@
-import type { ApplyPatchCommand, ApprovalPolicy } from "../../approvals.js";
+import type { ApplyPatchCommand, ApprovalPolicy, SafetyAssessment } from "../../approvals.js";
 import type { LibraryConfig } from "../../lib.js";
 import type { CommandConfirmation } from "../../utils/agent/review.js";
 import type { UIMessage } from "../../utils/ai.js";
@@ -99,6 +99,7 @@ export default function TerminalChat({
     taskList: [],
     statusLine: undefined,
     slots: undefined,
+    approvalPolicy: initialApprovalPolicy,
   });
 
   // Separate synchronous state for immediate getState access
@@ -110,6 +111,7 @@ export default function TerminalChat({
     taskList: [],
     statusLine: undefined,
     slots: undefined,
+    approvalPolicy: initialApprovalPolicy,
   });
 
   // Smart setState that updates both sync state immediately and React state for UI
@@ -495,10 +497,11 @@ export default function TerminalChat({
         }
 
         // Handle the tool call with existing system (shell/apply_patch)
+        const currentApprovalPolicy = syncStateRef.current.approvalPolicy || approvalPolicy;
         const toolResults = await execToolCall(
           getToolCall(message)!,
           uiConfig,
-          approvalPolicy,
+          currentApprovalPolicy,
           additionalWritableRoots,
           getCommandConfirmation,
           abortSignal,
@@ -545,6 +548,9 @@ export default function TerminalChat({
         get slots() {
           return syncStateRef.current.slots;
         },
+        get approvalPolicy() {
+          return syncStateRef.current.approvalPolicy;
+        },
       },
       
       actions: {
@@ -582,6 +588,10 @@ export default function TerminalChat({
         toggleTask,
         clearTaskList: () => {
           void smartSetState({ taskList: [] });
+        },
+        setApprovalPolicy: (policy: ApprovalPolicy) => {
+          setApprovalPolicy(policy);
+          void smartSetState({ approvalPolicy: policy });
         },
         handleModelResult: async (result, opts) => {
           const messages = result?.response?.messages ?? [];
@@ -646,6 +656,30 @@ export default function TerminalChat({
           });
         },
       },
+
+      approval: {
+        getPolicy: (): ApprovalPolicy => {
+          return syncStateRef.current.approvalPolicy || initialApprovalPolicy;
+        },
+        setPolicy: (policy: ApprovalPolicy) => {
+          setApprovalPolicy(policy);
+          void smartSetState({ approvalPolicy: policy });
+        },
+        canAutoApprove: async (
+          command: ReadonlyArray<string>,
+          workdir?: string,
+          writableRoots?: ReadonlyArray<string>,
+        ): Promise<SafetyAssessment> => {
+          const { canAutoApprove } = await import("../../approvals.js");
+          const currentPolicy = syncStateRef.current.approvalPolicy || initialApprovalPolicy;
+          return canAutoApprove(
+            command,
+            workdir,
+            currentPolicy,
+            writableRoots || additionalWritableRoots,
+          );
+        },
+      },
     };
 
     // Create the workflow using the provided factory or default
@@ -671,6 +705,7 @@ export default function TerminalChat({
     };
   }, [
     approvalPolicy,
+    initialApprovalPolicy,
     notify,
     requestConfirmation,
     uiConfig,
