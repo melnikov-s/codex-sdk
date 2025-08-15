@@ -158,10 +158,17 @@ export interface WorkflowHooks {
    */
   actions: {
     /**
-     * Add message(s) to the current messages array
-     * @param message Single message, string (creates UI message), or array of messages/strings to add
+     * Add UI-only message(s) to the current messages array
+     * UI messages are excluded from transcript and used for status/info display
+     * @param text Single string or array of strings to display as UI messages
      */
-    addMessage: (message: UIMessage | string | Array<UIMessage | string>) => void;
+    say: (text: string | Array<string>) => void;
+
+    /**
+     * Add structured message(s) to the current messages array
+     * @param message Single UIMessage or array of UIMessages to add
+     */
+    addMessage: (message: UIMessage | Array<UIMessage>) => void;
 
     /**
      * Set loading state
@@ -237,7 +244,7 @@ export interface WorkflowHooks {
      * Set the approval policy for tool execution
      * @param policy The approval policy to set
      */
-    setApprovalPolicy: (policy: ApprovalPolicy) => void;
+    setApprovalPolicy?: (policy: ApprovalPolicy) => void;
 
     /**
      * Convenience helper: apply a model result by adding its messages and executing tool calls.
@@ -321,7 +328,7 @@ export interface WorkflowHooks {
   /**
    * Approval policy management and control
    */
-  approval: {
+  approval?: {
     /**
      * Get the current approval policy
      * @returns The current approval policy

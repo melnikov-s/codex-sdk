@@ -62,7 +62,7 @@ const codeReviewWorkflow = createAgentWorkflow(
 
         if (files.length === 0) {
           actions.setLoading(false);
-          actions.addMessage(
+          actions.say(
             "No code files found in current directory. Create some .js, .ts, or .py files first!",
           );
           return;
@@ -107,7 +107,7 @@ Be specific about files and what needs to be done.`,
         }
 
         actions.setLoading(false);
-        actions.addMessage(`📋 Analysis complete! I found ${taskLines.length} areas for improvement in your codebase.
+        actions.say(`📋 Analysis complete! I found ${taskLines.length} areas for improvement in your codebase.
 
 Type "start" to begin working on the first task, or say "help task 1" for guidance on any specific task.`);
       },
@@ -121,11 +121,11 @@ Type "start" to begin working on the first task, or say "help task 1" for guidan
         if (userMessage === "start") {
           const nextTask = state.taskList.find((t) => !t.completed);
           if (nextTask) {
-            actions.addMessage(
+            actions.say(
               `🎯 Let's work on: "${nextTask.label}"\n\nWhen you're done, say "done" to mark it complete, or "help" if you need guidance.`,
             );
           } else {
-            actions.addMessage(
+            actions.say(
               "🎉 All tasks completed! Great work on improving your codebase.",
             );
           }
@@ -134,7 +134,7 @@ Type "start" to begin working on the first task, or say "help task 1" for guidan
           userMessage.includes("completed")
         ) {
           actions.toggleTask(); // Toggle next incomplete task
-          actions.addMessage(
+          actions.say(
             "✅ Task marked complete! Type 'start' for the next task.",
           );
         } else if (userMessage.includes("help")) {
@@ -152,9 +152,9 @@ Type "start" to begin working on the first task, or say "help task 1" for guidan
               ],
             });
 
-            actions.addMessage(`💡 **Help:**\n\n${result.text}\n\nSay "done" when you've fixed this issue.`);
+            actions.say(`💡 **Help:**\n\n${result.text}\n\nSay "done" when you've fixed this issue.`);
           } else {
-            actions.addMessage(
+            actions.say(
               "No pending tasks! All issues have been resolved.",
             );
           }
@@ -176,7 +176,7 @@ Type "start" to begin working on the first task, or say "help task 1" for guidan
 
       stop: () => {
         actions.setLoading(false);
-        actions.addMessage("Agent paused. Task list preserved.");
+        actions.say("Agent paused. Task list preserved.");
       },
 
       terminate: () => {

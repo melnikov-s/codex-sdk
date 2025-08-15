@@ -3,7 +3,7 @@ import type { ModelMessage } from "ai";
 
 import TerminalChatResponseItem from "./terminal-chat-response-item";
 import { Box, Text } from "ink";
-import React from "react";
+import React, { useMemo } from "react";
 
 export default function TerminalChatPastRollout({
   session,
@@ -48,7 +48,7 @@ export default function TerminalChatPastRollout({
         </Text>
       </Box>
       <Box flexDirection="column" gap={1}>
-        {React.useMemo(
+        {useMemo(
           () =>
             items.map((item, key) => (
               <TerminalChatResponseItem key={key} item={item} />

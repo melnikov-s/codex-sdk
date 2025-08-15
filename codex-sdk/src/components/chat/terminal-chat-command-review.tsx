@@ -5,7 +5,7 @@ import { ReviewDecision } from "../../utils/agent/review";
 import { Select } from "../vendor/ink-select/select";
 import TextInput from "../vendor/ink-text-input";
 import { Box, Text, useInput } from "ink";
-import React from "react";
+import React, { useState, useMemo, useEffect, isValidElement } from "react";
 
 // default deny‑reason:
 const DEFAULT_DENY_MESSAGE =
@@ -27,19 +27,19 @@ export function TerminalChatCommandReview({
   // when false, disable the underlying Select so it won't capture input
   isActive?: boolean;
 }): React.ReactElement {
-  const [mode, setMode] = React.useState<"select" | "input" | "explanation">(
+  const [mode, setMode] = useState<"select" | "input" | "explanation">(
     "select",
   );
-  const [explanation, setExplanation] = React.useState<string>("");
+  const [explanation, setExplanation] = useState<string>("");
 
   // If the component receives an explanation prop, update the state
-  React.useEffect(() => {
+  useEffect(() => {
     if (propExplanation) {
       setExplanation(propExplanation);
       setMode("explanation");
     }
   }, [propExplanation]);
-  const [msg, setMsg] = React.useState<string>("");
+  const [msg, setMsg] = useState<string>("");
 
   // -------------------------------------------------------------------------
   // Determine whether the "always approve" option should be displayed.  We
@@ -50,9 +50,9 @@ export function TerminalChatCommandReview({
   // <TerminalChatToolCallCommand/> to extract the base command.
   // -------------------------------------------------------------------------
 
-  const showAlwaysApprove = React.useMemo(() => {
+  const showAlwaysApprove = useMemo(() => {
     if (
-      React.isValidElement(confirmationPrompt) &&
+      isValidElement(confirmationPrompt) &&
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       typeof (confirmationPrompt as any).props?.commandForDisplay === "string"
     ) {
@@ -72,7 +72,7 @@ export function TerminalChatCommandReview({
   // Memoize the list of selectable options to avoid recreating the array on
   // every render.  This keeps <Select/> stable and prevents unnecessary work
   // inside Ink.
-  const approvalOptions = React.useMemo(() => {
+  const approvalOptions = useMemo(() => {
     const opts: Array<
       | { label: string; value: ReviewDecision }
       | { label: string; value: "edit" }

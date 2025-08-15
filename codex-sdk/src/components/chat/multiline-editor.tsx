@@ -5,7 +5,7 @@ import TextBuffer from "../../text-buffer.js";
 import chalk from "chalk";
 import { Box, Text, useInput } from "ink";
 import { EventEmitter } from "node:events";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useImperativeHandle } from "react";
 
 /* --------------------------------------------------------------------------
  * Polyfill missing `ref()` / `unref()` methods on the mock `Stdin` stream
@@ -311,7 +311,7 @@ const MultilineTextEditorInner = (
   /*  Imperative handle – expose a read‑only view of caret & buffer geometry    */
   /* ------------------------------------------------------------------------- */
 
-  React.useImperativeHandle(
+  useImperativeHandle(
     ref,
     () => ({
       getRow: () => buffer.current.getCursor()[0],

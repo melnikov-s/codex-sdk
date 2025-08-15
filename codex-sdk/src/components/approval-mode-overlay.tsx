@@ -1,7 +1,7 @@
 import TypeaheadOverlay from "./typeahead-overlay.js";
 import { AutoApprovalMode } from "../utils/auto-approval-mode.js";
 import { Text } from "ink";
-import React from "react";
+import React, { useMemo } from "react";
 
 type Props = {
   currentMode: string;
@@ -21,7 +21,7 @@ export default function ApprovalModeOverlay({
   onSelect,
   onExit,
 }: Props): JSX.Element {
-  const items = React.useMemo(
+  const items = useMemo(
     () =>
       Object.values(AutoApprovalMode).map((m) => ({
         label: m,

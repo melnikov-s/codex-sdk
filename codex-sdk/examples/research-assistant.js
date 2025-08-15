@@ -52,16 +52,16 @@ export const workflow = createAgentWorkflow(({ setState, state, actions, tools }
       if (next && ["APA", "MLA", "CHICAGO"].includes(next)) {
         style = next;
         updateSlots();
-        actions.addMessage({ role: "ui", content: `Citation style set to ${style}` });
+        actions.say(`Citation style set to ${style}`);
       } else {
-        actions.addMessage({ role: "ui", content: `Unknown style. Try: /style apa|mla|chicago` });
+        actions.say(`Unknown style. Try: /style apa|mla|chicago`);
       }
       return true;
     }
     if (t === "/clear-sources") {
       sources = [];
       updateSlots();
-      actions.addMessage({ role: "ui", content: "Cleared sources." });
+      actions.say("Cleared sources.");
       return true;
     }
     return false;

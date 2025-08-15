@@ -8,7 +8,7 @@ import { CountdownTimer } from "../countdown-timer";
 import MultilineTextEditor from "./multiline-editor";
 import { Select } from "../vendor/ink-select/select";
 import { Box, Text, useInput } from "ink";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
 export function TerminalChatSelect({
   items,
@@ -42,7 +42,7 @@ export function TerminalChatSelect({
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customInputValue, setCustomInputValue] = useState("");
 
-  const defaultIndex = React.useMemo(() => {
+  const defaultIndex = useMemo(() => {
     const defaultValue = options?.defaultValue || options?.default;
     if (defaultValue) {
       const index = items.findIndex((item) => item.value === defaultValue);
@@ -51,7 +51,7 @@ export function TerminalChatSelect({
     return 0;
   }, [items, options?.defaultValue, options?.default]);
 
-  const selectOptions = React.useMemo(() => {
+  const selectOptions = useMemo(() => {
     return items.map((item) => ({
       label: item.label,
       value: item.value,

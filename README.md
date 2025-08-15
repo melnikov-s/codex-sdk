@@ -50,7 +50,7 @@ const workflow = createAgentWorkflow(({ state, actions, tools, approval }) => {
   return {
     // Set an initial "Ready" message
     initialize: async () => {
-      actions.addMessage("Ready.");
+      actions.say("Ready.");
     },
     // This is the core loop, called on every user input
     message: async (userInput) => {
@@ -124,26 +124,27 @@ This simple mental model makes it easy to choose the right method for any situat
 
 ### 📝 **String Convenience for Messages**
 
-The `addMessage` action has been enhanced with string convenience shortcuts. You can now pass strings directly instead of always creating message objects:
+The `say` action provides a convenient shortcut for adding UI-only messages. Use `say` for simple status updates and notifications:
 
 ```javascript
 // Instead of writing this:
 actions.addMessage({ role: "ui", content: "Processing complete" });
 
 // You can write this:
-actions.addMessage("Processing complete"); // Automatically becomes a UI message
+actions.say("Processing complete"); // Creates a UI message
 
 // Works with arrays too:
-actions.addMessage(["Starting task...", "Task complete!"]);
+actions.say(["Starting task...", "Task complete!"]);
 ```
 
-Strings are automatically converted to UI messages with `role: "ui"`, making it faster to add simple status updates and notifications.
+Strings passed to `say` are automatically converted to UI messages with `role: "ui"`. These messages are excluded from the conversation transcript and used only for status display.
 
 #### **Message Role Conventions**
 
-- **`role: "ui"`** - Status updates, notifications, and system messages added manually via `addMessage`
+- **`role: "ui"`** - Status updates and notifications added via `actions.say()` (excluded from transcript)
 - **`role: "assistant"`** - AI responses that come exclusively from LLM calls via `actions.handleModelResult()`
 - **`role: "user"`** - User input messages that come from actual user interaction
+- **`role: "system"`** - System messages and structured content added via `actions.addMessage()`
 
 ### 🛠 **`tools` - AI Tool Integration**
 
@@ -164,19 +165,26 @@ Strings are automatically converted to UI messages with `role: "ui"`, making it 
 
 This organized structure makes it easy to find what you need and keeps your agent code clean and readable.
 
-## Why Codex SDK vs. Other Agents?
+## Why Codex SDK? For Workflows, Not Assistants.
 
-Tools like GitHub Copilot, Cursor, and Claude Code are powerful, integrated assistants. They excel at general-purpose coding tasks but operate within their own fixed systems. You work around their limitations.
+Tools like GitHub Copilot, Cursor, and Claude Code are general-purpose coding assistants. They are powerful collaborators for a wide range of tasks.
 
-**Codex SDK gives you ultimate control.**
+Codex SDK is different. **It is not a tool for building another general-purpose assistant.** Doing so would mean rebuilding a tremendous amount of complexity from scratch.
 
-This is a framework for developers who need to build specialized agents with precise control over the entire workflow. Because you own the agent loop, you can:
+Instead, Codex SDK is a framework for creating highly specialized, repeatable **workflows**. Think of it as a way to turn a complex series of prompts and tool interactions into a durable, shareable command-line tool. It's for tasks that are more than a single prompt but less than a full-blown AI assistant.
 
-- **Engineer the Perfect Context:** Craft the exact history and system prompts sent to the model. You aren't limited by the context window or prompting strategy of a third-party tool. This precision is key to solving complex, domain-specific problems.
-- **Integrate Custom Tools:** Go beyond simple shell commands. Build any tool you can express in code and integrate it seamlessly into your agent's capabilities.
-- **Define Unique Workflows:** Implement multi-step chains, custom human-in-the-loop approval gates, or complex logic that commercial assistants don't support.
+### When to Use Codex SDK
 
-If you need a highly tailored, powerful, and flexible terminal agent, Codex SDK provides the foundation.
+Use this library when you need to perform **real context engineering** for specific, automated tasks, such as:
+
+- **Automated Maintenance:** Create a workflow that automatically fixes a broken build after a dependency update.
+- **Targeted Refactoring:** Build a tool that upgrades a specific API across the entire codebase (e.g., migrating from React Router v5 to v6).
+- **Intelligent Scaffolding:** Design a workflow that scaffolds a new feature, complete with boilerplate, tests, and documentation, based on your project's unique conventions.
+- **Automated Debugging:** Construct a workflow that accesses a bug tracker, analyzes the codebase for potential causes, and suggests a patch.
+
+These workflows are difficult to execute reliably in a general assistant because they require precise control over the context, tools, and interaction model—things that are often hidden or abstracted away.
+
+With Codex SDK, you have the low-level control to engineer the perfect context, ensuring your workflow runs reliably every time. It allows you to transform expert knowledge and complex processes into a simple, executable agent.
 
 ## How It Works
 

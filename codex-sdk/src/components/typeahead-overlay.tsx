@@ -1,7 +1,7 @@
 import SelectInput from "./select-input/select-input.js";
 import TextInput from "./vendor/ink-text-input.js";
 import { Box, Text, useInput } from "ink";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export type TypeaheadItem = { label: string; value: string };
 
@@ -34,7 +34,7 @@ export default function TypeaheadOverlay({
 
   // Keep internal items list in sync when the caller provides new options
   // (e.g. ModelOverlay fetches models asynchronously).
-  React.useEffect(() => {
+  useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
 

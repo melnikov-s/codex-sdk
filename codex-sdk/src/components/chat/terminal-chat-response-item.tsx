@@ -352,7 +352,8 @@ export function Markdown({
 }: MarkdownProps): React.ReactElement {
   const size = useTerminalSize();
 
-  const rendered = React.useMemo(() => {
+  const rendered = useMemo(() => {
+    // Keep default React import for JSX; using named useMemo above elsewhere
     // Configure marked for this specific render
     setOptions({
       // @ts-expect-error missing parser, space props

@@ -25,13 +25,7 @@ import {
 } from "../../utils/storage/command-history.js";
 import { onExit } from "../../utils/terminal.js";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
-import React, {
-  useCallback,
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-} from "react";
+import React, { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import { useInterval } from "use-interval";
 
 export default function TerminalChatInput({
@@ -731,7 +725,7 @@ function TerminalChatInputThinking({
 
   const { stdin, setRawMode } = useStdin();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!active) {
       return;
     }
