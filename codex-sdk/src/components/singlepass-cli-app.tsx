@@ -21,7 +21,7 @@ import * as fsSync from "fs";
 import * as fsPromises from "fs/promises";
 import { Box, Text, useApp, useInput } from "ink";
 import path from "path";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 
 /** Maximum number of characters allowed in the context passed to the model. */
 const MAX_CONTEXT_CHARACTER_LIMIT = 2_000_000;
@@ -113,7 +113,7 @@ function DirectoryInfo({
   contextLimit: number;
   showStruct?: boolean;
 }) {
-  const asciiStruct = React.useMemo(
+  const asciiStruct = useMemo(
     () =>
       showStruct
         ? makeAsciiDirectoryStructure(

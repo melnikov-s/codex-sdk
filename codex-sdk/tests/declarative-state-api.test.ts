@@ -279,6 +279,79 @@ describe("Declarative State API", () => {
     });
   });
 
+  describe("say behavior", () => {
+    it("should create UI messages from strings", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [],
+        inputDisabled: false,
+      };
+
+      const mockSay = (text: string | Array<string>) => {
+        const messages = Array.isArray(text)
+          ? text.map(t => ({ role: "ui" as const, content: t }))
+          : [{ role: "ui" as const, content: text }];
+        currentState = {
+          ...currentState,
+          messages: [...currentState.messages, ...messages],
+        };
+      };
+
+      mockSay("Test UI message");
+
+      expect(currentState.messages).toHaveLength(1);
+      expect(currentState.messages[0]).toEqual({
+        role: "ui",
+        content: "Test UI message",
+      });
+    });
+
+    it("should create multiple UI messages from string array", () => {
+      let currentState: WorkflowState = {
+        loading: false,
+        messages: [],
+        inputDisabled: false,
+      };
+
+      const mockSay = (text: string | Array<string>) => {
+        const messages = Array.isArray(text)
+          ? text.map(t => ({ role: "ui" as const, content: t }))
+          : [{ role: "ui" as const, content: text }];
+        currentState = {
+          ...currentState,
+          messages: [...currentState.messages, ...messages],
+        };
+      };
+
+      mockSay(["Message 1", "Message 2"]);
+
+      expect(currentState.messages).toHaveLength(2);
+      expect(currentState.messages[0]).toEqual({
+        role: "ui",
+        content: "Message 1",
+      });
+      expect(currentState.messages[1]).toEqual({
+        role: "ui",
+        content: "Message 2",
+      });
+    });
+
+    it("should exclude UI messages from transcript", () => {
+      const messages = [
+        { role: "user" as const, content: "Hello" },
+        { role: "ui" as const, content: "Processing..." },
+        { role: "assistant" as const, content: "Hi there!" },
+        { role: "ui" as const, content: "Done" },
+      ];
+
+      const transcript = messages.filter((msg) => msg.role !== "ui");
+
+      expect(transcript).toHaveLength(2);
+      expect(transcript[0]).toEqual({ role: "user", content: "Hello" });
+      expect(transcript[1]).toEqual({ role: "assistant", content: "Hi there!" });
+    });
+  });
+
   describe("Workflow integration", () => {
     it("should provide setState and getState to workflows", () => {
       const mockHooks: WorkflowHooks = {
@@ -292,6 +365,7 @@ describe("Declarative State API", () => {
           transcript: [],
         },
         actions: {
+          say: vi.fn(),
           addMessage: vi.fn(),
           setLoading: vi.fn(),
           setInputDisabled: vi.fn(),
@@ -378,6 +452,7 @@ describe("Declarative State API", () => {
           },
         },
         actions: {
+          say: vi.fn(),
           addMessage: vi.fn(),
           setLoading: vi.fn(),
           setInputDisabled: vi.fn(),
@@ -535,6 +610,7 @@ describe("Declarative State API", () => {
             },
           },
           actions: {
+            say: vi.fn(),
             addMessage: vi.fn(),
             setLoading: vi.fn(),
             setInputDisabled: vi.fn(),

@@ -114,20 +114,17 @@ export function defaultWorkflow(
     if (mcpClientManager && !mcpInitialized) {
       try {
         // debug: initializing MCP Client Manager
-        hooks.actions.addMessage({
-          role: "ui",
-          content: "Initializing MCP Client Manager...",
-        });
+        hooks.actions.say("Initializing MCP Client Manager...");
         await mcpClientManager.initialize();
         mcpTools = await mcpClientManager.getAllTools();
         mcpInitialized = true;
         const msg = `MCP Client Manager initialized. Tools found: ${Object.keys(mcpTools).join(", ") || "None"}`;
         // debug: mcp initialized
-        hooks.actions.addMessage({ role: "ui", content: msg });
+        hooks.actions.say(msg);
       } catch (error) {
         const errorMsg = `Error initializing MCP Client Manager: ${error instanceof Error ? error.message : String(error)}`;
         // debug: mcp init error
-        hooks.actions.addMessage({ role: "ui", content: errorMsg });
+        hooks.actions.say(errorMsg);
         // Optionally, handle this error more gracefully, e.g., by notifying the user
       }
     }
@@ -155,10 +152,7 @@ export function defaultWorkflow(
       }
 
       hooks.setState({ loading: false });
-      hooks.actions.addMessage({
-        role: "ui",
-        content: "⏹️  Execution interrupted by user. You can continue typing.",
-      });
+      hooks.actions.say("⏹️  Execution interrupted by user. You can continue typing.");
       canceled = true;
     },
 
@@ -181,16 +175,10 @@ export function defaultWorkflow(
 
       if (mcpClientManager) {
         // debug: closing mcp client manager
-        hooks.actions.addMessage({
-          role: "ui",
-          content: "Closing MCP Client Manager connections...",
-        });
+        hooks.actions.say("Closing MCP Client Manager connections...");
         await mcpClientManager.closeAll();
         // debug: mcp client manager closed
-        hooks.actions.addMessage({
-          role: "ui",
-          content: "MCP Client Manager connections closed.",
-        });
+        hooks.actions.say("MCP Client Manager connections closed.");
       }
     },
 
@@ -294,7 +282,7 @@ export function defaultWorkflow(
                   } catch (mcpError) {
                     const errorText = `Error calling MCP tool ${toolCall.toolName}: ${mcpError}`;
                     // debug: MCP tool call failed
-                    hooks.actions.addMessage({ role: "ui", content: errorText });
+                    hooks.actions.say(errorText);
                     const errorResult: ModelMessage = {
                       role: "tool",
                       content: [
@@ -334,7 +322,7 @@ export function defaultWorkflow(
         } catch (error) {
           // Log the error and end the loop
           const runErrorMsg = `Error in workflow run: ${(error as Error).message}`;
-          hooks.actions.addMessage({ role: "ui", content: runErrorMsg });
+          hooks.actions.say(runErrorMsg);
 
           // Call the error handler if provided
           // no onError hook
@@ -403,15 +391,12 @@ Keep the summary concise but comprehensive.`,
             });
 
             // Notify the hooks
-            hooks.actions.addMessage({
-              role: "ui",
-              content: "Conversation context compacted successfully.",
-            });
+            hooks.actions.say("Conversation context compacted successfully.");
 
             hooks.setState({ loading: false });
           } catch (error) {
             const errorMsg = `Error executing /compact command: ${(error as Error).message}`;
-            hooks.actions.addMessage({ role: "ui", content: errorMsg });
+            hooks.actions.say(errorMsg);
             hooks.setState({ loading: false });
           }
         },
@@ -437,7 +422,7 @@ Keep the summary concise but comprehensive.`,
             });
           } catch (error) {
             const errorMsg = `Error executing /diff command: ${(error as Error).message}`;
-            hooks.actions.addMessage({ role: "ui", content: errorMsg });
+            hooks.actions.say(errorMsg);
           }
         },
       },

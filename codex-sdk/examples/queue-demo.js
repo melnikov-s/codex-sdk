@@ -14,14 +14,14 @@ const queueDemoWorkflow = createAgentWorkflow(({ setState, actions }) => {
     let nextMessage = actions.removeFromQueue();
     while (nextMessage) {
       // Showcase mixed array: strings become UI messages
-      actions.addMessage([
+      actions.say([
         `Processing: "${nextMessage}"`,
         "Working on it...",
       ]);
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      actions.addMessage(`✅ Completed: "${nextMessage}"`);
+      actions.say(`✅ Completed: "${nextMessage}"`);
 
       nextMessage = actions.removeFromQueue();
     }
@@ -32,7 +32,7 @@ const queueDemoWorkflow = createAgentWorkflow(({ setState, actions }) => {
 
   return {
     initialize: async () => {
-      actions.addMessage(
+      actions.say(
         "Queue Demo Agent ready! Type messages to see them queued while processing.",
       );
     },
@@ -43,7 +43,7 @@ const queueDemoWorkflow = createAgentWorkflow(({ setState, actions }) => {
       actions.addMessage(input);
       actions.addToQueue(userMessage);
 
-      actions.addMessage(`Added "${userMessage}" to queue`);
+      actions.say(`Added "${userMessage}" to queue`);
 
       processNextInQueue();
     },
@@ -51,7 +51,7 @@ const queueDemoWorkflow = createAgentWorkflow(({ setState, actions }) => {
     stop: () => {
       processing = false;
       actions.setLoading(false);
-      actions.addMessage("Processing stopped. Queue preserved.");
+      actions.say("Processing stopped. Queue preserved.");
     },
 
     terminate: () => {

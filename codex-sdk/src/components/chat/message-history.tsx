@@ -6,7 +6,7 @@ import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
 import { getId } from "../../utils/ai.js";
 import { Box, Static } from "ink";
-import React from "react";
+import React, { memo } from "react";
 
 // A batch entry can either be a standalone response item or a grouped set of
 // items (e.g. auto‑approved tool‑call batches) that should be rendered
@@ -66,4 +66,4 @@ const MessageHistory: React.FC<MessageHistoryProps> = ({
   );
 };
 
-export default React.memo(MessageHistory);
+export default memo(MessageHistory);

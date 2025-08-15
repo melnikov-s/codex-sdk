@@ -2,7 +2,7 @@ import { parseApplyPatch } from "../../parse-apply-patch";
 import { shortenPath } from "../../utils/short-path";
 import chalk from "chalk";
 import { Text } from "ink";
-import React from "react";
+import React, { useMemo } from "react";
 
 export function TerminalChatToolCallCommand({
   commandForDisplay,
@@ -83,17 +83,17 @@ export function TerminalChatToolCallApplyPatch({
   commandForDisplay: string;
   patch: string;
 }): React.ReactElement {
-  const ops = React.useMemo(() => parseApplyPatch(patch), [patch]);
+  const ops = useMemo(() => parseApplyPatch(patch), [patch]);
   const firstOp = ops?.[0];
 
-  const title = React.useMemo(() => {
+  const title = useMemo(() => {
     if (!firstOp) {
       return "";
     }
     return capitalize(firstOp.type);
   }, [firstOp]);
 
-  const filePath = React.useMemo(() => {
+  const filePath = useMemo(() => {
     if (!firstOp) {
       return "";
     }

@@ -31,18 +31,12 @@ const workflow = createAgentWorkflow(
         await simpleFileAnalysis("package.json", "project dependencies");
         
         // Finish analysis after reading key files
-        actions.addMessage({
-          role: "ui",
-          content: "✅ Basic codebase analysis complete! Ready to generate quiz questions..."
-        });
+        actions.say("✅ Basic codebase analysis complete! Ready to generate quiz questions...");
         
         finishAnalysis();
         
       } catch (error) {
-        actions.addMessage({
-          role: "ui",
-          content: `❌ Analysis failed: ${error.message}`
-        });
+        actions.say(`❌ Analysis failed: ${error.message}`);
         setState({ loading: false });
         quizState.analyzing = false;
       }
@@ -65,10 +59,7 @@ const workflow = createAgentWorkflow(
 
         await actions.handleModelResult(result);
       } catch (error) {
-        actions.addMessage({
-          role: "ui",
-          content: `⚠️ Could not read ${filename}: ${error.message}`
-        });
+        actions.say(`⚠️ Could not read ${filename}: ${error.message}`);
       }
     }
 
@@ -78,10 +69,7 @@ const workflow = createAgentWorkflow(
       quizState.analyzing = false;
       quizState.codebaseAnalyzed = true;
       
-      actions.addMessage({
-        role: "ui",
-        content: "✅ Codebase analysis complete! Generating your first quiz question..."
-      });
+      actions.say("✅ Codebase analysis complete! Generating your first quiz question...");
       
       setTimeout(() => startQuiz(), 500);
     }
@@ -90,19 +78,13 @@ const workflow = createAgentWorkflow(
       setState({ loading: true });
       quizState.analyzing = true;
       
-      actions.addMessage({
-        role: "ui",
-        content: "🔍 Starting codebase analysis..."
-      });
+      actions.say("🔍 Starting codebase analysis...");
 
       await runCodebaseAnalysis();
     }
 
     async function startQuiz() {
-      actions.addMessage({
-        role: "ui",
-        content: `📊 Score: ${quizState.score}/${quizState.totalQuestions} | Question: ${quizState.currentQuestion + 1}/${quizState.totalQuestions}`
-      });
+      actions.say(`📊 Score: ${quizState.score}/${quizState.totalQuestions} | Question: ${quizState.currentQuestion + 1}/${quizState.totalQuestions}`);
       await generateNextQuestion();
     }
 
@@ -151,20 +133,14 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
         const toolResponses = await actions.handleModelResult(result);
         if (toolResponses.length === 0) {
           // No tool response means user chose "None of the above"
-          actions.addMessage({
-            role: "ui", 
-            content: "📝 Please provide your own answer..."
-          });
+          actions.say("📝 Please provide your own answer...");
           setState({ loading: false });
         } else {
           // Use the last toolResponse for answer handling
           handleQuizAnswer(toolResponses[toolResponses.length - 1]);
         }
       } catch (error) {
-        actions.addMessage({
-          role: "ui",
-          content: `❌ Question generation failed: ${error.message}`
-        });
+        actions.say(`❌ Question generation failed: ${error.message}`);
         setState({ loading: false });
       }
     }
@@ -435,14 +411,10 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
 
         if (!quizActive && (content === "start" || content.includes("start") || content.includes("begin"))) {
           quizActive = true;
-          actions.addMessage([
-            userInput,
-            {
-              role: "ui",
-              content:
-                "🚀 Starting intelligent codebase discovery and analysis!\n🔍 I'll automatically find the project root, discover all documentation, and analyze the structure...\n📖 This may take a moment as I explore the codebase thoroughly!",
-            },
-          ]);
+          actions.addMessage(userInput);
+          actions.say(
+            "🚀 Starting intelligent codebase discovery and analysis!\n🔍 I'll automatically find the project root, discover all documentation, and analyze the structure...\n📖 This may take a moment as I explore the codebase thoroughly!"
+          );
           await analyzeCodebase();
         } else if (content === "restart" && quizActive) {
           // Reset quiz state
@@ -453,56 +425,30 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
             score: 0,
             analyzing: false
           };
-          actions.addMessage([
-            userInput,
-            {
-              role: "ui",
-              content:
-                "🔄 Restarting quiz... Re-discovering and analyzing the codebase for fresh questions!",
-            },
-          ]);
+          actions.addMessage(userInput);
+          actions.say("🔄 Restarting quiz... Re-discovering and analyzing the codebase for fresh questions!");
           await analyzeCodebase();
         } else if (content === "analyze" && quizActive) {
           // Reset analysis state
           quizState.codebaseAnalyzed = false;
           quizState.currentQuestion = 0;
           quizState.score = 0;
-          actions.addMessage([
-            userInput,
-            {
-              role: "ui",
-              content:
-                "🔍 Re-discovering the codebase structure and documentation with fresh perspective...",
-            },
-          ]);
+          actions.addMessage(userInput);
+          actions.say("🔍 Re-discovering the codebase structure and documentation with fresh perspective...");
           await analyzeCodebase();
         } else if (!quizActive) {
-          actions.addMessage([
-            userInput,
-            {
-              role: "ui",
-              content:
-                "🎓 Type 'start' when you're ready to begin the codebase analysis and quiz!",
-            },
-          ]);
+          actions.addMessage(userInput);
+          actions.say("🎓 Type 'start' when you're ready to begin the codebase analysis and quiz!");
         } else {
           // Quiz is active, handle as custom input
-          actions.addMessage([
-            userInput,
-            {
-              role: "ui",
-              content: "📝 I'll consider your input for the current question analysis...",
-            },
-          ]);
+          actions.addMessage(userInput);
+          actions.say("📝 I'll consider your input for the current question analysis...");
         }
       },
       
       stop: () => {
         setState({ loading: false });
-        actions.addMessage({
-          role: "ui",
-          content: "⏸️ Quiz paused. Type anything to continue or 'restart' for a new quiz!"
-        });
+        actions.say("⏸️ Quiz paused. Type anything to continue or 'restart' for a new quiz!");
       },
       
       terminate: () => {

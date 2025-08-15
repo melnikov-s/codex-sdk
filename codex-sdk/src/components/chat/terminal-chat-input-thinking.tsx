@@ -1,6 +1,6 @@
 import { log } from "../../utils/logger/log.js";
 import { Box, Text, useInput, useStdin } from "ink";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useInterval } from "use-interval";
 
 // Retaining a single static placeholder text for potential future use.  The
@@ -30,7 +30,7 @@ export default function TerminalChatInputThinking({
 
   const { stdin, setRawMode } = useStdin();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!active) {
       return;
     }
