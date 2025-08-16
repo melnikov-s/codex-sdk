@@ -11,8 +11,9 @@ export function useDesktopNotifications(params: {
   confirmationPrompt: React.ReactNode | null;
   items: Array<UIMessage>;
   cwd: string;
+  title?: string;
 }) {
-  const { notify, loading, confirmationPrompt, items, cwd } = params;
+  const { notify, loading, confirmationPrompt, items, cwd, title } = params;
   const prevLoadingRef = React.useRef<boolean>(false);
 
   React.useEffect(() => {
@@ -29,16 +30,16 @@ export function useDesktopNotifications(params: {
           const text = getTextContent(last);
           const preview = text.replace(/\n/g, " ").slice(0, 100);
           const safePreview = preview.replace(/"/g, '\\"');
-          const title = "Codex CLI";
+          const titleToUse = title || "Codex SDK";
           spawn("osascript", [
             "-e",
-            `display notification "${safePreview}" with title "${title}" subtitle "${cwd}" sound name "Ping"`,
+            `display notification "${safePreview}" with title "${titleToUse}" subtitle "${cwd}" sound name "Ping"`,
           ]);
         }
       }
     }
     prevLoadingRef.current = loading;
-  }, [notify, loading, confirmationPrompt, items, cwd]);
+  }, [notify, loading, confirmationPrompt, items, cwd, title]);
 }
 
 

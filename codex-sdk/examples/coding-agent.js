@@ -49,6 +49,7 @@ Be explicit and concise. Prefer small, verifiable steps.`,
   }
 
   return {
+    title: "Coding Agent",
     initialize: async () => {
       actions.say(
         "Coding agent ready. Describe what you want to change or ask a question.",

@@ -2,7 +2,7 @@ import type { ModelMessage } from "ai";
 
 /**
  * Roughly estimate the number of language‑model tokens represented by a list
- * of OpenAI `ResponseItem`s.
+ * of model messages.
  *
  * A full tokenizer would be more accurate, but would add a heavyweight
  * dependency for only marginal benefit. Empirically, assuming ~4 characters

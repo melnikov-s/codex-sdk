@@ -11,9 +11,9 @@ export const ORIGIN = "codex_cli_ts";
 export type TerminalChatSession = {
   /** Globally unique session identifier */
   id: string;
-  /** The OpenAI username associated with this session */
+  /** The username associated with this session */
   user: string;
-  /** Version identifier of the Codex CLI that produced the session */
+  /** Version identifier of the Codex SDK that produced the session */
   version: string;
   /** The model used for the conversation */
   model: string;

@@ -136,7 +136,7 @@ export default function TerminalChat({
 
   // Workflow creation and lifecycle handled by hook
 
-  useDesktopNotifications({ notify, loading, confirmationPrompt, items, cwd: PWD });
+  useDesktopNotifications({ notify, loading, confirmationPrompt, items, cwd: PWD, title: (workflow?.title as string) || "Codex SDK" });
 
   // Let's also track whenever the ref becomes available.
   useEffect(() => {
@@ -179,7 +179,7 @@ export default function TerminalChat({
               colorsByPolicy,
               headers,
               statusLine,
-              workflowHeader: displayConfig?.header || "OpenAI Codex",
+              workflowHeader: (workflow?.title as unknown as React.ReactNode) || displayConfig?.header || "Codex SDK",
             }}
           />
         ) : (

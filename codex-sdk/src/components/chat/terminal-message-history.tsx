@@ -6,7 +6,7 @@ import type { DisplayConfig, SlotRegion } from "../../workflow/index.js";
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
 import TerminalHeader from "./terminal-header.js";
 import { getId } from "../../utils/ai.js";
-import { Box, Static } from "ink";
+import { Box } from "ink";
 import React, { useMemo, memo } from "react";
 
 // A batch entry can either be a standalone response item or a grouped set of
@@ -40,10 +40,11 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
 
   return (
     <Box flexDirection="column">
-      {/* Pinned header at top */}
-      <Static items={["header"]}>
-        {() => <TerminalHeader key="header" {...headerProps} />}
-      </Static>
+      {/* Above-header dynamic slot */}
+      {slots?.aboveHeader ?? null}
+
+      {/* Header rendered dynamically so it stays visible */}
+      <TerminalHeader {...headerProps} />
 
       {/* Below-header dynamic slot */}
       {slots?.belowHeader ?? null}
@@ -51,31 +52,28 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
       {/* Above-history dynamic slot */}
       {slots?.aboveHistory ?? null}
 
-      {/* History messages (static append-only) */}
-      <Static items={messages}>
-        {(message, index) => {
-          // Suppress empty reasoning updates (i.e. items with an empty summary).
-          const msg = message as unknown as { summary?: Array<unknown> };
-          if (msg.summary?.length === 0) {
-            return null;
-          }
-          return (
-            <Box
-              key={`${getId(message)}-${index}`}
-              flexDirection="column"
-              marginLeft={message.role === "user" ? 0 : 4}
-              marginTop={message.role === "user" ? 1 : 1}
-              marginBottom={0}
-            >
-              <TerminalChatResponseItem
-                item={message}
-                fullStdout={fullStdout}
-                displayConfig={displayConfig}
-              />
-            </Box>
-          );
-        }}
-      </Static>
+      {/* History messages (dynamic render to keep header/slots pinned above) */}
+      {messages.map((message, index) => {
+        const msg = message as unknown as { summary?: Array<unknown> };
+        if (msg.summary?.length === 0) {
+          return null;
+        }
+        return (
+          <Box
+            key={`${getId(message)}-${index}`}
+            flexDirection="column"
+            marginLeft={message.role === "user" ? 0 : 4}
+            marginTop={message.role === "user" ? 1 : 1}
+            marginBottom={0}
+          >
+            <TerminalChatResponseItem
+              item={message}
+              fullStdout={fullStdout}
+              displayConfig={displayConfig}
+            />
+          </Box>
+        );
+      })}
 
       {/* Below-history dynamic slot */}
       {slots?.belowHistory ?? null}

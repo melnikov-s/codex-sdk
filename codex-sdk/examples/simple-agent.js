@@ -22,6 +22,7 @@ const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
   }
 
   return {
+    title: "Minimal Agent",
     initialize: async () => {
       setState({ messages: [{ role: "ui", content: "Ready. Starting…" }] });
       runAgentLoop();

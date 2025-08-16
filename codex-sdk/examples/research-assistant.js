@@ -68,6 +68,7 @@ export const workflow = createAgentWorkflow(({ setState, state, actions, tools }
   }
 
   return {
+    title: "Research Assistant",
     displayConfig: {
       header: h(Text, { bold: true, color: "#e8b4ff" }, "🔎 Research Assistant"),
     },
