@@ -2,7 +2,7 @@ import type { ApprovalPolicy } from "../../approvals.js";
 import type { LibraryConfig } from "../../lib.js";
 import type { ReviewDecision } from "../../utils/agent/review.js";
 import type { UIMessage } from "../../utils/ai.js";
-import type { WorkflowFactory } from "../../workflow";
+import type { WorkflowController, WorkflowFactory } from "../../workflow";
 import type { ColorName } from "chalk";
 
 import { useOverlays } from "./hooks/use-overlays.js";
@@ -27,6 +27,7 @@ type Props = {
   fullStdout: boolean;
   workflowFactory?: WorkflowFactory;
   uiConfig?: LibraryConfig;
+  onController?: (controller: WorkflowController) => void;
 };
 
 const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
@@ -43,6 +44,7 @@ export default function TerminalChat({
   fullStdout,
   workflowFactory,
   uiConfig,
+  onController,
 }: Props): React.ReactElement {
   const effectiveUiConfig = useMemo(() => uiConfig ?? {}, [uiConfig]);
   const notify = Boolean(effectiveUiConfig?.notify);
@@ -52,7 +54,7 @@ export default function TerminalChat({
   const openSelectionStable = useCallback(
     (
       items: Array<{ label: string; value: string }>,
-      options?: { label?: string; timeout?: number; defaultValue?: string },
+      options: { label?: string; timeout?: number; defaultValue: string },
     ) =>
       new Promise<string>((resolve, reject) => {
         setSelectionState({ items, options, resolve, reject });
@@ -72,7 +74,7 @@ export default function TerminalChat({
   const openPromptStable = useCallback(
     (
       message: string,
-      options?: { required?: boolean; defaultValue?: string; timeout?: number },
+      options: { required?: boolean; defaultValue: string; timeout?: number },
     ) =>
       new Promise<string>((resolve, reject) => {
         setPromptState({ message, options, resolve, reject });
@@ -82,7 +84,7 @@ export default function TerminalChat({
   );
 
   const openConfirmationStable = useCallback(
-    (message: string, options?: { timeout?: number; defaultValue?: boolean }) =>
+    (message: string, options: { timeout?: number; defaultValue: boolean }) =>
       new Promise<boolean>((resolve) => {
         setConfirmationState({ message, options, resolve, reject: () => {} });
         setOverlayMode("confirmation");
@@ -103,6 +105,7 @@ export default function TerminalChat({
     additionalWritableRoots,
     uiConfig: effectiveUiConfig,
     workflowFactory,
+    onController,
     selectionApi,
     promptApi,
   });

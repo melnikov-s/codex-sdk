@@ -43,13 +43,13 @@ export function TerminalChatSelect({
   const [customInputValue, setCustomInputValue] = useState("");
 
   const defaultIndex = useMemo(() => {
-    const defaultValue = options?.defaultValue || options?.default;
+    const defaultValue = options?.defaultValue;
     if (defaultValue) {
       const index = items.findIndex((item) => item.value === defaultValue);
       return index >= 0 ? index : 0;
     }
     return 0;
-  }, [items, options?.defaultValue, options?.default]);
+  }, [items, options?.defaultValue]);
 
   const selectOptions = useMemo(() => {
     return items.map((item) => ({
@@ -91,7 +91,7 @@ export function TerminalChatSelect({
     setShowCustomInput(false);
     setCustomInputValue("");
     // When cancelling custom input, fall back to default if available
-    const defaultValue = options?.defaultValue || options?.default;
+    const defaultValue = options?.defaultValue;
     if (defaultValue) {
       onSelect(defaultValue);
     } else {
@@ -115,7 +115,7 @@ export function TerminalChatSelect({
           return;
         }
 
-        const defaultValue = options?.defaultValue || options?.default;
+        const defaultValue = options?.defaultValue;
         if (defaultValue) {
           onSelect(defaultValue);
         } else {
@@ -189,7 +189,7 @@ export function TerminalChatSelect({
           {options?.required
             ? "↵ to select (escape disabled)"
             : (() => {
-                const defaultValue = options?.defaultValue || options?.default;
+                const defaultValue = options?.defaultValue;
                 if (defaultValue) {
                   // Find the label for the default value to match capitalization
                   const defaultItem = items.find(

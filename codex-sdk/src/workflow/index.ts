@@ -10,15 +10,13 @@ export interface SelectItem {
 
 export interface SelectOptions {
   required?: boolean;
-  default?: string;
   label?: string;
   timeout?: number;
-  defaultValue?: string;
+  defaultValue: string;
 }
 
 export interface SelectOptionsWithTimeout {
   required?: boolean;
-  default?: string;
   label?: string;
   timeout: number;
   defaultValue: string;
@@ -26,7 +24,7 @@ export interface SelectOptionsWithTimeout {
 
 export interface ConfirmOptions {
   timeout?: number;
-  defaultValue?: boolean;
+  defaultValue: boolean;
 }
 
 export interface ConfirmOptionsWithTimeout {
@@ -36,7 +34,7 @@ export interface ConfirmOptionsWithTimeout {
 
 export interface PromptOptions {
   timeout?: number;
-  defaultValue?: string;
+  defaultValue: string;
 }
 
 export interface PromptOptionsWithTimeout {
@@ -126,7 +124,17 @@ export interface Workflow {
   >;
 }
 
+export interface WorkflowController {
+  headless?: boolean;
+  message(input: string | ModelMessage): void;
+  stop(): void;
+  terminate(code?: number): void;
+  getState(): WorkflowState;
+}
+
 export interface WorkflowHooks {
+  /** Indicates headless mode when true; omitted/false in UI */
+  headless?: boolean;
   /**
    * Set the workflow state declaratively
    * State changes are applied synchronously and immediately visible via getState()
@@ -289,6 +297,19 @@ export interface WorkflowHooks {
   };
 
   /**
+   * Programmatic control of the workflow from within your agent logic
+   * Use these to inject messages or stop/terminate without relying on `this`
+   */
+  control: {
+    /** Normalize string to user message and dispatch into workflow */
+    message: (input: string | ModelMessage) => void;
+    /** Stop current processing */
+    stop: () => void;
+    /** Terminate the workflow instance */
+    terminate: () => void;
+  };
+
+  /**
    * User interaction prompts
    */
   prompts: {
@@ -302,7 +323,7 @@ export interface WorkflowHooks {
       items: Array<SelectItem>,
       options: SelectOptionsWithTimeout,
     ): Promise<string>;
-    select(items: Array<SelectItem>, options?: SelectOptions): Promise<string>;
+    select(items: Array<SelectItem>, options: SelectOptions): Promise<string>;
 
     /**
      * Send a confirmation prompt to the user
@@ -310,9 +331,8 @@ export interface WorkflowHooks {
      * @param options Optional timeout and default configuration
      * @returns Whether the user confirmed or not
      */
-    confirm(msg: string): Promise<boolean>;
     confirm(msg: string, options: ConfirmOptionsWithTimeout): Promise<boolean>;
-    confirm(msg: string, options?: ConfirmOptions): Promise<boolean>;
+    confirm(msg: string, options: ConfirmOptions): Promise<boolean>;
 
     /**
      * Send a prompt to the user and get their response
@@ -320,9 +340,8 @@ export interface WorkflowHooks {
      * @param options Optional timeout and default configuration
      * @returns The user's response as a string
      */
-    input(msg: string): Promise<string>;
     input(msg: string, options: PromptOptionsWithTimeout): Promise<string>;
-    input(msg: string, options?: PromptOptions): Promise<string>;
+    input(msg: string, options: PromptOptions): Promise<string>;
   };
 
   /**

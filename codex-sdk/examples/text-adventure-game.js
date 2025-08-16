@@ -233,43 +233,22 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
               role: "ui",
               content:
                 "🏰 Welcome to the Fantasy Adventure Quest! ⚔️\n\n" +
-                "This is a free-form medieval fantasy adventure. There is no fixed map—discover locations, NPCs, and mysteries as you go.\n\n" +
-                `📊 STATUS: Health: ${playerState.health}/100 | Location: ${playerState.location}\n` +
-                `🎒 INVENTORY: ${playerState.inventory.join(", ")}\n\n` +
-                "Type 'start' to begin your adventure, or describe what you'd like to do! 🌟",
+                "This is a free-form medieval fantasy adventure. There is no fixed map—discover locations, NPCs, and mysteries as you go.",
             },
           ],
           statusLine: createStatusLine()
         });
+        // Start the story loop immediately
+        gameActive = true;
+        actions.say(
+          `🌟 Your adventure begins at ${playerState.location}! The Dungeon Master will present you with choices.`,
+        );
+        runAgent();
       },
       message: async (userInput) => {
-        const content = userInput.content.toLowerCase().trim();
+        const _content = userInput.content.toLowerCase().trim();
 
-        if (!gameActive && (content === "start" || content.includes("start") || content.includes("adventure"))) {
-          gameActive = true;
-          actions.addMessage([
-            userInput,
-            {
-              role: "ui",
-              content:
-                `🌟 Your adventure begins at ${playerState.location}!\n\n` +
-                "🎭 The Dungeon Master will now present you with choices. You can always type custom actions too! ⚔️",
-            },
-          ]);
-          setState({
-            statusLine: createStatusLine()
-          });
-          runAgent();
-        } else if (!gameActive) {
-          actions.addMessage([
-            userInput,
-            {
-              role: "ui",
-              content:
-                "🏰 Type 'start' when you're ready to begin your fantasy adventure!",
-            },
-          ]);
-        } else {
+        if (gameActive) {
           // Game is active, user provided custom input
           actions.addMessage([
             userInput,
@@ -282,6 +261,8 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
             statusLine: createStatusLine()
           });
           runAgent();
+        } else {
+          actions.addMessage(userInput);
         }
       },
       stop: () => {

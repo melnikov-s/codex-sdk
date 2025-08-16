@@ -107,9 +107,12 @@ Be specific about files and what needs to be done.`,
         }
 
         actions.setLoading(false);
-        actions.say(`📋 Analysis complete! I found ${taskLines.length} areas for improvement in your codebase.
-
-Type "start" to begin working on the first task, or say "help task 1" for guidance on any specific task.`);
+        actions.say(`📋 Analysis complete! I found ${taskLines.length} areas for improvement in your codebase.`);
+        // Kick off immediately by suggesting the first task
+        const nextTask = (state.taskList || []).find((t) => !t.completed);
+        if (nextTask) {
+          actions.say(`🎯 Let's start with: "${nextTask.label}"`);
+        }
       },
 
       message: async (input) => {
@@ -118,25 +121,17 @@ Type "start" to begin working on the first task, or say "help task 1" for guidan
 
         const userMessage = input.content.toLowerCase();
 
-        if (userMessage === "start") {
-          const nextTask = state.taskList.find((t) => !t.completed);
-          if (nextTask) {
-            actions.say(
-              `🎯 Let's work on: "${nextTask.label}"\n\nWhen you're done, say "done" to mark it complete, or "help" if you need guidance.`,
-            );
-          } else {
-            actions.say(
-              "🎉 All tasks completed! Great work on improving your codebase.",
-            );
-          }
-        } else if (
+        if (
           userMessage === "done" ||
           userMessage.includes("completed")
         ) {
           actions.toggleTask(); // Toggle next incomplete task
-          actions.say(
-            "✅ Task marked complete! Type 'start' for the next task.",
-          );
+          const nextTask = state.taskList.find((t) => !t.completed);
+          if (nextTask) {
+            actions.say(`✅ Task marked complete! Next up: "${nextTask.label}"`);
+          } else {
+            actions.say("🎉 All tasks completed! Great work on improving your codebase.");
+          }
         } else if (userMessage.includes("help")) {
           const nextTask = state.taskList.find((t) => !t.completed);
           if (nextTask) {

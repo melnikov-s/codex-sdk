@@ -13,16 +13,19 @@ export { createDefaultWorkflow } from "./workflow/default-agent.js";
 
 // Re-export approval mode constants for use by consumers
 export { AutoApprovalMode } from "./utils/auto-approval-mode.js";
+export { exit as exitSafely } from "./utils/terminal.js";
 
 // Export approval types for use by consumers
 export type { ApprovalPolicy, SafetyAssessment } from "./approvals.js";
 
 // Import necessary components
 import type { ApprovalPolicy } from "./approvals.js";
+import type { UIMessage } from "./utils/ai.js";
 import type { FullAutoErrorMode } from "./utils/auto-approval-mode.js";
-import type { WorkflowFactory } from "./workflow/index.js";
+import type { WorkflowController, WorkflowFactory } from "./workflow/index.js";
 
 import App from "./app.js";
+import { runHeadless as runHeadlessInternal } from "./headless/index.js";
 import { AutoApprovalMode } from "./utils/auto-approval-mode.js";
 import { onExit, setInkRenderer } from "./utils/terminal.js";
 import { render } from "ink";
@@ -77,6 +80,17 @@ export interface CliOptions {
    * Does NOT include LLM settings which are handled by workflow
    */
   config?: LibraryConfig;
+  /** Run without Ink UI; executes the same workflow headlessly */
+  headless?: boolean;
+  /** Optional callback to receive the controller for programmatic control (UI path) */
+  onController?: (controller: WorkflowController) => void;
+  /** Headless-only pretty print customization */
+  format?: {
+    roleHeader?: (msg: UIMessage) => string;
+    message?: (msg: UIMessage) => string;
+  };
+  /** Headless logging configuration */
+  log?: { sink?: (line: string) => void; mode?: "human" | "jsonl" };
 }
 
 /**
@@ -91,7 +105,19 @@ export interface CliOptions {
 export function run(
   workflowFactory: WorkflowFactory,
   options: CliOptions = {},
-) {
+): WorkflowController {
+  if (options.headless) {
+    // Headless branch: no Ink. Return controller directly.
+    return runHeadlessInternal(workflowFactory, {
+      approvalPolicy: options.approvalPolicy,
+      additionalWritableRoots: options.additionalWritableRoots,
+      fullStdout: options.fullStdout,
+      config: options.config,
+      format: options.format,
+      log: options.log,
+    });
+  }
+
   // Use provided prompt or get from command line arguments
 
   // Create minimal UI config
@@ -99,6 +125,7 @@ export function run(
 
   // Render the App with the custom workflow
   // LLM behavior is handled by the consumer's workflow
+  let controllerRef: WorkflowController | null = null;
   const inkInstance = render(
     <App
       uiConfig={uiConfig}
@@ -106,6 +133,10 @@ export function run(
       additionalWritableRoots={options.additionalWritableRoots || []}
       fullStdout={options.fullStdout || false}
       workflowFactory={workflowFactory}
+      onController={(c) => {
+        controllerRef = c;
+        options.onController?.(c);
+      }}
     />,
   );
   setInkRenderer(inkInstance);
@@ -145,5 +176,14 @@ export function run(
   // Ensure terminal clean-up always runs, even when other code calls
   // `process.exit()` directly. This is a safety net.
   process.once("exit", onExit);
-  return inkInstance;
+
+  // Return a stable controller proxy that delegates once available
+  const proxy: WorkflowController = {
+    headless: false,
+    message: (input) => controllerRef?.message(input as unknown as string),
+    stop: () => controllerRef?.stop(),
+    terminate: (code?: number) => controllerRef?.terminate(code),
+    getState: () => (controllerRef ? controllerRef.getState() : ({} as unknown as ReturnType<WorkflowController["getState"]>)),
+  };
+  return proxy;
 }

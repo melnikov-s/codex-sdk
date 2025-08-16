@@ -93,10 +93,6 @@ export function TerminalChatCommandReview({
 
     opts.push(
       {
-        label: "Explain this command (x)",
-        value: ReviewDecision.EXPLAIN,
-      },
-      {
         label: "Edit or give feedback (e)",
         value: "edit",
       },
@@ -123,8 +119,6 @@ export function TerminalChatCommandReview({
       if (mode === "select") {
         if (input === "y") {
           onReviewCommand(ReviewDecision.YES);
-        } else if (input === "x") {
-          onReviewCommand(ReviewDecision.EXPLAIN);
         } else if (input === "e") {
           setMode("input");
         } else if (input === "n") {

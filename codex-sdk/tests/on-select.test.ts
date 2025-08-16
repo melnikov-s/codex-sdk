@@ -11,25 +11,17 @@ test("SelectItem interface has required properties", () => {
   expect(item.value).toBe("test-value");
 });
 
-test("SelectOptions interface supports optional properties", () => {
-  const options1: SelectOptions = {};
-  expect(options1.required).toBeUndefined();
-  expect(options1.default).toBeUndefined();
-
+test("SelectOptions interface requires defaultValue", () => {
   const options2: SelectOptions = {
     required: true,
-    default: "default-value",
+    defaultValue: "default-value",
   };
   expect(options2.required).toBe(true);
-  expect(options2.default).toBe("default-value");
+  expect(options2.defaultValue).toBe("default-value");
 });
 
-test("SelectOptions can have partial properties", () => {
-  const requiredOnly: SelectOptions = { required: true };
-  expect(requiredOnly.required).toBe(true);
-  expect(requiredOnly.default).toBeUndefined();
-
-  const defaultOnly: SelectOptions = { default: "test" };
-  expect(defaultOnly.default).toBe("test");
-  expect(defaultOnly.required).toBeUndefined();
+test("SelectOptions can have required flag and defaultValue", () => {
+  const requiredAndDefault: SelectOptions = { required: true, defaultValue: "test" };
+  expect(requiredAndDefault.defaultValue).toBe("test");
+  expect(requiredAndDefault.required).toBe(true);
 });

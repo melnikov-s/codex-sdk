@@ -1,6 +1,6 @@
 import type { ApprovalPolicy } from "./approvals";
 import type { LibraryConfig } from "./lib.js";
-import type { WorkflowFactory } from "./workflow";
+import type { WorkflowController, WorkflowFactory } from "./workflow";
 import type { ModelMessage } from "ai";
 
 import TerminalChat from "./components/chat/terminal-chat";
@@ -24,6 +24,7 @@ type Props = {
   fullStdout: boolean;
   workflowFactory?: WorkflowFactory;
   uiConfig?: LibraryConfig;
+  onController?: (controller: WorkflowController) => void;
 };
 
 export default function App({
@@ -33,6 +34,7 @@ export default function App({
   fullStdout,
   workflowFactory,
   uiConfig,
+  onController,
 }: Props): JSX.Element {
   const app = useApp();
   const [accepted, setAccepted] = useState(() => false);
@@ -99,6 +101,7 @@ export default function App({
       fullStdout={fullStdout}
       workflowFactory={workflowFactory}
       uiConfig={uiConfig}
+      onController={onController}
     />
   );
 }

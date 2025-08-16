@@ -5,13 +5,13 @@ import type { ModelMessage } from "ai";
 import type { MutableRefObject } from "react";
 
 import { execToolCall } from "../../../tools/runtime.js";
-import { getToolCall, isNativeTool } from "../../../utils/ai.js";
+import { getToolCalls, isNativeTool } from "../../../utils/ai.js";
 import { useCallback } from "react";
 
 type SelectApi = {
   openSelection: (
     items: Array<{ label: string; value: string }>,
-    options?: { label?: string; timeout?: number; defaultValue?: string },
+    options: { label?: string; timeout?: number; defaultValue: string },
   ) => Promise<string>;
   setOverlayMode: (mode: "selection" | "none") => void;
 };
@@ -26,6 +26,8 @@ export function useToolExecution(params: {
   ) => Promise<CommandConfirmation>;
   syncApprovalPolicyRef: MutableRefObject<ApprovalPolicy | undefined>;
   selectionApi: SelectApi;
+  /** Route user messages produced by tool execution back into the workflow. */
+  dispatchUserMessage?: (message: ModelMessage) => void;
 }) {
   const {
     approvalPolicy,
@@ -34,6 +36,7 @@ export function useToolExecution(params: {
     getCommandConfirmation,
     syncApprovalPolicyRef,
     selectionApi,
+    dispatchUserMessage,
   } = params;
 
   const execute = useCallback(
@@ -48,10 +51,11 @@ export function useToolExecution(params: {
       const toolResponses: Array<ModelMessage> = [];
 
       for (const message of messages) {
-        const toolCall = getToolCall(message);
-        if (!toolCall || !isNativeTool(toolCall.toolName)) {continue;}
+        const toolCalls = getToolCalls(message);
+        for (const toolCall of toolCalls) {
+          if (!isNativeTool(toolCall.toolName)) {continue;}
 
-        if (toolCall.toolName === "user_select") {
+          if (toolCall.toolName === "user_select") {
           const { message: promptMessage, options, defaultValue } = toolCall.input as {
             message: string;
             options: Array<string>;
@@ -83,25 +87,33 @@ export function useToolExecution(params: {
               },
             ],
           } satisfies ModelMessage);
-          continue;
-        }
+            continue;
+          }
 
-        const currentPolicy = syncApprovalPolicyRef.current || approvalPolicy;
-        const results = await execToolCall(
-          toolCall,
-          uiConfig,
-          currentPolicy,
-          additionalWritableRoots,
-          getCommandConfirmation,
-          abortSignal,
-        );
-        if (results[0]) {toolResponses.push(results[0]);}
+          const currentPolicy = syncApprovalPolicyRef.current || approvalPolicy;
+          const results = await execToolCall(
+            toolCall,
+            uiConfig,
+            currentPolicy,
+            additionalWritableRoots,
+            getCommandConfirmation,
+            abortSignal,
+          );
+          for (const r of results) {
+            if (r?.role === "user") {
+              // Forward to the workflow input path instead of duplicating in transcript
+              dispatchUserMessage?.(r);
+            } else if (r) {
+              toolResponses.push(r);
+            }
+          }
+        }
       }
 
       if (Array.isArray(messageOrMessages)) {return toolResponses;}
       return toolResponses[0] || null;
     },
-    [approvalPolicy, additionalWritableRoots, uiConfig, getCommandConfirmation, selectionApi, syncApprovalPolicyRef],
+    [approvalPolicy, additionalWritableRoots, uiConfig, getCommandConfirmation, selectionApi, syncApprovalPolicyRef, dispatchUserMessage],
   );
 
   return execute;

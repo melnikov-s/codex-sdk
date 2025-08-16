@@ -46,37 +46,139 @@ import { run, createAgentWorkflow } from "codex-sdk";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
-const workflow = createAgentWorkflow(({ state, actions, tools, approval }) => {
-  return {
-    // Set an initial "Ready" message
-    initialize: async () => {
-      actions.say("Ready.");
-    },
-    // This is the core loop, called on every user input
-    message: async (userInput) => {
-      actions.addMessage(userInput);
-      actions.setLoading(true);
-
+const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
+  async function runAgentLoop() {
+    actions.setLoading(true);
+    while (state.loading) {
       const result = await generateText({
         model: openai("gpt-4o"),
         system: "You are a helpful assistant.",
-        messages: state.transcript, // transcript conveniently excludes UI messages
+        messages: state.transcript, // excludes UI messages
         tools: tools.definitions,
       });
 
-      // handleModelResult adds the AI response, executes tools,
-      // and adds tool results to the message history automatically.
-      await actions.handleModelResult(result);
+      // Adds AI response, executes tools, appends tool results
+      const toolResponses = await actions.handleModelResult(result);
 
-      actions.setLoading(false);
+      // Decide if the loop should end
+      if (result.finishReason === "stop") {
+        actions.setLoading(false);
+        break;
+      }
+
+      // If the user typed while we were running, handle it next iteration
+      // (Optional) You can also flush a custom queue here
+    }
+  }
+
+  return {
+    initialize: () => {
+      actions.say("Ready. Starting agent loop…");
+      runAgentLoop();
     },
-    // Cleanup methods for user interruption
+
+    // When the user types during the loop, decide what to do
+    message: async (userInput) => {
+      if (state.loading) {
+        // Queue the message for the next turn
+        actions.addMessage(userInput);
+        actions.say("💡 Got your message — I'll consider it next turn.");
+        return;
+      }
+
+      // If we're idle, accept the message and kick the loop again
+      actions.addMessage(userInput);
+      runAgentLoop();
+    },
+
     stop: () => actions.setLoading(false),
   };
 });
 
 run(workflow);
 ```
+
+## Headless mode (advanced)
+
+Codex can run the exact same workflow logic without rendering the Ink UI.
+
+- Use `run(workflowFactory, { headless: true })` to execute your workflow in a non-interactive process.
+- Headless shares the same `WorkflowHooks` contract (plus `headless: true`) and state semantics.
+- Prompts (`prompts.select/confirm/input`) resolve immediately to the provided defaults; defaults are required at the type level in both modes.
+- Only native tools are included; `user_select` is omitted in headless.
+- Logs are sequential and durable. New messages are printed exactly once in order of appearance and never reprinted on wholesale state replacement.
+
+```ts
+import { run, createAgentWorkflow, AutoApprovalMode } from "codex-sdk";
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+// A headless workflow that summarizes your repository and lists recent git stats
+const workflow = createAgentWorkflow(({ state, actions, tools, control }) => {
+  return {
+    initialize() {
+      actions.say("Analyzing repository…");
+      control.message({
+        role: "user",
+        content:
+          "Summarize the repo structure. Then run `git status --porcelain` and count changed files. Finally, print a short summary.",
+      });
+    },
+    async message(input) {
+      actions.addMessage(input);
+      actions.setLoading(true);
+
+      const result = await generateText({
+        model: openai("gpt-4o"),
+        messages: state.transcript,
+        tools: tools.definitions, // contains shell/apply_patch in headless
+      });
+
+      await actions.handleModelResult(result);
+      actions.setLoading(false);
+    },
+    stop() {
+      actions.setLoading(false);
+    },
+    terminate() {
+      /* no-op */
+    },
+  };
+});
+
+const controller = run(workflow, {
+  approvalPolicy: AutoApprovalMode.SUGGEST,
+  log: { mode: "human" },
+  headless: true,
+});
+
+// Optional: inspect state or send messages programmatically
+// controller.getState();
+```
+
+### Controller API (UI and Headless)
+
+`run()` returns a `WorkflowController` in both modes. In UI mode, it is a stable proxy that delegates once the UI workflow is constructed.
+
+- `message(input: string | ModelMessage)` – Sends a user message; a string is normalized to `{ role: 'user', content: string }`.
+- `stop()` – Stops the current processing.
+- `terminate(code?: number)` – Terminates the workflow instance (does not exit the process).
+- `getState(): WorkflowState` – Returns a read-only snapshot of workflow state.
+- `headless: boolean` – `true` in headless.
+
+### Exiting with visible final logs
+
+Use the safe exit helper to guarantee that final messages remain visible after unmounting Ink:
+
+```ts
+import { exitSafely } from "codex-sdk";
+
+await exitSafely(0, ["Thanks for using Codex!", "All done."]);
+```
+
+### Prompt defaults are required
+
+`prompts.select/confirm/input` option types require `defaultValue` in both UI and headless. In UI, defaults are used on timeout or auto-resolution. In headless, calls resolve immediately with the default.
 
 ## Understanding the API
 
@@ -384,6 +486,7 @@ For more advanced use cases, check out the examples directory:
 - `examples/text-adventure-game.js`: A mini D&D-style text adventure that shows off advanced display customization and human-in-the-loop interaction.
 - `examples/project-setup-assistant.js`: A multi-step agent that helps set up a new project.
 - `examples/task-list-demo.js`: Interactive task management agent demonstrating the task list functionality.
+- `examples/headless-agent.js`: A headless agent that runs the same logic as the simple agent, but without Ink UI.
 
 ## Security & Approvals
 

@@ -132,7 +132,7 @@ export function OverlayRouter(props: {
             { label: "Yes", value: "yes" },
             { label: "No", value: "no" },
           ]}
-          options={{ required: true, default: "no" }}
+          options={{ required: true, defaultValue: "no" }}
           onSelect={(value: string) => {
             confirmationState.resolve(value === "yes");
             setOverlayMode("none");

@@ -82,3 +82,29 @@ export function onExit(): void {
     }
   }
 }
+
+/**
+ * Exit the process safely ensuring final logs are visible.
+ * - Unmount Ink if mounted to restore terminal state
+ * - Print final lines to stdout
+ * - Await a microtask so writes flush
+ * - Exit the process with the given code
+ */
+export async function exit(
+  code = 0,
+  final?: string | Array<string>,
+): Promise<never> {
+  onExit();
+  if (final != null) {
+    const lines = Array.isArray(final) ? final : [final];
+    for (const line of lines) {
+      if (line == null) {
+        continue;
+      }
+      const hasNewline = /\n$/.test(line);
+      process.stdout.write(hasNewline ? line : line + "\n");
+    }
+  }
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  process.exit(code);
+}
