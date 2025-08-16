@@ -390,6 +390,11 @@ describe("Declarative State API", () => {
           confirm: vi.fn(),
           input: vi.fn(),
         },
+        control: {
+          message: vi.fn(),
+          stop: vi.fn(),
+          terminate: vi.fn(),
+        },
       };
 
       const workflow = createAgentWorkflow((hooks) => {
@@ -476,6 +481,11 @@ describe("Declarative State API", () => {
           select: vi.fn(),
           confirm: vi.fn(),
           input: vi.fn(),
+        },
+        control: {
+          message: vi.fn(),
+          stop: vi.fn(),
+          terminate: vi.fn(),
         },
       };
 
@@ -634,6 +644,11 @@ describe("Declarative State API", () => {
             select: vi.fn(),
             confirm: vi.fn(),
             input: vi.fn(),
+          },
+          control: {
+            message: vi.fn(),
+            stop: vi.fn(),
+            terminate: vi.fn(),
           },
         };
       };

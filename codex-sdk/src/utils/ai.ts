@@ -81,6 +81,18 @@ export function getToolCall(message: UIMessage) {
   return null;
 }
 
+/**
+ * Return all tool-call parts from a message. Models can emit multiple parallel
+ * tool calls in a single assistant turn; callers that execute tools should use
+ * this helper to ensure every call receives a corresponding output.
+ */
+export function getToolCalls(message: UIMessage) {
+  if (message.role === "assistant" && Array.isArray(message.content)) {
+    return message.content.filter((part) => part.type === "tool-call");
+  }
+  return [];
+}
+
 export function getToolCallResult(message: UIMessage) {
   if (message.role === "tool" && Array.isArray(message.content)) {
     const resultPart = message.content.find(
