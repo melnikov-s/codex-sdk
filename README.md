@@ -72,6 +72,8 @@ const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
   }
 
   return {
+    // Optional human-friendly name shown in the UI header and notifications
+    title: "Simple Agent",
     initialize: () => {
       actions.say("Ready. Starting agent loop…");
       runAgentLoop();
@@ -588,6 +590,32 @@ return {
 - **`formatMessage`**: A function `(message: UIMessage) => ReactNode` that renders the message content. Use this for complete customization of message appearance, including conditional styling, borders, colors, and complex layouts.
 
 The ReactNode approach gives you complete control over styling with Ink's `<Text>`, `<Box>`, and other components, allowing for dynamic colors, borders, conditional formatting, and complex layouts that weren't possible with the previous string-based API.
+
+---
+
+### Workflow Title
+
+You can set a human‑friendly `title` for your workflow. The title appears in the terminal header and desktop notifications. If omitted, the SDK defaults to "Codex SDK".
+
+```ts
+const workflow = createAgentWorkflow(({ actions }) => {
+  return {
+    title: "Repo Summarizer",
+    initialize() {
+      actions.say("Analyzing repository…");
+    },
+    async message(input) {
+      /* ... */
+    },
+    stop() {
+      /* ... */
+    },
+    terminate() {
+      /* ... */
+    },
+  };
+});
+```
 
 ---
 

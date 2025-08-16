@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Unified entry point for Codex CLI on all platforms
+// Unified entry point for Codex SDK CLI on all platforms
 // Dynamically loads the compiled ESM bundle in dist/cli.js
 
 import path from 'path';

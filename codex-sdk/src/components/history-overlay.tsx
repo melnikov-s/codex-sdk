@@ -114,8 +114,8 @@ function formatHistoryForDisplay(items: Array<UIMessage>): {
     }
 
     // ------------------------------------------------------------------
-    // We are interested in tool calls which – for the OpenAI client – are
-    // represented as `function_call` response items. Skip everything else.
+    // We are interested in tool calls represented as `function_call` items.
+    // Skip everything else.
     if (getMessageType(item) !== "function_call") {
       continue;
     }

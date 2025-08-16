@@ -64,6 +64,7 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
     }
 
     return {
+      title: "Project Setup Assistant",
       initialize: async () => {
         setState({
           messages: [

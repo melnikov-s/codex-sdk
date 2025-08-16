@@ -81,6 +81,10 @@ export interface DisplayConfig {
 
 export interface Workflow {
   /**
+   * Human-friendly title for this workflow (displayed in headers and UI)
+   */
+  title?: string;
+  /**
    * Initialize the workflow
    * Called when the workflow is first created
    */

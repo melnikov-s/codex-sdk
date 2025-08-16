@@ -53,10 +53,7 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
               {workflowHeader ? (
                 workflowHeader
               ) : (
-                <>
-                  OpenAI <Text bold>Codex</Text>{" "}
-                  <Text dimColor>(research preview)</Text>
-                </>
+                <Text bold>Codex SDK</Text>
               )}{" "}
               <Text dimColor>
                 <Text color="blueBright">v{version}</Text>

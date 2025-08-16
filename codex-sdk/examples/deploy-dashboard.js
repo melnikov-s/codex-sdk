@@ -209,6 +209,7 @@ export const workflow = createAgentWorkflow(
     }
 
     return {
+      title: "Release Assistant",
       displayConfig: {
         header: h(
           Text,

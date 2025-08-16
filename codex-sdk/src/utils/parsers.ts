@@ -75,7 +75,7 @@ export function parseToolCallArguments(
   const args = toolCall.input as Record<string, unknown>;
 
   const { cmd, command } = args as Record<string, unknown>;
-  // The OpenAI model sometimes produces a single string instead of an array.
+  // Some models sometimes produce a single string instead of an array.
   // Accept both shapes:
   const commandArray =
     toStringArray(cmd) ??

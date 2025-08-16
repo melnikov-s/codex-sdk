@@ -1,5 +1,5 @@
 {
-  description = "Development Nix flake for OpenAI Codex CLI";
+  description = "Development Nix flake for Codex SDK";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -20,9 +20,9 @@
           nodejs      = node;
           npmInstallFlags = [ "--frozen-lockfile" ];
           meta = with pkgs.lib; {
-            description = "OpenAI Codex command‑line interface";
+            description = "Codex SDK command‑line interface";
             license     = licenses.asl20;
-            homepage    = "https://github.com/openai/codex";
+            homepage    = "https://github.com/your-org/codex";
           };
         };
       };
