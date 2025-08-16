@@ -9,7 +9,6 @@ export {
   WorkflowState,
   createAgentWorkflow,
 } from "./workflow/index.js";
-export { createDefaultWorkflow } from "./workflow/default-agent.js";
 
 // Re-export approval mode constants for use by consumers
 export { AutoApprovalMode } from "./utils/auto-approval-mode.js";

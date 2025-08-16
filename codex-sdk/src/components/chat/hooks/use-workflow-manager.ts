@@ -20,7 +20,6 @@ import { useToolExecution } from "./use-tool-execution.js";
 import { useWorkflowActions } from "./use-workflow-actions.js";
 import { useCommandConfirmation } from "../../../hooks/use-command-confirmation.js";
 import { useSmartState } from "../../../hooks/use-smart-state.js";
-import { defaultWorkflow } from "../../../workflow/default-agent.js";
 import { createShellTool, createApplyPatchTool, createUserSelectTool } from "../tools/definitions.js";
 import { useEffect, useRef, useState } from "react";
 
@@ -28,7 +27,7 @@ export function useWorkflowManager(params: {
 	initialApprovalPolicy: ApprovalPolicy;
 	additionalWritableRoots: ReadonlyArray<string>;
 	uiConfig: LibraryConfig;
-	workflowFactory?: WorkflowFactory;
+	workflowFactory: WorkflowFactory;
 	onController?: (controller: WorkflowController) => void;
 	selectionApi: {
 		openSelection: (
@@ -100,7 +99,7 @@ export function useWorkflowManager(params: {
 		// stable during transient UI state changes (e.g. confirmation overlays)
 		// to avoid teardown flicker and lost state.
 
-		const factory = workflowFactory || defaultWorkflow;
+		const factory = workflowFactory;
 
 		const workflowHooks: WorkflowHooks = {
 			setState: smartSetState,
