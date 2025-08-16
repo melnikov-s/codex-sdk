@@ -25,7 +25,7 @@ type Props = {
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
-  workflowFactory?: WorkflowFactory;
+  workflowFactory: WorkflowFactory;
   uiConfig?: LibraryConfig;
   onController?: (controller: WorkflowController) => void;
 };
@@ -179,8 +179,7 @@ export default function TerminalChat({
               colorsByPolicy,
               headers,
               statusLine,
-              workflowHeader:
-                displayConfig?.header || "Codex (Default workflow)",
+              workflowHeader: displayConfig?.header || "OpenAI Codex",
             }}
           />
         ) : (

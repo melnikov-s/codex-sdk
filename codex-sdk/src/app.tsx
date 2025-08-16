@@ -22,7 +22,7 @@ type Props = {
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
-  workflowFactory?: WorkflowFactory;
+  workflowFactory: WorkflowFactory;
   uiConfig?: LibraryConfig;
   onController?: (controller: WorkflowController) => void;
 };
