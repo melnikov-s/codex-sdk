@@ -59,7 +59,10 @@ export default function App({
       <Box flexDirection="column">
         <Box borderStyle="round" paddingX={1} width={64}>
           <Text>
-            ● <Text bold>Codex SDK</Text> <Text dimColor><Text color="blueBright">v{CLI_VERSION}</Text></Text>
+            ● <Text bold>Codex SDK</Text>{" "}
+            <Text dimColor>
+              <Text color="blueBright">v{CLI_VERSION}</Text>
+            </Text>
           </Text>
         </Box>
         <Box
@@ -70,8 +73,8 @@ export default function App({
         >
           <Text>
             <Text color="yellow">Warning!</Text> It can be dangerous to run an
-            agent outside of a git repo in case there are changes that
-            you want to revert. Do you want to continue?
+            agent outside of a git repo in case there are changes that you want
+            to revert. Do you want to continue?
           </Text>
           <Text>{cwd}</Text>
           <ConfirmInput

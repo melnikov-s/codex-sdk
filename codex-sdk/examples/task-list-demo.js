@@ -107,7 +107,9 @@ Be specific about files and what needs to be done.`,
         }
 
         actions.setLoading(false);
-        actions.say(`📋 Analysis complete! I found ${taskLines.length} areas for improvement in your codebase.`);
+        actions.say(
+          `📋 Analysis complete! I found ${taskLines.length} areas for improvement in your codebase.`,
+        );
         // Kick off immediately by suggesting the first task
         const nextTask = (state.taskList || []).find((t) => !t.completed);
         if (nextTask) {
@@ -121,16 +123,17 @@ Be specific about files and what needs to be done.`,
 
         const userMessage = input.content.toLowerCase();
 
-        if (
-          userMessage === "done" ||
-          userMessage.includes("completed")
-        ) {
+        if (userMessage === "done" || userMessage.includes("completed")) {
           actions.toggleTask(); // Toggle next incomplete task
           const nextTask = state.taskList.find((t) => !t.completed);
           if (nextTask) {
-            actions.say(`✅ Task marked complete! Next up: "${nextTask.label}"`);
+            actions.say(
+              `✅ Task marked complete! Next up: "${nextTask.label}"`,
+            );
           } else {
-            actions.say("🎉 All tasks completed! Great work on improving your codebase.");
+            actions.say(
+              "🎉 All tasks completed! Great work on improving your codebase.",
+            );
           }
         } else if (userMessage.includes("help")) {
           const nextTask = state.taskList.find((t) => !t.completed);
@@ -147,11 +150,11 @@ Be specific about files and what needs to be done.`,
               ],
             });
 
-            actions.say(`💡 **Help:**\n\n${result.text}\n\nSay "done" when you've fixed this issue.`);
-          } else {
             actions.say(
-              "No pending tasks! All issues have been resolved.",
+              `💡 **Help:**\n\n${result.text}\n\nSay "done" when you've fixed this issue.`,
             );
+          } else {
+            actions.say("No pending tasks! All issues have been resolved.");
           }
         } else {
           // General conversation

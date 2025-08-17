@@ -26,6 +26,7 @@ export default function HelpOverlay({
     }
   });
 
+  // Note: Don't memoize this since disabled functions need to be evaluated with current state
   const allCommands = getAllAvailableCommands(workflow?.commands || {});
   const uiCommands = allCommands.filter((cmd) => cmd.source === "ui");
   const workflowCommands = allCommands.filter(
@@ -96,7 +97,8 @@ export default function HelpOverlay({
           – interrupt current action
         </Text>
         <Text>
-          <Text color="yellow">Ctrl+C</Text> – quit {workflow?.title ?? "Codex SDK"}
+          <Text color="yellow">Ctrl+C</Text> – quit{" "}
+          {workflow?.title ?? "Codex SDK"}
         </Text>
       </Box>
 

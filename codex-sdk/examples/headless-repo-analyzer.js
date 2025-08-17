@@ -12,7 +12,11 @@ const workflow = createAgentWorkflow(({ state, actions, tools, control }) => {
     initialize() {
       actions.say("🔎 Headless Repo Analyzer starting…");
       // Kick off the first turn from initialize — no `this`, no timers
-      control.message({ role: "user", content: "List top-level directories with `ls -1`. Then run `git status --porcelain` and count changed files. Summarize in 2 lines." });
+      control.message({
+        role: "user",
+        content:
+          "List top-level directories with `ls -1`. Then run `git status --porcelain` and count changed files. Summarize in 2 lines.",
+      });
     },
     async message(input) {
       actions.addMessage(input);
@@ -41,5 +45,3 @@ run(workflow, {
   log: { mode: "human" },
   headless: true,
 });
-
-

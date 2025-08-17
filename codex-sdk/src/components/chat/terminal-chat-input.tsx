@@ -25,7 +25,7 @@ import {
 } from "../../utils/storage/command-history.js";
 import { onExit } from "../../utils/terminal.js";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
-import React, { useCallback, useState, useEffect, useRef, useMemo } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import { useInterval } from "use-interval";
 
 export default function TerminalChatInput({
@@ -46,6 +46,7 @@ export default function TerminalChatInput({
   workflowStatusLine,
   workflow,
   inputDisabled,
+  inputSetterRef,
 }: {
   loading: boolean;
   queue: Array<string>;
@@ -68,6 +69,9 @@ export default function TerminalChatInput({
   workflowStatusLine?: React.ReactNode;
   workflow?: Workflow | null;
   inputDisabled?: boolean;
+  inputSetterRef?: React.MutableRefObject<
+    ((value: string) => void) | undefined
+  >;
 }): React.ReactElement {
   const app = useApp();
   const [input, setInput] = useState("");
@@ -97,18 +101,33 @@ export default function TerminalChatInput({
   const prevCursorWasAtLastRow = useRef<boolean>(false);
 
   // Get all available commands (UI + workflow commands)
-  const availableCommands = useMemo(() => {
-    return getAllAvailableCommands(workflow?.commands || {});
-  }, [workflow?.commands]);
+  // Note: Don't memoize this since disabled functions need to be evaluated with current state
+  const availableCommands = getAllAvailableCommands(workflow?.commands || {});
 
   // --- Helper for updating input, remounting editor, and moving cursor to end ---
   const applyFsSuggestion = useCallback((newInputText: string) => {
     setInput(newInputText);
+    setDraftInput(newInputText);
     setEditorState((s) => ({
       key: s.key + 1,
       initialCursorOffset: newInputText.length,
     }));
   }, []);
+
+  // Expose an imperative setter to the workflow via ref
+  useEffect(() => {
+    if (!inputSetterRef) {
+      return;
+    }
+    inputSetterRef.current = (value: string) => {
+      applyFsSuggestion(value);
+    };
+    return () => {
+      if (inputSetterRef) {
+        inputSetterRef.current = undefined;
+      }
+    };
+  }, [inputSetterRef, applyFsSuggestion]);
 
   // Load command history on component mount
   useEffect(() => {
@@ -649,12 +668,11 @@ export default function TerminalChatInput({
           />
         ) : (
           <Text dimColor>
-            ctrl+c to exit | "/" to see commands |
+            ctrl+c to exit | "/" to see commands
             {inputDisabled && (
               <>
-                {" "}
+                {" | "}
                 <Text color="red">Input disabled</Text>
-                {" |"}
               </>
             )}
             {statusLine && (

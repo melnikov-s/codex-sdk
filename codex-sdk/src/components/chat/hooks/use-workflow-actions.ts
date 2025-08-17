@@ -6,26 +6,42 @@ import type { ReactNode, MutableRefObject } from "react";
 
 import { filterTranscript } from "../../../utils/workflow/message.js";
 import { appendItems, shift } from "../../../utils/workflow/queue.js";
-import { coerceTaskItems, toggleNextIncomplete, toggleTaskAtIndex } from "../../../utils/workflow/tasks.js";
+import {
+  coerceTaskItems,
+  toggleNextIncomplete,
+  toggleTaskAtIndex,
+} from "../../../utils/workflow/tasks.js";
 import { useCallback, useMemo } from "react";
 
 export function useWorkflowActions(params: {
-  smartSetState: (updater: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState)) => Promise<void>;
+  smartSetState: (
+    updater: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
+  ) => Promise<void>;
   syncStateRef: MutableRefObject<WorkflowState>;
   setApprovalPolicy: (policy: ApprovalPolicy) => void;
   handleToolCall: (
     messageOrMessages: ModelMessage | Array<ModelMessage>,
     opts?: { abortSignal?: AbortSignal },
   ) => Promise<ModelMessage | Array<ModelMessage> | null>;
+  inputSetterRef?: MutableRefObject<((value: string) => void) | undefined>;
 }) {
-  const { smartSetState, syncStateRef, setApprovalPolicy, handleToolCall } = params;
+  const {
+    smartSetState,
+    syncStateRef,
+    setApprovalPolicy,
+    handleToolCall,
+    inputSetterRef,
+  } = params;
 
   const say = useCallback(
     (text: string | Array<string>) => {
       const messages = Array.isArray(text)
-        ? text.map(t => ({ role: "ui", content: t } as UIMessage))
+        ? text.map((t) => ({ role: "ui", content: t }) as UIMessage)
         : [{ role: "ui", content: text } as UIMessage];
-      void smartSetState((prev) => ({ ...prev, messages: [...prev.messages, ...messages] }));
+      void smartSetState((prev) => ({
+        ...prev,
+        messages: [...prev.messages, ...messages],
+      }));
     },
     [smartSetState],
   );
@@ -33,7 +49,10 @@ export function useWorkflowActions(params: {
   const addMessage = useCallback(
     (message: UIMessage | Array<UIMessage>) => {
       const messages = Array.isArray(message) ? message : [message];
-      void smartSetState((prev) => ({ ...prev, messages: [...prev.messages, ...messages] }));
+      void smartSetState((prev) => ({
+        ...prev,
+        messages: [...prev.messages, ...messages],
+      }));
     },
     [smartSetState],
   );
@@ -55,13 +74,19 @@ export function useWorkflowActions(params: {
 
   const setSlot = useCallback(
     (region: SlotRegion, content: ReactNode | null) =>
-      void smartSetState((prev) => ({ ...prev, slots: { ...prev.slots, [region]: content } })),
+      void smartSetState((prev) => ({
+        ...prev,
+        slots: { ...prev.slots, [region]: content },
+      })),
     [smartSetState],
   );
 
   const clearSlot = useCallback(
     (region: SlotRegion) =>
-      void smartSetState((prev) => ({ ...prev, slots: { ...prev.slots, [region]: null } })),
+      void smartSetState((prev) => ({
+        ...prev,
+        slots: { ...prev.slots, [region]: null },
+      })),
     [smartSetState],
   );
 
@@ -73,7 +98,10 @@ export function useWorkflowActions(params: {
   const addToQueue = useCallback(
     (item: string | Array<string>) => {
       const items = Array.isArray(item) ? item : [item];
-      void smartSetState((prev) => ({ ...prev, queue: appendItems(prev.queue, items) }));
+      void smartSetState((prev) => ({
+        ...prev,
+        queue: appendItems(prev.queue, items),
+      }));
     },
     [smartSetState],
   );
@@ -92,7 +120,10 @@ export function useWorkflowActions(params: {
 
   const addTask = useCallback(
     (task: string | TaskItem | Array<string | TaskItem>) =>
-      void smartSetState((prev) => ({ ...prev, taskList: [...(prev.taskList || []), ...coerceTaskItems(task)] })),
+      void smartSetState((prev) => ({
+        ...prev,
+        taskList: [...(prev.taskList || []), ...coerceTaskItems(task)],
+      })),
     [smartSetState],
   );
 
@@ -100,7 +131,10 @@ export function useWorkflowActions(params: {
     (index?: number) =>
       void smartSetState((prev) => {
         const list = prev.taskList || [];
-        const updated = index == null ? toggleNextIncomplete(list) : toggleTaskAtIndex(list, index);
+        const updated =
+          index == null
+            ? toggleNextIncomplete(list)
+            : toggleTaskAtIndex(list, index);
         return { ...prev, taskList: updated };
       }),
     [smartSetState],
@@ -119,7 +153,52 @@ export function useWorkflowActions(params: {
     [setApprovalPolicy, smartSetState],
   );
 
-  type ModelResult = { response: { messages: Array<ModelMessage> }; finishReason?: string };
+  const setInputValue = useCallback(
+    (value: string) => {
+      try {
+        inputSetterRef?.current?.(value);
+      } catch {
+        // no-op: ignored when UI isn't mounted
+      }
+    },
+    [inputSetterRef],
+  );
+
+  const truncateFromLastMessage = useCallback(
+    (role: UIMessage["role"]): Array<UIMessage> => {
+      const messages = [...(syncStateRef.current.messages || [])];
+
+      // Find the last message with the specified role
+      let targetIndex = -1;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i]?.role === role) {
+          targetIndex = i;
+          break;
+        }
+      }
+
+      if (targetIndex === -1) {
+        return []; // No message found
+      }
+
+      // Get the messages to remove (from target index to end)
+      const messagesToRemove = messages.slice(targetIndex);
+
+      // Update state to remove messages
+      void smartSetState((prev) => ({
+        ...prev,
+        messages: prev.messages.slice(0, targetIndex),
+      }));
+
+      return messagesToRemove;
+    },
+    [smartSetState, syncStateRef],
+  );
+
+  type ModelResult = {
+    response: { messages: Array<ModelMessage> };
+    finishReason?: string;
+  };
 
   const handleModelResult = useCallback(
     async (result: ModelResult, opts?: { abortSignal?: AbortSignal }) => {
@@ -135,35 +214,38 @@ export function useWorkflowActions(params: {
     [addMessage, handleToolCall],
   );
 
-  const stateGetters = useMemo(() => ({
-    get loading() {
-      return syncStateRef.current.loading;
-    },
-    get messages() {
-      return syncStateRef.current.messages;
-    },
-    get inputDisabled() {
-      return syncStateRef.current.inputDisabled;
-    },
-    get queue() {
-      return syncStateRef.current.queue || [];
-    },
-    get taskList() {
-      return syncStateRef.current.taskList || [];
-    },
-    get transcript() {
-      return filterTranscript(syncStateRef.current.messages);
-    },
-    get statusLine() {
-      return syncStateRef.current.statusLine;
-    },
-    get slots() {
-      return syncStateRef.current.slots;
-    },
-    get approvalPolicy() {
-      return syncStateRef.current.approvalPolicy;
-    },
-  }), [syncStateRef]);
+  const stateGetters = useMemo(
+    () => ({
+      get loading() {
+        return syncStateRef.current.loading;
+      },
+      get messages() {
+        return syncStateRef.current.messages;
+      },
+      get inputDisabled() {
+        return syncStateRef.current.inputDisabled;
+      },
+      get queue() {
+        return syncStateRef.current.queue || [];
+      },
+      get taskList() {
+        return syncStateRef.current.taskList || [];
+      },
+      get transcript() {
+        return filterTranscript(syncStateRef.current.messages);
+      },
+      get statusLine() {
+        return syncStateRef.current.statusLine;
+      },
+      get slots() {
+        return syncStateRef.current.slots;
+      },
+      get approvalPolicy() {
+        return syncStateRef.current.approvalPolicy;
+      },
+    }),
+    [syncStateRef],
+  );
 
   const actions = useMemo(
     () => ({
@@ -182,6 +264,8 @@ export function useWorkflowActions(params: {
       toggleTask,
       clearTaskList,
       setApprovalPolicy: setApprovalPolicyAction,
+      setInputValue,
+      truncateFromLastMessage,
       handleModelResult,
     }),
     [
@@ -200,6 +284,8 @@ export function useWorkflowActions(params: {
       toggleTask,
       clearTaskList,
       setApprovalPolicyAction,
+      setInputValue,
+      truncateFromLastMessage,
       handleModelResult,
     ],
   );
@@ -209,5 +295,3 @@ export function useWorkflowActions(params: {
     stateGetters,
   } as const;
 }
-
-

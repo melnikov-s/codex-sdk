@@ -178,6 +178,23 @@ import { exitSafely } from "codex-sdk";
 await exitSafely(0, ["Thanks for using Codex!", "All done."]);
 ```
 
+### Utility Functions
+
+#### `getTextContent(message: UIMessage): string`
+
+Extracts plain text content from a UIMessage object, handling both simple string content and complex multipart content.
+
+```ts
+import { getTextContent } from "codex-sdk";
+
+// Usage in command handlers
+const removed = actions.truncateFromLastMessage("user");
+const text = getTextContent(removed[0]); // Extract text from the message
+actions.setInputValue(text);
+```
+
+This utility is particularly useful when working with message content in command handlers, as it safely extracts text regardless of whether the message contains simple strings or multipart content (text, images, etc.).
+
 ### Prompt defaults are required
 
 `prompts.select/confirm/input` option types require `defaultValue` in both UI and headless. In UI, defaults are used on timeout or auto-resolution. In headless, calls resolve immediately with the default.
@@ -642,6 +659,8 @@ All actions are shortcuts for common `setState` operations:
 - **`actions.addMessage(message)`**: Append one or more messages to the history.
 - **`actions.setLoading(boolean)`**: Set the loading state.
 - **`actions.setInputDisabled(boolean)`**: Enable/disable user input.
+- **`actions.setInputValue(string)`**: Programmatically set the input editor text. This is an action (not state) so the input remains uncontrolled by state diffs.
+- **`actions.truncateFromLastMessage(role)`**: Remove the last message with the given role and everything after it. Returns the removed tail as an array (first element is the removed message itself).
 - **`actions.setStatusLine(content)`**: Set status line content.
 - **`actions.setSlot(region, content)`**: Set content for a specific slot region.
 - **`actions.clearSlot(region)`**: Clear content from a slot region.
@@ -683,6 +702,35 @@ This is the object your `agentLogicFunction` must return. It defines the lifecyc
 - **`stop()`**: Called when the user interrupts the agent (e.g., `Esc`). Your agent should halt processing.
 - **`terminate()`**: Called when the user quits (e.g., `Ctrl+C`). Your agent should stop and clear its state.
 - **`commands`**: An object defining custom slash commands (e.g., `/compact`) that can be triggered by the user from the input line.
+
+  Example (/delete and /edit):
+
+  ```ts
+  commands: {
+    delete: {
+      description: "Delete the last user message and everything after it",
+      handler: () => actions.truncateFromLastMessage("user"),
+      disabled: () => state.messages.filter(m => m.role === "user").length === 0
+    },
+    edit: {
+      description: "Edit the last user message (delete + prefill)",
+      handler: () => {
+        const removed = actions.truncateFromLastMessage("user");
+        const text = getTextContent(removed[0]);
+
+        actions.setInputValue(text);
+      },
+      disabled: () => state.messages.filter(m => m.role === "user").length === 0
+    },
+  }
+  ```
+
+  **Command Properties:**
+
+  - **`description`**: A human-readable description shown in help and autocomplete
+  - **`handler`**: The function to execute when the command is invoked
+  - **`disabled`** (optional): A function that returns boolean. When the function returns `true`, the command is hidden from the user and cannot be executed. The function is evaluated each time the command list is shown, allowing for dynamic visibility based on current state.
+
 - **`displayConfig`**: The display configuration object described above.
 
 ---

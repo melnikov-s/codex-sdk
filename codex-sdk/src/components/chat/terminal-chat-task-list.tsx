@@ -15,7 +15,7 @@ export default function TerminalChatTaskList({
   }
 
   // Find the first incomplete task (current task)
-  const currentTaskIndex = taskList.findIndex(task => !task.completed);
+  const currentTaskIndex = taskList.findIndex((task) => !task.completed);
 
   return (
     <Box flexDirection="column" marginBottom={1}>
@@ -27,7 +27,7 @@ export default function TerminalChatTaskList({
           {taskList.map((task, index) => {
             const isCurrent = index === currentTaskIndex;
             const isCompleted = task.completed;
-            
+
             if (isCurrent) {
               // Current task - highlight with bright color and special indicator
               return (

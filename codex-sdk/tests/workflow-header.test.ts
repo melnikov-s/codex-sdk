@@ -28,7 +28,9 @@ test("Workflow interface includes optional displayConfig with ReactNode header",
     terminate: () => {},
   };
 
-  expect(React.isValidElement(workflowWithReactHeader.displayConfig?.header)).toBe(true);
+  expect(
+    React.isValidElement(workflowWithReactHeader.displayConfig?.header),
+  ).toBe(true);
 });
 
 test("Workflow can exist without displayConfig header", () => {
@@ -46,21 +48,29 @@ test("New ReactNode formatter functions", () => {
   // Test that the new formatter functions are available and optional
   const workflowWithFormatters: Partial<Workflow> = {
     displayConfig: {
-      formatRoleHeader: (message) => React.createElement("span", {}, message.role),
-      formatMessage: (_message) => React.createElement("div", {}, "Formatted message"),
+      formatRoleHeader: (message) =>
+        React.createElement("span", {}, message.role),
+      formatMessage: (_message) =>
+        React.createElement("div", {}, "Formatted message"),
     },
     message: () => {},
     stop: () => {},
     terminate: () => {},
   };
 
-  expect(typeof workflowWithFormatters.displayConfig?.formatRoleHeader).toBe("function");
-  expect(typeof workflowWithFormatters.displayConfig?.formatMessage).toBe("function");
+  expect(typeof workflowWithFormatters.displayConfig?.formatRoleHeader).toBe(
+    "function",
+  );
+  expect(typeof workflowWithFormatters.displayConfig?.formatMessage).toBe(
+    "function",
+  );
 
   // Test that functions return ReactNodes
   const mockMessage = { role: "user", content: "test" } as any;
-  const roleHeader = workflowWithFormatters.displayConfig?.formatRoleHeader?.(mockMessage);
-  const formattedMessage = workflowWithFormatters.displayConfig?.formatMessage?.(mockMessage);
+  const roleHeader =
+    workflowWithFormatters.displayConfig?.formatRoleHeader?.(mockMessage);
+  const formattedMessage =
+    workflowWithFormatters.displayConfig?.formatMessage?.(mockMessage);
 
   expect(React.isValidElement(roleHeader)).toBe(true);
   expect(React.isValidElement(formattedMessage)).toBe(true);

@@ -4,7 +4,6 @@ import { getTextContent } from "../utils/ai.js";
 import { spawn } from "node:child_process";
 import React from "react";
 
-
 export function useDesktopNotifications(params: {
   notify: boolean;
   loading: boolean;
@@ -22,7 +21,12 @@ export function useDesktopNotifications(params: {
       return;
     }
 
-    if (prevLoadingRef.current && !loading && confirmationPrompt == null && items.length > 0) {
+    if (
+      prevLoadingRef.current &&
+      !loading &&
+      confirmationPrompt == null &&
+      items.length > 0
+    ) {
       if (process.platform === "darwin") {
         const assistantMessages = items.filter((i) => i.role === "assistant");
         const last = assistantMessages[assistantMessages.length - 1];
@@ -41,5 +45,3 @@ export function useDesktopNotifications(params: {
     prevLoadingRef.current = loading;
   }, [notify, loading, confirmationPrompt, items, cwd, title]);
 }
-
-

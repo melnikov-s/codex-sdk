@@ -16,6 +16,7 @@ export { exit as exitSafely } from "./utils/terminal.js";
 
 // Export approval types for use by consumers
 export type { ApprovalPolicy, SafetyAssessment } from "./approvals.js";
+export { getTextContent } from "./utils/ai.js";
 
 // Import necessary components
 import type { ApprovalPolicy } from "./approvals.js";
@@ -182,7 +183,10 @@ export function run(
     message: (input) => controllerRef?.message(input as unknown as string),
     stop: () => controllerRef?.stop(),
     terminate: (code?: number) => controllerRef?.terminate(code),
-    getState: () => (controllerRef ? controllerRef.getState() : ({} as unknown as ReturnType<WorkflowController["getState"]>)),
+    getState: () =>
+      controllerRef
+        ? controllerRef.getState()
+        : ({} as unknown as ReturnType<WorkflowController["getState"]>),
   };
   return proxy;
 }

@@ -27,13 +27,13 @@ describe("Task List Convenience Methods", () => {
 
     addTask("First task");
     expect(workflowState.taskList).toEqual([
-      { completed: false, label: "First task" }
+      { completed: false, label: "First task" },
     ]);
 
     addTask("Second task");
     expect(workflowState.taskList).toEqual([
       { completed: false, label: "First task" },
-      { completed: false, label: "Second task" }
+      { completed: false, label: "Second task" },
     ]);
   });
 
@@ -62,13 +62,13 @@ describe("Task List Convenience Methods", () => {
 
     addTask({ completed: true, label: "Completed task" });
     expect(workflowState.taskList).toEqual([
-      { completed: true, label: "Completed task" }
+      { completed: true, label: "Completed task" },
     ]);
 
     addTask({ completed: false, label: "Pending task" });
     expect(workflowState.taskList).toEqual([
       { completed: true, label: "Completed task" },
-      { completed: false, label: "Pending task" }
+      { completed: false, label: "Pending task" },
     ]);
   });
 
@@ -98,13 +98,13 @@ describe("Task List Convenience Methods", () => {
     addTask([
       "String task",
       { completed: true, label: "Object task" },
-      "Another string task"
+      "Another string task",
     ]);
 
     expect(workflowState.taskList).toEqual([
       { completed: false, label: "String task" },
       { completed: true, label: "Object task" },
-      { completed: false, label: "Another string task" }
+      { completed: false, label: "Another string task" },
     ]);
   });
 
@@ -116,29 +116,29 @@ describe("Task List Convenience Methods", () => {
       taskList: [
         { completed: false, label: "Task 1" },
         { completed: true, label: "Task 2" },
-        { completed: false, label: "Task 3" }
+        { completed: false, label: "Task 3" },
       ],
     };
 
     const toggleTask = (index?: number) => {
       const taskList = workflowState.taskList || [];
-      
+
       let targetIndex = index;
-      
+
       // If no index provided, find the next incomplete task
       if (targetIndex === undefined) {
-        targetIndex = taskList.findIndex(task => !task.completed);
+        targetIndex = taskList.findIndex((task) => !task.completed);
         if (targetIndex === -1) {
           // No incomplete tasks found, return unchanged
           return;
         }
       }
-      
+
       // Validate index bounds
       if (targetIndex < 0 || targetIndex >= taskList.length) {
         return;
       }
-      
+
       const newTaskList = [...taskList];
       const currentTask = newTaskList[targetIndex];
       if (currentTask) {
@@ -155,14 +155,23 @@ describe("Task List Convenience Methods", () => {
 
     // Toggle specific task by index
     toggleTask(0);
-    expect(workflowState.taskList![0]).toEqual({ completed: true, label: "Task 1" });
+    expect(workflowState.taskList![0]).toEqual({
+      completed: true,
+      label: "Task 1",
+    });
 
     toggleTask(1);
-    expect(workflowState.taskList![1]).toEqual({ completed: false, label: "Task 2" });
+    expect(workflowState.taskList![1]).toEqual({
+      completed: false,
+      label: "Task 2",
+    });
 
     // Toggle back
     toggleTask(0);
-    expect(workflowState.taskList![0]).toEqual({ completed: false, label: "Task 1" });
+    expect(workflowState.taskList![0]).toEqual({
+      completed: false,
+      label: "Task 1",
+    });
   });
 
   it("toggleTask should toggle next incomplete task when no index provided", () => {
@@ -173,29 +182,29 @@ describe("Task List Convenience Methods", () => {
       taskList: [
         { completed: true, label: "Task 1" },
         { completed: false, label: "Task 2" },
-        { completed: false, label: "Task 3" }
+        { completed: false, label: "Task 3" },
       ],
     };
 
     const toggleTask = (index?: number) => {
       const taskList = workflowState.taskList || [];
-      
+
       let targetIndex = index;
-      
+
       // If no index provided, find the next incomplete task
       if (targetIndex === undefined) {
-        targetIndex = taskList.findIndex(task => !task.completed);
+        targetIndex = taskList.findIndex((task) => !task.completed);
         if (targetIndex === -1) {
           // No incomplete tasks found, return unchanged
           return;
         }
       }
-      
+
       // Validate index bounds
       if (targetIndex < 0 || targetIndex >= taskList.length) {
         return;
       }
-      
+
       const newTaskList = [...taskList];
       const currentTask = newTaskList[targetIndex];
       if (currentTask) {
@@ -215,7 +224,7 @@ describe("Task List Convenience Methods", () => {
     expect(workflowState.taskList).toEqual([
       { completed: true, label: "Task 1" },
       { completed: true, label: "Task 2" },
-      { completed: false, label: "Task 3" }
+      { completed: false, label: "Task 3" },
     ]);
 
     // Should toggle Task 3 (next incomplete task)
@@ -223,11 +232,13 @@ describe("Task List Convenience Methods", () => {
     expect(workflowState.taskList).toEqual([
       { completed: true, label: "Task 1" },
       { completed: true, label: "Task 2" },
-      { completed: true, label: "Task 3" }
+      { completed: true, label: "Task 3" },
     ]);
 
     // Should do nothing when all tasks are completed
-    const originalTaskList = workflowState.taskList ? [...workflowState.taskList] : [];
+    const originalTaskList = workflowState.taskList
+      ? [...workflowState.taskList]
+      : [];
     toggleTask();
     expect(workflowState.taskList).toEqual(originalTaskList);
   });
@@ -237,30 +248,28 @@ describe("Task List Convenience Methods", () => {
       loading: false,
       messages: [],
       inputDisabled: false,
-      taskList: [
-        { completed: false, label: "Task 1" }
-      ],
+      taskList: [{ completed: false, label: "Task 1" }],
     };
 
     const toggleTask = (index?: number) => {
       const taskList = workflowState.taskList || [];
-      
+
       let targetIndex = index;
-      
+
       // If no index provided, find the next incomplete task
       if (targetIndex === undefined) {
-        targetIndex = taskList.findIndex(task => !task.completed);
+        targetIndex = taskList.findIndex((task) => !task.completed);
         if (targetIndex === -1) {
           // No incomplete tasks found, return unchanged
           return;
         }
       }
-      
+
       // Validate index bounds
       if (targetIndex < 0 || targetIndex >= taskList.length) {
         return;
       }
-      
+
       const newTaskList = [...taskList];
       const currentTask = newTaskList[targetIndex];
       if (currentTask) {
@@ -275,7 +284,9 @@ describe("Task List Convenience Methods", () => {
       };
     };
 
-    const originalTaskList = workflowState.taskList ? [...workflowState.taskList] : [];
+    const originalTaskList = workflowState.taskList
+      ? [...workflowState.taskList]
+      : [];
 
     // Test invalid indices
     toggleTask(-1);
@@ -301,7 +312,7 @@ describe("Task List Convenience Methods", () => {
       taskList: [
         { completed: false, label: "Task 1" },
         { completed: true, label: "Task 2" },
-        { completed: false, label: "Task 3" }
+        { completed: false, label: "Task 3" },
       ],
     };
 
@@ -341,23 +352,23 @@ describe("Task List Convenience Methods", () => {
 
     const toggleTask = (index?: number) => {
       const taskList = workflowState.taskList || [];
-      
+
       let targetIndex = index;
-      
+
       // If no index provided, find the next incomplete task
       if (targetIndex === undefined) {
-        targetIndex = taskList.findIndex(task => !task.completed);
+        targetIndex = taskList.findIndex((task) => !task.completed);
         if (targetIndex === -1) {
           // No incomplete tasks found, return unchanged
           return;
         }
       }
-      
+
       // Validate index bounds
       if (targetIndex < 0 || targetIndex >= taskList.length) {
         return;
       }
-      
+
       const newTaskList = [...taskList];
       const currentTask = newTaskList[targetIndex];
       if (currentTask) {
@@ -375,7 +386,7 @@ describe("Task List Convenience Methods", () => {
     // Adding to undefined taskList should work
     addTask("First task");
     expect(workflowState.taskList).toEqual([
-      { completed: false, label: "First task" }
+      { completed: false, label: "First task" },
     ]);
 
     // Toggling on undefined should do nothing

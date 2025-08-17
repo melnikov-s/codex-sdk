@@ -2,7 +2,14 @@ import Indicator, { type Props as IndicatorProps } from "./indicator.js";
 import ItemComponent, { type Props as ItemProps } from "./item.js";
 import isEqual from "fast-deep-equal";
 import { Box, useInput } from "ink";
-import React, { type FC, useState, useEffect, useRef, useCallback, createElement } from "react";
+import React, {
+  type FC,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  createElement,
+} from "react";
 import arrayToRotated from "to-rotated";
 
 type Props<V> = {
