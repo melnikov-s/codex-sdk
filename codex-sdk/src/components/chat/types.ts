@@ -6,5 +6,3 @@ export type OverlayModeType =
   | "selection"
   | "prompt"
   | "confirmation";
-
-

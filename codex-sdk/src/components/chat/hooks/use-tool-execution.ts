@@ -53,40 +53,55 @@ export function useToolExecution(params: {
       for (const message of messages) {
         const toolCalls = getToolCalls(message);
         for (const toolCall of toolCalls) {
-          if (!isNativeTool(toolCall.toolName)) {continue;}
+          if (!isNativeTool(toolCall.toolName)) {
+            continue;
+          }
 
           if (toolCall.toolName === "user_select") {
-          const { message: promptMessage, options, defaultValue } = toolCall.input as {
-            message: string;
-            options: Array<string>;
-            defaultValue: string;
-          };
+            const {
+              message: promptMessage,
+              options,
+              defaultValue,
+            } = toolCall.input as {
+              message: string;
+              options: Array<string>;
+              defaultValue: string;
+            };
 
-          const transformed = (options || []).map((o) => ({ label: o, value: o }));
-          const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
-          const enhanced = [
-            ...transformed,
-            { label: "None of the above (enter custom option)", value: CUSTOM_INPUT_VALUE },
-          ];
-          const validDefault = transformed.find((o) => o.value === defaultValue)?.value ?? (transformed[0]?.value ?? "yes");
-
-          const userResponse = await selectionApi.openSelection(enhanced, {
-            label: promptMessage,
-            timeout: 45,
-            defaultValue: validDefault,
-          });
-
-          toolResponses.push({
-            role: "tool",
-            content: [
+            const transformed = (options || []).map((o) => ({
+              label: o,
+              value: o,
+            }));
+            const CUSTOM_INPUT_VALUE = "__CUSTOM_INPUT__";
+            const enhanced = [
+              ...transformed,
               {
-                type: "tool-result",
-                toolCallId: toolCall.toolCallId,
-                output: { value: userResponse, type: "text" },
-                toolName: toolCall.toolName,
+                label: "None of the above (enter custom option)",
+                value: CUSTOM_INPUT_VALUE,
               },
-            ],
-          } satisfies ModelMessage);
+            ];
+            const validDefault =
+              transformed.find((o) => o.value === defaultValue)?.value ??
+              transformed[0]?.value ??
+              "yes";
+
+            const userResponse = await selectionApi.openSelection(enhanced, {
+              label: promptMessage,
+              timeout: 45,
+              defaultValue: validDefault,
+            });
+
+            toolResponses.push({
+              role: "tool",
+              content: [
+                {
+                  type: "tool-result",
+                  toolCallId: toolCall.toolCallId,
+                  output: { value: userResponse, type: "text" },
+                  toolName: toolCall.toolName,
+                },
+              ],
+            } satisfies ModelMessage);
             continue;
           }
 
@@ -110,13 +125,21 @@ export function useToolExecution(params: {
         }
       }
 
-      if (Array.isArray(messageOrMessages)) {return toolResponses;}
+      if (Array.isArray(messageOrMessages)) {
+        return toolResponses;
+      }
       return toolResponses[0] || null;
     },
-    [approvalPolicy, additionalWritableRoots, uiConfig, getCommandConfirmation, selectionApi, syncApprovalPolicyRef, dispatchUserMessage],
+    [
+      approvalPolicy,
+      additionalWritableRoots,
+      uiConfig,
+      getCommandConfirmation,
+      selectionApi,
+      syncApprovalPolicyRef,
+      dispatchUserMessage,
+    ],
   );
 
   return execute;
 }
-
-

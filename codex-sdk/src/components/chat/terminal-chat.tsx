@@ -49,7 +49,16 @@ export default function TerminalChat({
   const effectiveUiConfig = useMemo(() => uiConfig ?? {}, [uiConfig]);
   const notify = Boolean(effectiveUiConfig?.notify);
   const overlays = useOverlays();
-  const { overlayMode, setOverlayMode, selectionState, setSelectionState, promptState, setPromptState, confirmationState, setConfirmationState } = overlays;
+  const {
+    overlayMode,
+    setOverlayMode,
+    selectionState,
+    setSelectionState,
+    promptState,
+    setPromptState,
+    confirmationState,
+    setConfirmationState,
+  } = overlays;
 
   const openSelectionStable = useCallback(
     (
@@ -118,6 +127,13 @@ export default function TerminalChat({
   const smartSetState = workflowMgr.smartSetState;
   const displayConfig = workflowMgr.displayConfig;
   const workflow = workflowMgr.workflow;
+  const inputSetterRef = (
+    workflowMgr as unknown as {
+      inputSetterRef: React.MutableRefObject<
+        ((value: string) => void) | undefined
+      >;
+    }
+  ).inputSetterRef;
   const confirmationPrompt = workflowMgr.confirmationPrompt;
   const explanation = workflowMgr.explanation;
   const submitConfirmation = workflowMgr.submitConfirmation;
@@ -136,7 +152,14 @@ export default function TerminalChat({
 
   // Workflow creation and lifecycle handled by hook
 
-  useDesktopNotifications({ notify, loading, confirmationPrompt, items, cwd: PWD, title: (workflow?.title as string) || "Codex SDK" });
+  useDesktopNotifications({
+    notify,
+    loading,
+    confirmationPrompt,
+    items,
+    cwd: PWD,
+    title: (workflow?.title as string) || "Codex SDK",
+  });
 
   // Let's also track whenever the ref becomes available.
   useEffect(() => {
@@ -154,8 +177,14 @@ export default function TerminalChat({
   const groupCounts: Record<string, number> = {};
   const userMsgCount = items.filter((i) => i.role === "user").length;
 
-  const headers = useMemo(() => resolveHeaders(effectiveUiConfig), [effectiveUiConfig]);
-  const statusLine = useMemo(() => resolveStatusLine(effectiveUiConfig), [effectiveUiConfig]);
+  const headers = useMemo(
+    () => resolveHeaders(effectiveUiConfig),
+    [effectiveUiConfig],
+  );
+  const statusLine = useMemo(
+    () => resolveStatusLine(effectiveUiConfig),
+    [effectiveUiConfig],
+  );
 
   return (
     <Box flexDirection="column">
@@ -179,7 +208,10 @@ export default function TerminalChat({
               colorsByPolicy,
               headers,
               statusLine,
-              workflowHeader: (workflow?.title as unknown as React.ReactNode) || displayConfig?.header || "Codex SDK",
+              workflowHeader:
+                (workflow?.title as unknown as React.ReactNode) ||
+                displayConfig?.header ||
+                "Codex SDK",
             }}
           />
         ) : (
@@ -192,84 +224,85 @@ export default function TerminalChat({
             {/* Slot above input */}
             {workflowState.slots?.aboveInput ?? null}
             <TerminalChatInput
-            loading={loading}
-            queue={workflowState.queue || []}
-            taskList={workflowState.taskList || []}
-            setItems={(updater) => {
-              // Bridge setItems to smartSetState
-              // TODO: Remove this when TerminalChatInput is refactored to use workflow directly
-              smartSetState((prev) => ({
-                ...prev,
-                messages:
-                  typeof updater === "function"
-                    ? updater(prev.messages)
-                    : updater,
-              }));
-            }}
-            confirmationPrompt={confirmationPrompt}
-            explanation={explanation}
-            submitConfirmation={(
-              decision: ReviewDecision,
-              customDenyMessage?: string,
-            ) =>
-              submitConfirmation({
-                decision,
-                customDenyMessage,
-              })
-            }
-            statusLine={statusLine}
-            workflowStatusLine={workflowState.statusLine}
-            openOverlay={() => setOverlayMode("history")}
-            openApprovalOverlay={() => setOverlayMode("approval")}
-            openHelpOverlay={() => setOverlayMode("help")}
-            workflow={workflow}
-            active={overlayMode === "none" && !inputDisabled}
-            inputDisabled={inputDisabled}
-            interruptAgent={() => {
-              if (!workflow) {
-                return;
+              loading={loading}
+              queue={workflowState.queue || []}
+              taskList={workflowState.taskList || []}
+              setItems={(updater) => {
+                // Bridge setItems to smartSetState
+                // TODO: Remove this when TerminalChatInput is refactored to use workflow directly
+                smartSetState((prev) => ({
+                  ...prev,
+                  messages:
+                    typeof updater === "function"
+                      ? updater(prev.messages)
+                      : updater,
+                }));
+              }}
+              confirmationPrompt={confirmationPrompt}
+              explanation={explanation}
+              submitConfirmation={(
+                decision: ReviewDecision,
+                customDenyMessage?: string,
+              ) =>
+                submitConfirmation({
+                  decision,
+                  customDenyMessage,
+                })
               }
-              log(
-                "TerminalChat: interruptAgent invoked – calling workflow.stop()",
-              );
-              workflow.stop();
-              // Let the workflow handle its own interruption state and messages
-            }}
-            submitInput={(input) => {
-              if (workflow != null) {
-                // Transform content array to simple string for user messages
-                const transformedInput =
-                  input.role === "user" && Array.isArray(input.content)
-                    ? {
-                        role: "user" as const,
-                        content: input.content
-                          .map((item) => {
-                            if (typeof item === "string") {
-                              return item;
-                            }
-                            if (
-                              typeof item === "object" &&
-                              item != null &&
-                              "text" in item
-                            ) {
-                              return (item as { text: string }).text;
-                            }
-                            if (
-                              typeof item === "object" &&
-                              item != null &&
-                              "content" in item
-                            ) {
-                              return (item as { content: string }).content;
-                            }
-                            return String(item);
-                          })
-                          .join(""),
-                      }
-                    : input;
-                workflow.message(transformedInput);
-              }
-              return {};
-            }}
+              statusLine={statusLine}
+              workflowStatusLine={workflowState.statusLine}
+              openOverlay={() => setOverlayMode("history")}
+              openApprovalOverlay={() => setOverlayMode("approval")}
+              openHelpOverlay={() => setOverlayMode("help")}
+              workflow={workflow}
+              active={overlayMode === "none" && !inputDisabled}
+              inputDisabled={inputDisabled}
+              inputSetterRef={inputSetterRef}
+              interruptAgent={() => {
+                if (!workflow) {
+                  return;
+                }
+                log(
+                  "TerminalChat: interruptAgent invoked – calling workflow.stop()",
+                );
+                workflow.stop();
+                // Let the workflow handle its own interruption state and messages
+              }}
+              submitInput={(input) => {
+                if (workflow != null) {
+                  // Transform content array to simple string for user messages
+                  const transformedInput =
+                    input.role === "user" && Array.isArray(input.content)
+                      ? {
+                          role: "user" as const,
+                          content: input.content
+                            .map((item) => {
+                              if (typeof item === "string") {
+                                return item;
+                              }
+                              if (
+                                typeof item === "object" &&
+                                item != null &&
+                                "text" in item
+                              ) {
+                                return (item as { text: string }).text;
+                              }
+                              if (
+                                typeof item === "object" &&
+                                item != null &&
+                                "content" in item
+                              ) {
+                                return (item as { content: string }).content;
+                              }
+                              return String(item);
+                            })
+                            .join(""),
+                        }
+                      : input;
+                  workflow.message(transformedInput);
+                }
+                return {};
+              }}
             />
             {/* Slot below input */}
             {workflowState.slots?.belowInput ?? null}
@@ -288,16 +321,19 @@ export default function TerminalChat({
         />
 
         {/* selection overlay status line */}
-        {overlayMode === "selection" && (workflowState.statusLine || statusLine) && (
-          <Box flexDirection="column" marginTop={1}>
-            {workflowState.statusLine && <Box marginBottom={0}>{workflowState.statusLine}</Box>}
-            {statusLine && (
-              <Box paddingX={2} marginBottom={1}>
-                <Text dimColor>{statusLine}</Text>
-              </Box>
-            )}
-          </Box>
-        )}
+        {overlayMode === "selection" &&
+          (workflowState.statusLine || statusLine) && (
+            <Box flexDirection="column" marginTop={1}>
+              {workflowState.statusLine && (
+                <Box marginBottom={0}>{workflowState.statusLine}</Box>
+              )}
+              {statusLine && (
+                <Box paddingX={2} marginBottom={1}>
+                  <Text dimColor>{statusLine}</Text>
+                </Box>
+              )}
+            </Box>
+          )}
       </Box>
     </Box>
   );

@@ -78,3 +78,54 @@ test("filters commands by prefix", () => {
     expect.arrayContaining(["/history", "/help", "/approval"]),
   );
 });
+
+test("excludes disabled commands from the list", () => {
+  const workflowCommands = {
+    enabled: {
+      description: "This command is enabled",
+      handler: async () => {},
+    },
+    conditionallyDisabled: {
+      description: "This command is conditionally disabled",
+      handler: async () => {},
+      disabled: () => true,
+    },
+    conditionallyEnabled: {
+      description: "This command is conditionally enabled",
+      handler: async () => {},
+      disabled: () => false,
+    },
+  };
+
+  const allCommands = getAllAvailableCommands(workflowCommands);
+  const commandNames = allCommands.map((c: SlashCommand) => c.command);
+
+  // Should include enabled commands
+  expect(commandNames).toContain("/enabled");
+  expect(commandNames).toContain("/conditionallyEnabled");
+
+  // Should exclude disabled commands
+  expect(commandNames).not.toContain("/conditionallyDisabled");
+});
+
+test("handles disabled property edge cases", () => {
+  const workflowCommands = {
+    undefinedDisabled: {
+      description: "Command with undefined disabled",
+      handler: async () => {},
+      disabled: undefined,
+    },
+    explicitlyEnabled: {
+      description: "Command explicitly enabled",
+      handler: async () => {},
+      disabled: () => false,
+    },
+  };
+
+  const allCommands = getAllAvailableCommands(workflowCommands);
+  const commandNames = allCommands.map((c: SlashCommand) => c.command);
+
+  // Both should be included (undefined and function returning false should show the command)
+  expect(commandNames).toContain("/undefinedDisabled");
+  expect(commandNames).toContain("/explicitlyEnabled");
+});

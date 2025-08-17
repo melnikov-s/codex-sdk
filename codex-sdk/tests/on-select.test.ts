@@ -21,7 +21,10 @@ test("SelectOptions interface requires defaultValue", () => {
 });
 
 test("SelectOptions can have required flag and defaultValue", () => {
-  const requiredAndDefault: SelectOptions = { required: true, defaultValue: "test" };
+  const requiredAndDefault: SelectOptions = {
+    required: true,
+    defaultValue: "test",
+  };
   expect(requiredAndDefault.defaultValue).toBe("test");
   expect(requiredAndDefault.required).toBe(true);
 });

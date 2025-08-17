@@ -6,7 +6,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { run, createAgentWorkflow } from "codex-sdk";
+import { run, createAgentWorkflow, getTextContent } from "codex-sdk";
 
 const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
   async function runAgentLoop() {
@@ -18,6 +18,9 @@ const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
       if (nextQueued != null && nextQueued.trim().length > 0) {
         actions.addMessage({ role: "user", content: nextQueued });
       }
+
+      // Artificial delay to demonstrate the queue accepting inputs while busy
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
       const result = await generateText({
         model: openai("gpt-4o"),
@@ -34,7 +37,6 @@ Be explicit and concise. Prefer small, verifiable steps.`,
       await actions.handleModelResult(result);
 
       // Artificial delay to demonstrate the queue accepting inputs while busy
-      await new Promise((resolve) => setTimeout(resolve, 1200));
 
       // Stop only if the model signalled completion AND there is nothing queued
       if (result.finishReason === "stop") {
@@ -70,9 +72,35 @@ Be explicit and concise. Prefer small, verifiable steps.`,
 
     stop: () => actions.setLoading(false),
     terminate: () => setState({ loading: false, messages: [] }),
+
+    commands: {
+      delete: {
+        description: "Delete the last user message and everything after it",
+        handler: () => {
+          const removed = actions.truncateFromLastMessage("user");
+          if (removed.length === 0) {
+            actions.say("No user message to delete.");
+          } else {
+            actions.say(`Deleted ${removed.length} message(s).`);
+          }
+        },
+        disabled: () =>
+          state.messages.filter((m) => m.role === "user").length === 0,
+      },
+      edit: {
+        description:
+          "Edit the last user message (deletes it and pre-fills input)",
+        handler: () => {
+          const removed = actions.truncateFromLastMessage("user");
+          const text = getTextContent(removed[0]);
+
+          actions.setInputValue(text);
+        },
+        disabled: () =>
+          state.messages.filter((m) => m.role === "user").length === 0,
+      },
+    },
   };
 });
 
 run(workflow);
-
-

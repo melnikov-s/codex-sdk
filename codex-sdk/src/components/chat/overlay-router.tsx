@@ -65,7 +65,9 @@ export function OverlayRouter(props: {
   } = props;
 
   if (overlayMode === "history") {
-    return <HistoryOverlay items={items} onExit={() => setOverlayMode("none")} />;
+    return (
+      <HistoryOverlay items={items} onExit={() => setOverlayMode("none")} />
+    );
   }
 
   if (overlayMode === "approval") {
@@ -149,5 +151,3 @@ export function OverlayRouter(props: {
 
   return null;
 }
-
-

@@ -66,8 +66,6 @@ export interface WorkflowState {
   approvalPolicy?: ApprovalPolicy;
 }
 
-
-
 export interface DisplayConfig {
   /** Custom header for the workflow */
   header?: ReactNode;
@@ -124,6 +122,7 @@ export interface Workflow {
     {
       description: string;
       handler: (args?: string) => Promise<void> | void;
+      disabled?: () => boolean;
     }
   >;
 }
@@ -259,6 +258,21 @@ export interface WorkflowHooks {
     setApprovalPolicy?: (policy: ApprovalPolicy) => void;
 
     /**
+     * Programmatically set the current input box value in the UI.
+     * This is intentionally an action (not part of WorkflowState) so the
+     * input remains uncontrolled by state diffs and can be updated
+     * imperatively by workflows (e.g., for edit flows).
+     * @param value The text to populate into the input editor
+     */
+    setInputValue: (value: string) => void;
+
+    /**
+     * Remove the last message that matches the given role and everything after it.
+     * Returns the removed tail (first element is the removed message itself).
+     */
+    truncateFromLastMessage: (role: UIMessage["role"]) => Array<UIMessage>;
+
+    /**
      * Convenience helper: apply a model result by adding its messages and executing tool calls.
      * Equivalent to:
      *   const { messages } = result.response;
@@ -268,7 +282,10 @@ export interface WorkflowHooks {
      * Returns the array of tool responses (possibly empty).
      */
     handleModelResult: (
-      result: { response: { messages: Array<UIMessage> }; finishReason?: string },
+      result: {
+        response: { messages: Array<UIMessage> };
+        finishReason?: string;
+      },
       opts?: { abortSignal?: AbortSignal },
     ) => Promise<Array<UIMessage>>;
   };

@@ -36,8 +36,7 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         // Compact header for small terminal windows
         <>
           <Text>
-            ● {workflowHeader || "Codex SDK"} v{version} - {PWD}{" "}
-            -{" "}
+            ● {workflowHeader || "Codex SDK"} v{version} - {PWD} -{" "}
             <Text color={colorsByPolicy[approvalPolicy]}>{approvalPolicy}</Text>
             {flexModeEnabled ? " - flex-mode" : ""}
             {headers.length > 0 &&
@@ -49,12 +48,7 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         <>
           <Box borderStyle="round" paddingX={1} width={64}>
             <Text>
-              ●{" "}
-              {workflowHeader ? (
-                workflowHeader
-              ) : (
-                <Text bold>Codex SDK</Text>
-              )}{" "}
+              ● {workflowHeader ? workflowHeader : <Text bold>Codex SDK</Text>}{" "}
               <Text dimColor>
                 <Text color="blueBright">v{version}</Text>
               </Text>

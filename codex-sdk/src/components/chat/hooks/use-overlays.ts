@@ -35,9 +35,7 @@ export type ConfirmationState = {
 export function useOverlays() {
   const [overlayMode, setOverlayMode] = useState<OverlayModeType>("none");
 
-  const [selectionState, setSelectionState] = useState<SelectionState>(
-    null,
-  );
+  const [selectionState, setSelectionState] = useState<SelectionState>(null);
   const [promptState, setPromptState] = useState<PromptState>(null);
   const [confirmationState, setConfirmationState] =
     useState<ConfirmationState>(null);
@@ -104,5 +102,3 @@ export function useOverlays() {
     closeConfirmation,
   } as const;
 }
-
-

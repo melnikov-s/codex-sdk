@@ -289,7 +289,7 @@ describe("Declarative State API", () => {
 
       const mockSay = (text: string | Array<string>) => {
         const messages = Array.isArray(text)
-          ? text.map(t => ({ role: "ui" as const, content: t }))
+          ? text.map((t) => ({ role: "ui" as const, content: t }))
           : [{ role: "ui" as const, content: text }];
         currentState = {
           ...currentState,
@@ -315,7 +315,7 @@ describe("Declarative State API", () => {
 
       const mockSay = (text: string | Array<string>) => {
         const messages = Array.isArray(text)
-          ? text.map(t => ({ role: "ui" as const, content: t }))
+          ? text.map((t) => ({ role: "ui" as const, content: t }))
           : [{ role: "ui" as const, content: text }];
         currentState = {
           ...currentState,
@@ -348,7 +348,10 @@ describe("Declarative State API", () => {
 
       expect(transcript).toHaveLength(2);
       expect(transcript[0]).toEqual({ role: "user", content: "Hello" });
-      expect(transcript[1]).toEqual({ role: "assistant", content: "Hi there!" });
+      expect(transcript[1]).toEqual({
+        role: "assistant",
+        content: "Hi there!",
+      });
     });
   });
 
@@ -379,6 +382,8 @@ describe("Declarative State API", () => {
           addTask: vi.fn(),
           toggleTask: vi.fn(),
           clearTaskList: vi.fn(),
+          setInputValue: vi.fn(),
+          truncateFromLastMessage: vi.fn(() => []),
           handleModelResult: vi.fn(),
         },
         tools: {
@@ -471,6 +476,8 @@ describe("Declarative State API", () => {
           addTask: vi.fn(),
           toggleTask: vi.fn(),
           clearTaskList: vi.fn(),
+          setInputValue: vi.fn(),
+          truncateFromLastMessage: vi.fn(() => []),
           handleModelResult: vi.fn(),
         },
         tools: {
@@ -634,6 +641,8 @@ describe("Declarative State API", () => {
             addTask: vi.fn(),
             toggleTask: vi.fn(),
             clearTaskList: vi.fn(),
+            setInputValue: vi.fn(),
+            truncateFromLastMessage: vi.fn(() => []),
             handleModelResult: vi.fn(),
           },
           tools: {

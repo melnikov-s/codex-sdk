@@ -14,10 +14,7 @@ const queueDemoWorkflow = createAgentWorkflow(({ setState, actions }) => {
     let nextMessage = actions.removeFromQueue();
     while (nextMessage) {
       // Showcase mixed array: strings become UI messages
-      actions.say([
-        `Processing: "${nextMessage}"`,
-        "Working on it...",
-      ]);
+      actions.say([`Processing: "${nextMessage}"`, "Working on it..."]);
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
