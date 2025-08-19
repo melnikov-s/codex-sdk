@@ -15,12 +15,14 @@ export function TerminalChatSelect({
   options,
   onSelect,
   onCancel: _onCancel,
+  onSlashModeRequested,
   isActive = true,
 }: {
   items: Array<SelectItem>;
   options?: SelectOptions | SelectOptionsWithTimeout;
   onSelect: (value: string) => void;
   onCancel: () => void;
+  onSlashModeRequested?: () => void;
   isActive?: boolean;
 }): React.ReactElement {
   const isTimeoutOptions = (
@@ -101,12 +103,18 @@ export function TerminalChatSelect({
   };
 
   useInput(
-    (_input, key) => {
+    (input, key) => {
       // If in custom input mode, let the text editor handle input
       if (showCustomInput) {
         if (key.escape) {
           handleCustomInputCancel();
         }
+        return;
+      }
+
+      // Handle "/" key to switch to slash command mode
+      if (input === "/" && !key.ctrl && !key.meta) {
+        onSlashModeRequested?.();
         return;
       }
 

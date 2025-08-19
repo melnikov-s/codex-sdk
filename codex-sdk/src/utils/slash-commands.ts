@@ -28,6 +28,46 @@ export const DEFAULT_UI_COMMANDS: Array<SlashCommand> = [
     description: "Open approval mode selection panel",
     source: "ui",
   },
+  {
+    command: "/switch",
+    description: "Open workflow picker or switch to a workflow by name/id (/switch <name>)",
+    source: "ui",
+  },
+  {
+    command: "/next",
+    description: "Switch to next workflow tab",
+    source: "ui",
+  },
+  {
+    command: "/prev",
+    description: "Switch to previous workflow tab",
+    source: "ui",
+  },
+  {
+    command: "/tabs",
+    description: "Show workflow tabs overview",
+    source: "ui",
+  },
+  {
+    command: "/new",
+    description: "Open workflow launcher to create a new instance",
+    source: "ui",
+  },
+  {
+    command: "/launcher",
+    description: "Open workflow launcher to create a new instance",
+    source: "ui",
+  },
+  {
+    command: "/close",
+    description: "Close the current workflow tab (graceful)",
+    source: "ui",
+  },
+  {
+    command: "/kill",
+    description: "Force-kill the current workflow tab",
+    source: "ui",
+  },
 ];
 
 /**

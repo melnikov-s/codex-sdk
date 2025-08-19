@@ -214,44 +214,34 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
 
   return {
     displayConfig: {
-      header: (
-        <Text bold color="#0066cc">
-          🎓 Codebase Knowledge Quiz 📚
-        </Text>
+      header: React.createElement(Text, { bold: true, color: "#0066cc" }, 
+        "🎓 Codebase Knowledge Quiz 📚"
       ),
       formatRoleHeader: (message) => {
         if (message.role === "assistant") {
-          return (
-            <Text bold color="#0066cc">
-              🤖 Quiz Master
-            </Text>
+          return React.createElement(Text, { bold: true, color: "#0066cc" }, 
+            "🤖 Quiz Master"
           );
         }
         if (message.role === "user") {
-          return (
-            <Text bold color="#ff6b35">
-              🧑‍💻 Student
-            </Text>
+          return React.createElement(Text, { bold: true, color: "#ff6b35" }, 
+            "🧑‍💻 Student"
           );
         }
         if (message.role === "tool") {
-          return (
-            <Text bold color="#28a745">
-              ✍️ Your Answer
-            </Text>
+          return React.createElement(Text, { bold: true, color: "#28a745" }, 
+            "✍️ Your Answer"
           );
         }
-        return (
-          <Text bold color="#ffc107">
-            📊 Quiz System
-          </Text>
+        return React.createElement(Text, { bold: true, color: "#ffc107" }, 
+          "📊 Quiz System"
         );
       },
       formatMessage: (message) => {
         const content = Array.isArray(message.content)
           ? message.content.find((part) => part.type === "text")?.text || ""
           : message.content;
-        return <Text>{content}</Text>;
+        return React.createElement(Text, null, content);
       },
     },
 
@@ -292,4 +282,10 @@ DO NOT repeat any previous questions. Generate something new about ${currentTopi
   };
 });
 
-run(workflow);
+// Export the workflow for use in multi-workflow demos
+export const codebaseQuizWorkflow = workflow;
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

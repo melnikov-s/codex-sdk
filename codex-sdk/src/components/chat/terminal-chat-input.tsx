@@ -47,6 +47,19 @@ export default function TerminalChatInput({
   workflow,
   inputDisabled,
   inputSetterRef,
+  // Multi-workflow actions (optional; provided when multi-workflow is enabled)
+  switchWorkflowByQuery,
+  openWorkflowPickerOverlay,
+  openWorkflowLauncherOverlay,
+  closeCurrentWorkflow,
+  killCurrentWorkflow,
+  listTabs,
+  goToNextWorkflow,
+  goToPreviousWorkflow,
+  killCurrentOrExit: _killCurrentOrExit,
+  // Optional callbacks to coordinate overlays when slash commands are typed/handled
+  onTextChange: _onTextChange,
+  onSlashHandled,
 }: {
   loading: boolean;
   queue: Array<string>;
@@ -72,6 +85,17 @@ export default function TerminalChatInput({
   inputSetterRef?: React.MutableRefObject<
     ((value: string) => void) | undefined
   >;
+  switchWorkflowByQuery?: (query: string | null) => void;
+  openWorkflowPickerOverlay?: () => void;
+  openWorkflowLauncherOverlay?: () => void;
+  closeCurrentWorkflow?: () => void;
+  killCurrentWorkflow?: () => void;
+  listTabs?: () => void;
+  goToNextWorkflow?: () => void;
+  goToPreviousWorkflow?: () => void;
+  killCurrentOrExit?: () => void;
+  onTextChange?: (text: string) => void;
+  onSlashHandled?: () => void;
 }): React.ReactElement {
   const app = useApp();
   const [input, setInput] = useState("");
@@ -189,10 +213,11 @@ export default function TerminalChatInput({
             return;
           }
           if (_key.return) {
-            // Execute the currently selected slash command
+            // Execute the currently selected slash command ONLY if input exactly matches
             const selIdx = selectedSlashSuggestion;
             const cmdObj = matches[selIdx];
-            if (cmdObj) {
+            // Only execute if the input exactly matches the command
+            if (cmdObj && prefix === cmdObj.command) {
               const cmd = cmdObj.command;
               setInput("");
               setDraftInput("");
@@ -209,6 +234,27 @@ export default function TerminalChatInput({
                     break;
                   case "/approval":
                     openApprovalOverlay();
+                    break;
+
+                  // Multi-workflow UI commands (handled in parent via slots/controller)
+                  case "/switch":
+                    // Open workflow picker (handled by parent via prop)
+                    openWorkflowPickerOverlay?.();
+                    break;
+                  case "/tabs":
+                    // No-op here; tabs are always visible in multi-workflow mode
+                    break;
+                  case "/launcher":
+                    openWorkflowLauncherOverlay?.();
+                    break;
+                  case "/new":
+                    openWorkflowLauncherOverlay?.();
+                    break;
+                  case "/close":
+                    closeCurrentWorkflow?.();
+                    break;
+                  case "/kill":
+                    killCurrentWorkflow?.();
                     break;
 
                   case "/clearhistory":
@@ -370,13 +416,7 @@ export default function TerminalChatInput({
           editorRef.current?.isCursorAtLastRow?.() ?? true;
       }, 1);
 
-      if (_input === "\u0003" || (_input === "c" && _key.ctrl)) {
-        setTimeout(() => {
-          app.exit();
-          onExit();
-          process.exit(0);
-        }, 60);
-      }
+      // Removed Ctrl+C handling here - handled by SIGINT at process level
     },
     { isActive: active },
   );
@@ -502,6 +542,52 @@ export default function TerminalChatInput({
           }
         }
 
+        // Built-in multi-workflow commands with arguments
+        // Note: actual switching/creation should be wired at a higher level
+        const parts = trimmed.slice(1).split(/\s+/);
+        const base = parts[0];
+        const arg = parts.slice(1).join(" ");
+        if (base === "switch") {
+          setInput("");
+          if (openWorkflowPickerOverlay && !arg) {
+            openWorkflowPickerOverlay();
+          } else if (switchWorkflowByQuery) {
+            switchWorkflowByQuery(arg || null);
+          }
+          return;
+        }
+        if (base === "new") {
+          setInput("");
+          openWorkflowLauncherOverlay?.();
+          return;
+        }
+        // removed /new in favor of /launcher
+        if (base === "next") {
+          setInput("");
+          goToNextWorkflow?.();
+          return;
+        }
+        if (base === "prev") {
+          setInput("");
+          goToPreviousWorkflow?.();
+          return;
+        }
+        if (base === "close") {
+          setInput("");
+          closeCurrentWorkflow?.();
+          return;
+        }
+        if (base === "kill") {
+          setInput("");
+          killCurrentWorkflow?.();
+          return;
+        }
+        if (base === "tabs") {
+          setInput("");
+          listTabs?.();
+          return;
+        }
+
         if (/^\/\S+$/.test(trimmed)) {
           setInput("");
           setItems((prev) => [
@@ -562,6 +648,14 @@ export default function TerminalChatInput({
       workflow,
       clearSuggestions,
       setSelectedCompletion,
+      switchWorkflowByQuery,
+      openWorkflowPickerOverlay,
+      openWorkflowLauncherOverlay,
+      closeCurrentWorkflow,
+      killCurrentWorkflow,
+      listTabs,
+      goToNextWorkflow,
+      goToPreviousWorkflow,
     ],
   );
 
@@ -606,6 +700,8 @@ export default function TerminalChatInput({
                 setHistoryIndex(null);
               }
               setInput(txt);
+              // Inform parent when text changes so it can restore selection if '/' is removed
+              _onTextChange?.(txt);
               // Always update selection when @ is present to ensure selectedCompletion is set
               const hasAtSymbol = txt.includes("@");
               updateFsSuggestions(txt, hasAtSymbol);
@@ -632,6 +728,9 @@ export default function TerminalChatInput({
               }
 
               onSubmit(replacedText);
+              if (replacedText.trim().startsWith("/")) {
+                onSlashHandled?.();
+              }
               setEditorState((s) => ({ key: s.key + 1 }));
               setInput("");
               setHistoryIndex(null);
@@ -668,7 +767,7 @@ export default function TerminalChatInput({
           />
         ) : (
           <Text dimColor>
-            ctrl+c to exit | "/" to see commands
+            Ctrl+C: exit application | "/" for commands
             {inputDisabled && (
               <>
                 {" | "}

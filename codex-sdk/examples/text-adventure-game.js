@@ -343,4 +343,10 @@ Always include timeout (30000) and defaultValue in user_select calls.`;
   };
 });
 
-run(workflow);
+// Export the workflow for use in multi-workflow demos
+export const textAdventureWorkflow = workflow;
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

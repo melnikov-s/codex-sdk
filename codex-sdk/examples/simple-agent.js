@@ -1,7 +1,7 @@
 // minimal-agent.js
+import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { run, createAgentWorkflow } from "codex-sdk";
 
 const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
   async function runAgentLoop() {
@@ -22,7 +22,6 @@ const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
   }
 
   return {
-    title: "Minimal Agent",
     initialize: async () => {
       setState({ messages: [{ role: "ui", content: "Ready. Starting…" }] });
       runAgentLoop();
@@ -41,4 +40,10 @@ const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
   };
 });
 
-run(workflow);
+// Export the workflow for use in multi-workflow demos
+export const simpleAgentWorkflow = workflow;
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

@@ -58,4 +58,10 @@ const queueDemoWorkflow = createAgentWorkflow(({ setState, actions }) => {
   };
 });
 
-run(queueDemoWorkflow);
+// Export the workflow for use in multi-workflow demos
+export { queueDemoWorkflow };
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(queueDemoWorkflow);
+}

@@ -5,4 +5,6 @@ export type OverlayModeType =
   | "help"
   | "selection"
   | "prompt"
-  | "confirmation";
+  | "confirmation"
+  | "workflow-picker"
+  | "launcher";

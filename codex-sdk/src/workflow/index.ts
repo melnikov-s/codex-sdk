@@ -79,10 +79,6 @@ export interface DisplayConfig {
 
 export interface Workflow {
   /**
-   * Human-friendly title for this workflow (displayed in headers and UI)
-   */
-  title?: string;
-  /**
    * Initialize the workflow
    * Called when the workflow is first created
    */
@@ -412,6 +408,37 @@ export function createAgentWorkflow(
 }
 
 /**
+ * Workflow factory with a required static title.
+ * The runtime Workflow object no longer carries a title; titles are static on factories.
+ */
+export type WorkflowFactoryWithTitle = WorkflowFactory & { title: string };
+
+/**
+ * Create a workflow factory with a static title.
+ * Overloads:
+ *  - createWorkflow(title, factory)
+ *  - createWorkflow(factoryWithTitle)
+ */
+export function createWorkflow(
+  arg1: string | WorkflowFactoryWithTitle,
+  arg2?: WorkflowFactory,
+): WorkflowFactoryWithTitle {
+  if (typeof arg1 === "function") {
+    // Already has static title
+    const f = arg1 as Partial<WorkflowFactoryWithTitle>;
+    if (!f || typeof f.title !== "string" || f.title.trim().length === 0) {
+      throw new Error("createWorkflow(factory): factory is missing static 'title' property");
+    }
+    return f as WorkflowFactoryWithTitle;
+  }
+  const title = arg1 as string;
+  const factory = arg2 as WorkflowFactory;
+  const wrapped: WorkflowFactory = (hooks: WorkflowHooks) => factory(hooks);
+  (wrapped as WorkflowFactoryWithTitle).title = title;
+  return wrapped as WorkflowFactoryWithTitle;
+}
+
+/**
  * Vertical regions where slot content can be injected.
  * Ordering (top to bottom):
  *  aboveHeader → header → belowHeader → aboveHistory → history → belowHistory → aboveTaskList → taskList → belowTaskList → aboveQueue → queue → belowQueue → aboveInput → input → belowInput
@@ -427,3 +454,143 @@ export type SlotRegion =
   | "belowQueue"
   | "aboveInput"
   | "belowInput";
+
+/**
+ * Manager-level slot regions that persist across workflow switches.
+ * Ordering (top to bottom):
+ *  aboveTabs → tabs → aboveWorkflow → workflow content → belowWorkflow
+ */
+export type ManagerSlotRegion =
+  | "aboveTabs"      // Above the tab bar
+  | "aboveWorkflow"  // Between tabs and workflow content  
+  | "belowWorkflow"; // Below the entire workflow area
+
+export interface ManagerSlotState {
+  aboveTabs?: ReactNode | ((state: WorkflowState) => ReactNode) | null;
+  aboveWorkflow?: ReactNode | ((state: WorkflowState) => ReactNode) | null;
+  belowWorkflow?: ReactNode | ((state: WorkflowState) => ReactNode) | null;
+}
+
+// ====================================================================
+// Multi-Workflow System Types
+// ====================================================================
+
+export interface AttentionState {
+  requiresInput: boolean;
+  hasNotification: boolean;
+  priority: 'low' | 'medium' | 'high';
+  lastActivity: Date;
+  reason?: string;
+}
+
+// Internal type (not exported) retained for reference only
+// interface WorkflowTab { /* removed */ }
+
+export interface WorkflowEvent {
+  type: 'created' | 'destroyed' | 'activated' | 'attention' | 'completed' | 'error';
+  workflowId: string;
+  data?: unknown;
+  timestamp: Date;
+}
+
+export interface WorkflowMetadata {
+  title: string;
+  description?: string;
+  category?: string;
+  version?: string;
+  author?: string;
+  tags?: Array<string>;
+}
+
+export interface MultiWorkflowController extends WorkflowController {
+  // Manager slots - exact same pattern as workflow actions.setSlot()
+  slots: {
+    set: (region: ManagerSlotRegion, content: ReactNode | ((state: WorkflowState) => ReactNode) | null) => void;
+    clear: (region: ManagerSlotRegion) => void;
+    clearAll: () => void;
+  };
+
+  // Instance management
+  createInstance(factory: WorkflowFactoryWithTitle, options?: { activate?: boolean; title?: string }): string;
+  removeInstance(id: string, options?: {
+    graceful?: boolean;
+    force?: boolean;
+  }): void;
+  
+  switchToInstance(id: string): void;
+  closeInstance(id: string): void;
+  killInstance(id: string): void;
+  
+  // Workflow queries
+  listInstances(): Array<{
+    id: string;
+    title: string;
+    status: 'loading' | 'idle' | 'waiting' | 'error';
+    attention: AttentionState;
+    isActive: boolean;
+    createdAt: Date;
+  }>;
+  
+  getActiveInstance(): string | null;
+  findInstance(predicate: (workflow: WorkflowInfo) => boolean): string | null;
+  
+  // Registry of available workflow types
+  listAvailableWorkflows(): Array<{ title: string; factory: WorkflowFactoryWithTitle }>;
+  openLauncher(): void;
+  
+  // Workflow communication
+  sendToWorkflow(id: string, message: ModelMessage): void;
+  broadcastToAll(message: ModelMessage, excludeActive?: boolean): void;
+  
+  // Attention management
+  getWorkflowsRequiringAttention(): Array<string>;
+  switchToNextAttention(): boolean;
+  switchToNextNonLoading(): boolean;
+  switchToPreviousNonLoading(): boolean;
+  updateWorkflowAttention(workflowId: string, updates: Partial<AttentionState>): void;
+  updateWorkflowStatus(workflowId: string, status: 'loading' | 'idle' | 'waiting' | 'error'): void;
+  markAttentionHandled(id: string): void;
+  
+  // Event handling
+  onWorkflowEvent(
+    eventType: WorkflowEvent['type'], 
+    handler: (workflowId: string, data?: unknown) => void
+  ): () => void;
+  
+  offWorkflowEvent(eventType: WorkflowEvent['type'], handler: (workflowId: string, data?: unknown) => void): void;
+  
+  // Registry integration (optional, separate from basic launcher catalog)
+  addWorkflowFromRegistry?(registryId: string, options?: {
+    title?: string;
+    activate?: boolean;
+  }): string;
+  
+  listRegistryWorkflows?(): Array<{
+    registryId: string;
+    metadata: WorkflowMetadata;
+    isLoaded: boolean;
+  }>;
+  
+  // Dynamic loading
+  addWorkflowFromFile?(filePath: string, options?: {
+    title?: string;
+    activate?: boolean;
+  }): Promise<string>;
+  
+  addWorkflowFromUrl?(url: string, options?: {
+    title?: string;
+    activate?: boolean;
+  }): Promise<string>;
+}
+
+export interface WorkflowInfo {
+  id: string;
+  title: string;
+  status: 'loading' | 'idle' | 'waiting' | 'error';
+  attention: AttentionState;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+// Deprecated in new API – instances are created from factories with static titles
+export interface WorkflowInitializer {}

@@ -223,4 +223,10 @@ Be specific about files and what needs to be done.`,
   },
 );
 
-run(codeReviewWorkflow);
+// Export the workflow for use in multi-workflow demos
+export { codeReviewWorkflow };
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(codeReviewWorkflow);
+}

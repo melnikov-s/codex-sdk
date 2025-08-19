@@ -1,6 +1,6 @@
 import type { ApprovalPolicy } from "./approvals";
 import type { LibraryConfig } from "./lib.js";
-import type { WorkflowController, WorkflowFactory } from "./workflow";
+import type { WorkflowController, WorkflowFactory, WorkflowFactoryWithTitle, MultiWorkflowController } from "./workflow";
 import type { ModelMessage } from "ai";
 
 import TerminalChat from "./components/chat/terminal-chat";
@@ -22,20 +22,33 @@ type Props = {
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
-  workflowFactory: WorkflowFactory;
   uiConfig?: LibraryConfig;
-  onController?: (controller: WorkflowController) => void;
-};
+} & (
+  | {
+      // Single workflow mode
+      workflowFactory: WorkflowFactory;
+      multiWorkflow?: false;
+      onController?: (controller: WorkflowController) => void;
+    }
+  | {
+      // Multi-workflow mode
+      workflowFactory?: never;
+      multiWorkflow: true;
+      availableWorkflows: Array<WorkflowFactoryWithTitle>;
+      onMultiController?: (controller: MultiWorkflowController) => void;
+      onController?: (controller: WorkflowController | MultiWorkflowController) => void;
+    }
+);
 
-export default function App({
-  rollout,
-  approvalPolicy,
-  additionalWritableRoots,
-  fullStdout,
-  workflowFactory,
-  uiConfig,
-  onController,
-}: Props): JSX.Element {
+export default function App(props: Props): JSX.Element {
+  const {
+    rollout,
+    approvalPolicy,
+    additionalWritableRoots,
+    fullStdout,
+    uiConfig,
+    onController,
+  } = props;
   const app = useApp();
   const [accepted, setAccepted] = useState(() => false);
   const [cwd, inGitRepo] = useMemo(
@@ -94,14 +107,30 @@ export default function App({
     );
   }
 
-  return (
-    <TerminalChat
-      approvalPolicy={approvalPolicy}
-      additionalWritableRoots={additionalWritableRoots}
-      fullStdout={fullStdout}
-      workflowFactory={workflowFactory}
-      uiConfig={uiConfig}
-      onController={onController}
-    />
-  );
+  if (props.multiWorkflow) {
+    // Multi-workflow mode
+    return (
+      <TerminalChat
+        approvalPolicy={approvalPolicy}
+        additionalWritableRoots={additionalWritableRoots}
+        fullStdout={fullStdout}
+        multiWorkflow={true}
+        availableWorkflows={props.availableWorkflows}
+        onMultiController={props.onMultiController}
+        uiConfig={uiConfig}
+      />
+    );
+  } else {
+    // Single workflow mode
+    return (
+      <TerminalChat
+        approvalPolicy={approvalPolicy}
+        additionalWritableRoots={additionalWritableRoots}
+        fullStdout={fullStdout}
+        workflowFactory={props.workflowFactory}
+        uiConfig={uiConfig}
+        onController={onController}
+      />
+    );
+  }
 }

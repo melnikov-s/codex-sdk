@@ -42,6 +42,7 @@
     "@ai-sdk/openai": "^2.0.2",
     "@ai-sdk/react": "^2.0.2",
     "@inkjs/ui": "^2.0.0",
+    "@zenobius/ink-mouse": "^1.0.3",
     "ai": "^5.0.2",
     "chalk": "^5.2.0",
     "diff": "^7.0.0",

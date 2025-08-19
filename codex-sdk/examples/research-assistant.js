@@ -93,7 +93,6 @@ export const workflow = createAgentWorkflow(
     }
 
     return {
-      title: "Research Assistant",
       displayConfig: {
         header: h(
           Text,
@@ -191,4 +190,10 @@ export const workflow = createAgentWorkflow(
   },
 );
 
-run(workflow);
+// Export the workflow for use in multi-workflow demos
+export const researchAssistantWorkflow = workflow;
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

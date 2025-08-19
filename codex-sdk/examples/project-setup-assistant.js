@@ -63,7 +63,6 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
   }
 
   return {
-    title: "Project Setup Assistant",
     initialize: async () => {
       setState({
         messages: [
@@ -135,4 +134,10 @@ Always include timeout (45s) and defaultValue. Be conversational and helpful!`;
   };
 });
 
-run(workflow);
+// Export the workflow for use in multi-workflow demos
+export const projectSetupWorkflow = workflow;
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

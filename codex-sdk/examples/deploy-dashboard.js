@@ -208,7 +208,6 @@ export const workflow = createAgentWorkflow(({ setState, actions }) => {
   }
 
   return {
-    title: "Release Assistant",
     displayConfig: {
       header: h(Text, { bold: true, color: "#a0e7e5" }, "🧭 Release Assistant"),
       formatRoleHeader: (msg) =>
@@ -286,4 +285,10 @@ export const workflow = createAgentWorkflow(({ setState, actions }) => {
   };
 });
 
-run(workflow);
+// Export the workflow for use in multi-workflow demos
+export const deployDashboardWorkflow = workflow;
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

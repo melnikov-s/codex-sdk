@@ -240,7 +240,7 @@ function TextInput({
       if (handleEncodedEnterSequence(input)) {
         return;
       }
-      if (key.upArrow || key.downArrow || (key.ctrl && input === "c")) {
+      if (key.upArrow || key.downArrow) {
         return;
       }
 

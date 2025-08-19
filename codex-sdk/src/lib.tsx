@@ -7,7 +7,15 @@ export {
   WorkflowHooks,
   WorkflowFactory,
   WorkflowState,
+  WorkflowInitializer,
+  MultiWorkflowController,
+  WorkflowInfo,
+  AttentionState,
+  WorkflowEvent,
+  WorkflowMetadata,
   createAgentWorkflow,
+  createWorkflow,
+  type WorkflowFactoryWithTitle,
 } from "./workflow/index.js";
 
 // Re-export approval mode constants for use by consumers
@@ -22,7 +30,7 @@ export { getTextContent } from "./utils/ai.js";
 import type { ApprovalPolicy } from "./approvals.js";
 import type { UIMessage } from "./utils/ai.js";
 import type { FullAutoErrorMode } from "./utils/auto-approval-mode.js";
-import type { WorkflowController, WorkflowFactory } from "./workflow/index.js";
+import type { WorkflowController, WorkflowFactory, MultiWorkflowController, WorkflowFactoryWithTitle } from "./workflow/index.js";
 
 import App from "./app.js";
 import { runHeadless as runHeadlessInternal } from "./headless/index.js";
@@ -151,20 +159,17 @@ export function run(
   process.on("SIGQUIT", handleProcessExit);
   process.on("SIGTERM", handleProcessExit);
 
-  // Fallback for Ctrl-C when stdin is in raw-mode (which Ink uses)
+  // Handle Ctrl+C in raw mode (when SIGINT might not reach process handlers)
   if (process.stdin.isTTY) {
-    process.stdin.setRawMode(true); // Ensure raw mode is explicitly set if not already
+    process.stdin.setRawMode(true);
     const onRawData = (data: Buffer | string): void => {
-      const str = Buffer.isBuffer(data)
-        ? data.toString("utf8")
-        : data.toString();
+      const str = Buffer.isBuffer(data) ? data.toString("utf8") : data.toString();
       if (str === "\u0003") {
-        // ETX, Ctrl+C
+        // ETX, Ctrl+C - exit immediately
         handleProcessExit();
       }
     };
     process.stdin.on("data", onRawData);
-    // Ensure stdin cleanup on exit
     process.on("exit", () => {
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(false);
@@ -187,6 +192,194 @@ export function run(
       controllerRef
         ? controllerRef.getState()
         : ({} as unknown as ReturnType<WorkflowController["getState"]>),
+  };
+  return proxy;
+}
+
+/**
+ * Run the CLI with multiple workflows in a tabbed interface
+ *
+ * Launcher-first: accepts a catalog of workflow factories with static titles,
+ * opens launcher on start (no instances created automatically).
+ */
+export function runMultiWorkflow(
+  workflows: Array<WorkflowFactoryWithTitle>,
+  options: CliOptions = {},
+): MultiWorkflowController {
+  if (options.headless) {
+    const firstWorkflow = workflows[0];
+    if (!firstWorkflow) {
+      throw new Error("At least one workflow is required for multi-workflow mode");
+    }
+    const singleController = runHeadlessInternal(firstWorkflow, {
+      approvalPolicy: options.approvalPolicy,
+      additionalWritableRoots: options.additionalWritableRoots,
+      fullStdout: options.fullStdout,
+      config: options.config,
+      format: options.format,
+      log: options.log,
+    });
+    
+    // Wrap in multi-workflow interface (minimal implementation for headless)
+    const multiController: MultiWorkflowController = {
+      ...singleController,
+      slots: {
+        set: () => { throw new Error("Manager slots not supported in headless mode"); },
+        clear: () => { throw new Error("Manager slots not supported in headless mode"); },
+        clearAll: () => { throw new Error("Manager slots not supported in headless mode"); },
+      },
+      createInstance: () => "main",
+      removeInstance: () => { throw new Error("Not implemented in headless mode"); },
+      switchToInstance: () => { throw new Error("Not implemented in headless mode"); },
+      closeInstance: () => { throw new Error("Not implemented in headless mode"); },
+      killInstance: () => { throw new Error("Not implemented in headless mode"); },
+      listInstances: () => [{
+        id: "main",
+        title: firstWorkflow.title,
+        status: 'idle',
+        attention: { requiresInput: false, hasNotification: false, priority: 'medium', lastActivity: new Date() },
+        isActive: true,
+        createdAt: new Date(),
+      }],
+      getActiveInstance: () => "main",
+      findInstance: () => "main",
+      listAvailableWorkflows: () => workflows.map(f => ({ title: f.title, factory: f })),
+      openLauncher: () => { throw new Error("Launcher not supported in headless mode"); },
+      sendToWorkflow: (_id, message) => singleController.message(message),
+      broadcastToAll: (message) => singleController.message(message),
+      getWorkflowsRequiringAttention: () => [],
+      switchToNextAttention: () => false,
+      switchToNextNonLoading: () => false,
+      switchToPreviousNonLoading: () => false,
+      updateWorkflowAttention: () => {},
+      updateWorkflowStatus: () => {},
+      markAttentionHandled: () => {},
+      onWorkflowEvent: () => () => {},
+      offWorkflowEvent: () => {},
+    };
+    
+    return multiController;
+  }
+
+  // Create minimal UI config
+  const uiConfig = options.config || {};
+
+  // Render the Enhanced App with multi-workflow support
+  let controllerRef: MultiWorkflowController | null = null;
+  const pendingManagerSlotOps: Array<(controller: MultiWorkflowController) => void> = [];
+  const inkInstance = render(
+    <App
+      uiConfig={uiConfig}
+      approvalPolicy={options.approvalPolicy || AutoApprovalMode.SUGGEST}
+      additionalWritableRoots={options.additionalWritableRoots || []}
+      fullStdout={options.fullStdout || false}
+      multiWorkflow={true}
+      availableWorkflows={workflows}
+      onMultiController={(c) => {
+        controllerRef = c;
+        options.onController?.(c);
+        // Apply any manager slot operations queued before controller was ready
+        while (pendingManagerSlotOps.length > 0) {
+          const op = pendingManagerSlotOps.shift();
+          try {
+            op?.(c);
+          } catch {
+            // ignore
+          }
+        }
+      }}
+    />,
+  );
+  setInkRenderer(inkInstance);
+
+  // --- Signal handling for graceful exit ---
+  const handleProcessExit = () => {
+    onExit(); // This will attempt to unmount Ink
+    process.exit(0);
+  };
+
+  process.on("SIGINT", handleProcessExit);
+  process.on("SIGQUIT", handleProcessExit);
+  process.on("SIGTERM", handleProcessExit);
+
+  // Handle Ctrl+C in raw mode (when SIGINT might not reach process handlers)
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+    const onRawData = (data: Buffer | string): void => {
+      const str = Buffer.isBuffer(data) ? data.toString("utf8") : data.toString();
+      if (str === "\u0003") {
+        // ETX, Ctrl+C - exit immediately
+        handleProcessExit();
+      }
+    };
+    process.stdin.on("data", onRawData);
+    process.on("exit", () => {
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(false);
+        process.stdin.removeListener("data", onRawData);
+      }
+    });
+  }
+
+  // Ensure terminal clean-up always runs, even when other code calls
+  // `process.exit()` directly. This is a safety net.
+  process.once("exit", onExit);
+
+  // Return a stable controller proxy that delegates once available
+  const proxy: MultiWorkflowController = {
+    headless: false,
+    message: (input) => controllerRef?.message(input as unknown as string),
+    stop: () => controllerRef?.stop(),
+    terminate: (code?: number) => controllerRef?.terminate(code),
+    getState: () =>
+      controllerRef
+        ? controllerRef.getState()
+        : ({} as unknown as ReturnType<MultiWorkflowController["getState"]>),
+    
+    // Manager slots
+    slots: {
+      set: (region, content) => {
+        if (controllerRef?.slots) {
+          return controllerRef.slots.set(region, content);
+        }
+        pendingManagerSlotOps.push((ctrl: MultiWorkflowController) => ctrl.slots.set(region, content));
+      },
+      clear: (region) => {
+        if (controllerRef?.slots) {
+          return controllerRef.slots.clear(region);
+        }
+        pendingManagerSlotOps.push((ctrl: MultiWorkflowController) => ctrl.slots.clear(region));
+      },
+      clearAll: () => {
+        if (controllerRef?.slots) {
+          return controllerRef.slots.clearAll();
+        }
+        pendingManagerSlotOps.push((ctrl: MultiWorkflowController) => ctrl.slots.clearAll());
+      },
+    },
+    
+    // Multi-workflow methods
+    createInstance: (factory, opts) => controllerRef?.createInstance(factory, opts) || "",
+    removeInstance: (id, options) => controllerRef?.removeInstance(id, options),
+    switchToInstance: (id) => controllerRef?.switchToInstance(id),
+    closeInstance: (id) => controllerRef?.closeInstance(id),
+    killInstance: (id) => controllerRef?.killInstance(id),
+    listInstances: () => controllerRef?.listInstances() || [],
+    getActiveInstance: () => controllerRef?.getActiveInstance() || null,
+    findInstance: (predicate) => controllerRef?.findInstance(predicate) || null,
+    listAvailableWorkflows: () => controllerRef?.listAvailableWorkflows() || [],
+    openLauncher: () => { controllerRef?.openLauncher && controllerRef.openLauncher(); },
+    sendToWorkflow: (id, message) => controllerRef?.sendToWorkflow(id, message),
+    broadcastToAll: (message, excludeActive) => controllerRef?.broadcastToAll(message, excludeActive),
+    getWorkflowsRequiringAttention: () => controllerRef?.getWorkflowsRequiringAttention() || [],
+    switchToNextAttention: () => controllerRef?.switchToNextAttention() || false,
+    switchToNextNonLoading: () => controllerRef?.switchToNextNonLoading() || false,
+    switchToPreviousNonLoading: () => controllerRef?.switchToPreviousNonLoading() || false,
+    updateWorkflowAttention: (workflowId, updates) => controllerRef?.updateWorkflowAttention(workflowId, updates),
+    updateWorkflowStatus: (workflowId, status) => controllerRef?.updateWorkflowStatus(workflowId, status),
+    markAttentionHandled: (workflowId) => controllerRef?.markAttentionHandled(workflowId),
+    onWorkflowEvent: (type, handler) => controllerRef?.onWorkflowEvent(type, handler) || (() => {}),
+    offWorkflowEvent: (type, handler) => controllerRef?.offWorkflowEvent(type, handler),
   };
   return proxy;
 }

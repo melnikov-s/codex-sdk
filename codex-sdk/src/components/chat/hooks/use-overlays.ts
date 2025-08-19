@@ -6,6 +6,7 @@ import type {
   PromptOptionsWithTimeout,
   ConfirmOptions,
   ConfirmOptionsWithTimeout,
+  WorkflowInfo,
 } from "../../../workflow";
 import type { OverlayModeType } from "../types";
 
@@ -32,6 +33,13 @@ export type ConfirmationState = {
   reject: (reason?: Error) => void;
 } | null;
 
+export type WorkflowPickerState = {
+  workflows: Array<WorkflowInfo>;
+  activeWorkflowId: string;
+  onSelectWorkflow: (workflowId: string) => void;
+  onCreateNew?: () => void;
+} | null;
+
 export function useOverlays() {
   const [overlayMode, setOverlayMode] = useState<OverlayModeType>("none");
 
@@ -39,6 +47,8 @@ export function useOverlays() {
   const [promptState, setPromptState] = useState<PromptState>(null);
   const [confirmationState, setConfirmationState] =
     useState<ConfirmationState>(null);
+  const [workflowPickerState, setWorkflowPickerState] = 
+    useState<WorkflowPickerState>(null);
 
   const openSelection = useCallback(
     (
@@ -85,6 +95,26 @@ export function useOverlays() {
     setOverlayMode("none");
   }, []);
 
+  const openWorkflowPicker = useCallback((
+    workflows: Array<WorkflowInfo>,
+    activeWorkflowId: string,
+    onSelectWorkflow: (workflowId: string) => void,
+    onCreateNew?: () => void
+  ) => {
+    setWorkflowPickerState({
+      workflows,
+      activeWorkflowId,
+      onSelectWorkflow,
+      onCreateNew,
+    });
+    setOverlayMode("workflow-picker");
+  }, []);
+
+  const closeWorkflowPicker = useCallback(() => {
+    setWorkflowPickerState(null);
+    setOverlayMode("none");
+  }, []);
+
   return {
     overlayMode,
     setOverlayMode,
@@ -94,11 +124,15 @@ export function useOverlays() {
     setPromptState,
     confirmationState,
     setConfirmationState,
+    workflowPickerState,
+    setWorkflowPickerState,
     openSelection,
     openPrompt,
     openConfirmation,
+    openWorkflowPicker,
     closeSelection,
     closePrompt,
     closeConfirmation,
+    closeWorkflowPicker,
   } as const;
 }

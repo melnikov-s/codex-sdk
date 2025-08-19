@@ -4,9 +4,9 @@
 // - Starts the agent loop on first user message (not in initialize)
 // - While running, new user messages are queued and processed turn-by-turn
 
+import { run, createAgentWorkflow, getTextContent } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { run, createAgentWorkflow, getTextContent } from "codex-sdk";
 
 const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
   async function runAgentLoop() {
@@ -51,7 +51,6 @@ Be explicit and concise. Prefer small, verifiable steps.`,
   }
 
   return {
-    title: "Coding Agent",
     initialize: async () => {
       actions.say(
         "Coding agent ready. Describe what you want to change or ask a question.",
@@ -103,4 +102,10 @@ Be explicit and concise. Prefer small, verifiable steps.`,
   };
 });
 
-run(workflow);
+// Export the workflow for use in multi-workflow demos
+export const codingAgentWorkflow = workflow;
+
+// Run standalone if this file is executed directly
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

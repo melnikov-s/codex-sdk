@@ -97,8 +97,7 @@ export default function HelpOverlay({
           – interrupt current action
         </Text>
         <Text>
-          <Text color="yellow">Ctrl+C</Text> – quit{" "}
-          {workflow?.title ?? "Codex SDK"}
+          <Text color="yellow">Ctrl+C</Text> – quit Codex SDK
         </Text>
       </Box>
 
