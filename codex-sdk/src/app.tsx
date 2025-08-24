@@ -9,6 +9,7 @@ import { TerminalChatSelect } from "./components/chat/terminal-chat-select";
 import { TerminalTabs } from "./components/terminal-tabs";
 import { useMultiWorkflowHotkeys } from "./hooks/use-multi-workflow-hotkeys";
 import { type TerminalChatSession } from "./utils/session.js";
+import { clearTerminal } from "./utils/terminal.js";
 import { useStdin, Box, Text } from "ink";
 import React, { useState, useCallback, useMemo } from "react";
 
@@ -133,6 +134,7 @@ export default function App({
     if (currentWorkflows.length <= 1) {
       return;
     }
+    clearTerminal();
     const currentIndex = currentWorkflows.findIndex(
       (w) => w.id === activeWorkflowId,
     );
@@ -144,6 +146,7 @@ export default function App({
     if (currentWorkflows.length <= 1) {
       return;
     }
+    clearTerminal();
     const currentIndex = currentWorkflows.findIndex(
       (w) => w.id === activeWorkflowId,
     );
@@ -161,6 +164,7 @@ export default function App({
   }, [currentWorkflows.length]);
 
   const handleSwitcherSelection = useCallback((workflowId: string) => {
+    clearTerminal();
     setShowWorkflowSwitcher(false);
     setActiveWorkflowId(workflowId);
   }, []);
@@ -215,7 +219,10 @@ export default function App({
       title: displayTitle,
     })),
     activeWorkflowId,
-    switchToWorkflow: setActiveWorkflowId,
+    switchToWorkflow: (workflowId: string) => {
+      clearTerminal();
+      setActiveWorkflowId(workflowId);
+    },
     switchToNextWorkflow,
     switchToPreviousWorkflow,
     switchToNextAttention: () => false,
@@ -433,7 +440,10 @@ export default function App({
               title: workflow.displayTitle,
               isActive: workflow.id === activeWorkflowId,
             }))}
-            onTabClick={setActiveWorkflowId}
+            onTabClick={(workflowId: string) => {
+              clearTerminal();
+              setActiveWorkflowId(workflowId);
+            }}
           />
         )}
     </Box>

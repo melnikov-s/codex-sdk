@@ -39,10 +39,6 @@ export function setInkRenderer(renderer: Instance): void {
 }
 
 export function clearTerminal(): void {
-  if (process.env["CODEX_QUIET_MODE"] === "1") {
-    return;
-  }
-
   // When using the alternate screen the content never scrolls, so we rarely
   // need a full clear. Still expose the behaviour when explicitly requested
   // (e.g. via Ctrl‑L) but avoid unnecessary clears on every render to minimise
