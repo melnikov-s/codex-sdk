@@ -203,6 +203,20 @@ const MultilineTextEditorInner = (
         return;
       }
 
+      if ((key as { escape?: boolean }).escape || input === "\u001b") {
+        return;
+      }
+
+      if (
+        (key as { ctrl?: boolean }).ctrl &&
+        (input === "]" || input === "[")
+      ) {
+        return;
+      }
+      if (input === "\u001d") {
+        return;
+      }
+
       if (
         process.env["TEXTBUFFER_DEBUG"] === "1" ||
         process.env["TEXTBUFFER_DEBUG"] === "true"

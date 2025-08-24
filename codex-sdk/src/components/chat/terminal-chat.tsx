@@ -22,12 +22,17 @@ import React, { useEffect, useMemo, useCallback } from "react";
 // OverlayModeType moved to ./types
 
 type Props = {
+  id: string;
+  visible: boolean;
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
   workflowFactory: WorkflowFactory;
   uiConfig?: LibraryConfig;
   onController?: (controller: WorkflowController) => void;
+  onTitleChange?: (id: string, title: string) => void;
+  openWorkflowPicker?: () => void;
+  createNewWorkflow?: () => void;
 };
 
 const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
@@ -38,14 +43,19 @@ const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
 
 // Command explanation functionality removed - should be handled by the consumer's workflow
 
-export default function TerminalChat({
+function TerminalChat({
+  id,
+  visible,
   approvalPolicy: initialApprovalPolicy,
   additionalWritableRoots,
   fullStdout,
   workflowFactory,
   uiConfig,
   onController,
-}: Props): React.ReactElement {
+  onTitleChange,
+  openWorkflowPicker,
+  createNewWorkflow,
+}: Props): React.ReactElement | null {
   const effectiveUiConfig = useMemo(() => uiConfig ?? {}, [uiConfig]);
   const notify = Boolean(effectiveUiConfig?.notify);
   const overlays = useOverlays();
@@ -166,6 +176,13 @@ export default function TerminalChat({
     log(`workflowRef.current is now ${Boolean(workflow)}`);
   }, [workflow]);
 
+  // Track title changes and notify parent
+  useEffect(() => {
+    if (workflow?.title && onTitleChange) {
+      onTitleChange(id, workflow.title);
+    }
+  }, [workflow?.title, onTitleChange, id]);
+
   // ---------------------------------------------------------------------
   // Dynamic layout constraints – keep total rendered rows <= terminal rows
   // ---------------------------------------------------------------------
@@ -185,6 +202,10 @@ export default function TerminalChat({
     () => resolveStatusLine(effectiveUiConfig),
     [effectiveUiConfig],
   );
+
+  if (!visible) {
+    return null;
+  }
 
   return (
     <Box flexDirection="column">
@@ -255,9 +276,11 @@ export default function TerminalChat({
               openApprovalOverlay={() => setOverlayMode("approval")}
               openHelpOverlay={() => setOverlayMode("help")}
               workflow={workflow}
-              active={overlayMode === "none" && !inputDisabled}
+              active={visible && overlayMode === "none" && !inputDisabled}
               inputDisabled={inputDisabled}
               inputSetterRef={inputSetterRef}
+              openWorkflowPicker={openWorkflowPicker}
+              createNewWorkflow={createNewWorkflow}
               interruptAgent={() => {
                 if (!workflow) {
                   return;
@@ -338,3 +361,5 @@ export default function TerminalChat({
     </Box>
   );
 }
+
+export default React.memo(TerminalChat);

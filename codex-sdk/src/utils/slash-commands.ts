@@ -28,6 +28,16 @@ export const DEFAULT_UI_COMMANDS: Array<SlashCommand> = [
     description: "Open approval mode selection panel",
     source: "ui",
   },
+  {
+    command: "/switch",
+    description: "Switch active workflow",
+    source: "ui",
+  },
+  {
+    command: "/new",
+    description: "Create new workflow instance",
+    source: "ui",
+  },
 ];
 
 /**
