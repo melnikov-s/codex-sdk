@@ -47,6 +47,8 @@ export default function TerminalChatInput({
   workflow,
   inputDisabled,
   inputSetterRef,
+  openWorkflowPicker,
+  createNewWorkflow,
 }: {
   loading: boolean;
   queue: Array<string>;
@@ -72,6 +74,8 @@ export default function TerminalChatInput({
   inputSetterRef?: React.MutableRefObject<
     ((value: string) => void) | undefined
   >;
+  openWorkflowPicker?: () => void;
+  createNewWorkflow?: () => void;
 }): React.ReactElement {
   const app = useApp();
   const [input, setInput] = useState("");
@@ -147,6 +151,13 @@ export default function TerminalChatInput({
 
   useInput(
     (_input, _key) => {
+      if (
+        (_key.ctrl && (_input === "[" || _input === "]")) ||
+        _input === "\u001b" ||
+        _input === "\u001d"
+      ) {
+        return;
+      }
       // Slash command navigation: up/down to select, enter to fill
       if (!confirmationPrompt && input.trim().startsWith("/")) {
         const prefix = input.trim();
@@ -209,6 +220,12 @@ export default function TerminalChatInput({
                     break;
                   case "/approval":
                     openApprovalOverlay();
+                    break;
+                  case "/switch":
+                    openWorkflowPicker?.();
+                    break;
+                  case "/new":
+                    createNewWorkflow?.();
                     break;
 
                   case "/clearhistory":
@@ -411,6 +428,14 @@ export default function TerminalChatInput({
         setInput("");
         openApprovalOverlay();
         return;
+      } else if (inputValue === "/switch") {
+        setInput("");
+        openWorkflowPicker?.();
+        return;
+      } else if (inputValue === "/new") {
+        setInput("");
+        createNewWorkflow?.();
+        return;
       } else if (["exit", "q", ":q"].includes(inputValue)) {
         setInput("");
         setTimeout(() => {
@@ -557,6 +582,8 @@ export default function TerminalChatInput({
       openOverlay,
       openApprovalOverlay,
       openHelpOverlay,
+      openWorkflowPicker,
+      createNewWorkflow,
       history,
       skipNextSubmit,
       workflow,

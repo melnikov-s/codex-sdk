@@ -396,19 +396,43 @@ export interface WorkflowHooks {
   };
 }
 
-export type WorkflowFactory = (hooks: WorkflowHooks) => Workflow;
+export type WorkflowMeta = {
+  id?: string;
+  title: string;
+  icon?: string;
+  description?: string;
+};
 
-/**
- * Create a workflow using the provided factory function
- * @param factory A factory function that creates a workflow
- * @returns A workflow factory that can be used to create workflow instances
- */
+export type WorkflowFactory = ((hooks: WorkflowHooks) => Workflow) & {
+  meta?: WorkflowMeta;
+};
+export type WorkflowFactoryWithTitle = WorkflowFactory;
+
 export function createAgentWorkflow(
   factory: (hooks: WorkflowHooks) => Workflow,
+): WorkflowFactory;
+export function createAgentWorkflow(
+  meta: string | WorkflowMeta,
+  factory: (hooks: WorkflowHooks) => Workflow,
+): WorkflowFactory;
+export function createAgentWorkflow(
+  a: unknown,
+  b?: (hooks: WorkflowHooks) => Workflow,
 ): WorkflowFactory {
-  return (hooks: WorkflowHooks) => {
-    return factory(hooks);
-  };
+  const hasMeta =
+    typeof a === "string" ||
+    (typeof a === "object" && a != null && !Array.isArray(a));
+  const meta = hasMeta
+    ? typeof a === "string"
+      ? { title: a }
+      : (a as WorkflowMeta)
+    : undefined;
+  const factory = (hasMeta ? b : a) as (hooks: WorkflowHooks) => Workflow;
+  const wrapped: WorkflowFactory = (hooks) => factory(hooks);
+  if (meta) {
+    wrapped.meta = meta;
+  }
+  return wrapped;
 }
 
 /**

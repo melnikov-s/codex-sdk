@@ -10,6 +10,12 @@ export {
   createAgentWorkflow,
 } from "./workflow/index.js";
 
+// Export multi-workflow types and components
+export type { AvailableWorkflow, InitialWorkflowRef };
+
+// Export App component for advanced usage
+export { default as App } from "./app.js";
+
 // Re-export approval mode constants for use by consumers
 export { AutoApprovalMode } from "./utils/auto-approval-mode.js";
 export { exit as exitSafely } from "./utils/terminal.js";
@@ -19,6 +25,7 @@ export type { ApprovalPolicy, SafetyAssessment } from "./approvals.js";
 export { getTextContent } from "./utils/ai.js";
 
 // Import necessary components
+import type { AvailableWorkflow, InitialWorkflowRef } from "./app.js";
 import type { ApprovalPolicy } from "./approvals.js";
 import type { UIMessage } from "./utils/ai.js";
 import type { FullAutoErrorMode } from "./utils/auto-approval-mode.js";
@@ -91,6 +98,33 @@ export interface CliOptions {
   };
   /** Headless logging configuration */
   log?: { sink?: (line: string) => void; mode?: "human" | "jsonl" };
+}
+
+/**
+ * Options for running multiple concurrent workflows
+ */
+export interface MultiWorkflowOptions {
+  /**
+   * Approval policy for commands (optional, defaults to "suggest")
+   * Controls how tool executions are approved in the UI
+   */
+  approvalPolicy?: ApprovalPolicy;
+  /** Additional directories to allow file system access to (optional) */
+  additionalWritableRoots?: ReadonlyArray<string>;
+  /** Whether to display full subprocess stdout (optional) */
+  fullStdout?: boolean;
+  /**
+   * UI and tool configuration (optional)
+   * Does NOT include LLM settings which are handled by workflow
+   */
+  config?: LibraryConfig;
+  /**
+   * Array of workflow instances to create on startup
+   * If empty or not provided, starts with workflow selector
+   */
+  initialWorkflows?: Array<InitialWorkflowRef>;
+  /** Optional callback to receive controllers for programmatic control */
+  onController?: (controller: WorkflowController) => void;
 }
 
 /**
@@ -189,4 +223,95 @@ export function run(
         : ({} as unknown as ReturnType<WorkflowController["getState"]>),
   };
   return proxy;
+}
+
+/**
+ * Run multiple concurrent workflows with tabbed interface
+ *
+ * Provides a powerful multi-workflow environment where you can:
+ * - Switch between workflows using Ctrl+] / Ctrl+[ or /switch command
+ * - Create new workflow instances with /new command
+ * - Each workflow maintains its own state and conversation history
+ * - Tabs show active workflows at the bottom
+ *
+ * @param workflows Array of available workflow definitions
+ * @param options Optional configuration for the multi-workflow environment
+ * @returns Object with methods to control all workflows
+ */
+export function runMultiWorkflows(
+  workflows: Array<AvailableWorkflow>,
+  options: MultiWorkflowOptions = {},
+): {
+  /** Get all active workflow controllers */
+  getControllers: () => Array<WorkflowController>;
+  /** Terminate all workflows and exit */
+  terminate: () => void;
+} {
+  // Create minimal UI config
+  const uiConfig = options.config || {};
+
+  // Track all controllers
+  const controllers: Array<WorkflowController> = [];
+
+  // Render the App with multiple workflows
+  const inkInstance = render(
+    <App
+      uiConfig={uiConfig}
+      approvalPolicy={options.approvalPolicy || AutoApprovalMode.SUGGEST}
+      additionalWritableRoots={options.additionalWritableRoots || []}
+      fullStdout={options.fullStdout || false}
+      workflows={workflows}
+      initialWorkflows={options.initialWorkflows}
+      onController={(controller) => {
+        controllers.push(controller);
+        options.onController?.(controller);
+      }}
+    />,
+  );
+  setInkRenderer(inkInstance);
+
+  // --- Signal handling for graceful exit ---
+  const handleProcessExit = () => {
+    onExit(); // This will attempt to unmount Ink
+    process.exit(0);
+  };
+
+  process.on("SIGINT", handleProcessExit);
+  process.on("SIGQUIT", handleProcessExit);
+  process.on("SIGTERM", handleProcessExit);
+
+  // Fallback for Ctrl-C when stdin is in raw-mode (which Ink uses)
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true); // Ensure raw mode is explicitly set if not already
+    const onRawData = (data: Buffer | string): void => {
+      const str = Buffer.isBuffer(data)
+        ? data.toString("utf8")
+        : data.toString();
+      if (str === "\u0003") {
+        // ETX, Ctrl+C
+        handleProcessExit();
+      }
+    };
+    process.stdin.on("data", onRawData);
+    // Ensure stdin cleanup on exit
+    process.on("exit", () => {
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(false);
+        process.stdin.removeListener("data", onRawData);
+      }
+    });
+  }
+
+  // Ensure terminal clean-up always runs, even when other code calls
+  // `process.exit()` directly. This is a safety net.
+  process.once("exit", onExit);
+
+  // Return control interface
+  return {
+    getControllers: () => [...controllers],
+    terminate: () => {
+      controllers.forEach((c) => c.terminate());
+      handleProcessExit();
+    },
+  };
 }

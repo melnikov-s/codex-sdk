@@ -27,6 +27,11 @@ function SourcesPanel({ sources }) {
 }
 
 export const workflow = createAgentWorkflow(
+  {
+    title: "Research Assistant",
+    description: "AI research assistant with live sources and context",
+    icon: "🔍",
+  },
   ({ setState, state, actions, tools }) => {
     let sources = [];
     let style = "APA";
@@ -191,4 +196,8 @@ export const workflow = createAgentWorkflow(
   },
 );
 
-run(workflow);
+// Run directly if this file is executed (not imported)
+// eslint-disable-next-line no-undef
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

@@ -6,7 +6,8 @@ import { Text } from "ink";
 import { extname } from "path";
 import React from "react";
 
-const codeReviewWorkflow = createAgentWorkflow(
+export const workflow = createAgentWorkflow(
+  "Task List Demo",
   ({ state, setState, actions }) => {
     const getCodeFiles = () => {
       const files = [];
@@ -76,7 +77,7 @@ const codeReviewWorkflow = createAgentWorkflow(
 Return your response as:
 TASKS:
 - HIGH: [specific issue description]
-- MEDIUM: [specific issue description]  
+- MEDIUM: [specific issue description]
 - LOW: [specific issue description]
 
 Be specific about files and what needs to be done.`,
@@ -223,4 +224,8 @@ Be specific about files and what needs to be done.`,
   },
 );
 
-run(codeReviewWorkflow);
+// Run directly if this file is executed (not imported)
+// eslint-disable-next-line no-undef
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}

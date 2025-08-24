@@ -8,99 +8,108 @@ import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { run, createAgentWorkflow, getTextContent } from "codex-sdk";
 
-const workflow = createAgentWorkflow(({ state, setState, actions, tools }) => {
-  async function runAgentLoop() {
-    actions.setLoading(true);
+export const workflow = createAgentWorkflow(
+  "Coding Agent",
+  ({ state, setState, actions, tools }) => {
+    async function runAgentLoop() {
+      actions.setLoading(true);
 
-    while (state.loading) {
-      // If messages were queued while we were busy, pull one and surface it to the transcript first
-      const nextQueued = actions.removeFromQueue();
-      if (nextQueued != null && nextQueued.trim().length > 0) {
-        actions.addMessage({ role: "user", content: nextQueued });
-      }
+      while (state.loading) {
+        // If messages were queued while we were busy, pull one and surface it to the transcript first
+        const nextQueued = actions.removeFromQueue();
+        if (nextQueued != null && nextQueued.trim().length > 0) {
+          actions.addMessage({ role: "user", content: nextQueued });
+        }
 
-      // Artificial delay to demonstrate the queue accepting inputs while busy
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+        // Artificial delay to demonstrate the queue accepting inputs while busy
+        await new Promise((resolve) => setTimeout(resolve, 1200));
 
-      const result = await generateText({
-        model: openai("gpt-4o"),
-        system: `You are a local coding agent.
+        const result = await generateText({
+          model: openai("gpt-4o"),
+          system: `You are a local coding agent.
 You can:
 - Read files and run safe shell commands via the 'shell' tool
 - Propose and apply code edits via the 'apply_patch' tool (subject to approval)
 Be explicit and concise. Prefer small, verifiable steps.`,
-        messages: state.transcript,
-        tools: tools.definitions,
-      });
+          messages: state.transcript,
+          tools: tools.definitions,
+        });
 
-      // Add assistant messages and execute any tools it requested
-      await actions.handleModelResult(result);
+        // Add assistant messages and execute any tools it requested
+        await actions.handleModelResult(result);
 
-      // Artificial delay to demonstrate the queue accepting inputs while busy
+        // Artificial delay to demonstrate the queue accepting inputs while busy
 
-      // Stop only if the model signalled completion AND there is nothing queued
-      if (result.finishReason === "stop") {
-        if ((state.queue?.length || 0) > 0) {
-          // There is queued input; continue loop to surface it next turn
-          continue;
+        // Stop only if the model signalled completion AND there is nothing queued
+        if (result.finishReason === "stop") {
+          if ((state.queue?.length || 0) > 0) {
+            // There is queued input; continue loop to surface it next turn
+            continue;
+          }
+          actions.setLoading(false);
+          break;
         }
-        actions.setLoading(false);
-        break;
       }
     }
-  }
 
-  return {
-    title: "Coding Agent",
-    initialize: async () => {
-      actions.say(
-        "Coding agent ready. Describe what you want to change or ask a question.",
-      );
-    },
-
-    // Start loop on first message. If already running, queue the message.
-    message: async (userInput) => {
-      if (state.loading) {
-        actions.addToQueue(userInput.content || "");
-        actions.say("⏳ Queued your request — finishing current step first...");
-        return;
-      }
-
-      actions.addMessage(userInput);
-      await runAgentLoop();
-    },
-
-    stop: () => actions.setLoading(false),
-    terminate: () => setState({ loading: false, messages: [] }),
-
-    commands: {
-      delete: {
-        description: "Delete the last user message and everything after it",
-        handler: () => {
-          const removed = actions.truncateFromLastMessage("user");
-          if (removed.length === 0) {
-            actions.say("No user message to delete.");
-          } else {
-            actions.say(`Deleted ${removed.length} message(s).`);
-          }
-        },
-        disabled: () =>
-          state.messages.filter((m) => m.role === "user").length === 0,
+    return {
+      title: "Coding Agent",
+      initialize: async () => {
+        actions.say(
+          "Coding agent ready. Describe what you want to change or ask a question.",
+        );
       },
-      edit: {
-        description:
-          "Edit the last user message (deletes it and pre-fills input)",
-        handler: () => {
-          const removed = actions.truncateFromLastMessage("user");
-          const text = getTextContent(removed[0]);
 
-          actions.setInputValue(text);
-        },
-        disabled: () =>
-          state.messages.filter((m) => m.role === "user").length === 0,
+      // Start loop on first message. If already running, queue the message.
+      message: async (userInput) => {
+        if (state.loading) {
+          actions.addToQueue(userInput.content || "");
+          actions.say(
+            "⏳ Queued your request — finishing current step first...",
+          );
+          return;
+        }
+
+        actions.addMessage(userInput);
+        await runAgentLoop();
       },
-    },
-  };
-});
 
-run(workflow);
+      stop: () => actions.setLoading(false),
+      terminate: () => setState({ loading: false, messages: [] }),
+
+      commands: {
+        delete: {
+          description: "Delete the last user message and everything after it",
+          handler: () => {
+            const removed = actions.truncateFromLastMessage("user");
+            if (removed.length === 0) {
+              actions.say("No user message to delete.");
+            } else {
+              actions.say(`Deleted ${removed.length} message(s).`);
+            }
+          },
+          disabled: () =>
+            state.messages.filter((m) => m.role === "user").length === 0,
+        },
+        edit: {
+          description:
+            "Edit the last user message (deletes it and pre-fills input)",
+          handler: () => {
+            const removed = actions.truncateFromLastMessage("user");
+            const text = getTextContent(removed[0]);
+
+            actions.setInputValue(text);
+          },
+          disabled: () =>
+            state.messages.filter((m) => m.role === "user").length === 0,
+        },
+      },
+    };
+  },
+);
+
+// Run directly if this file is executed (not imported)
+// eslint-disable-next-line no-undef
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run(workflow);
+}
