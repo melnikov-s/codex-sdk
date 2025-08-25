@@ -200,6 +200,7 @@ export function useWorkflowManager(params: {
             workdir,
             currentPolicy,
             writableRoots || additionalWritableRoots,
+            uiConfig.safeCommands || [],
           );
         },
       },

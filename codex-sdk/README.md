@@ -424,31 +424,30 @@ node examples/multi-workflow-demo.js
 
 ## ⚙️ Configuration Reference
 
-### **Complete Configuration Options**
+### **Workflow Configuration**
 
-The SDK supports comprehensive configuration through the `config` parameter:
+Configure tools and security at the workflow level:
 
 ```javascript
-runMultiWorkflows(workflows, {
+run(workflow, {
   approvalPolicy: "suggest",
   config: {
-    // Desktop notifications
-    notify: true,
-
     // Tool configuration
     tools: {
       shell: {
-        maxBytes: 1024 * 1024, // 1MB max output
-        maxLines: 1000, // 1000 lines max
+        maxBytes: 1024 * 1024, // 1MB max shell output
+        maxLines: 1000, // 1000 lines max shell output
       },
     },
 
-    // History management
-    history: {
-      maxSize: 10000, // Max history entries
-      saveHistory: true, // Persist command history
-      sensitivePatterns: ["password", "token"], // Exclude from history
-    },
+    // User-defined safe commands (no approval required)
+    safeCommands: [
+      "git status",
+      "npm test",
+      "npm run build",
+      "docker ps",
+      "kubectl get pods",
+    ],
 
     // Custom headers in terminal
     headers: [
@@ -462,36 +461,52 @@ runMultiWorkflows(workflows, {
 });
 ```
 
-### **Configuration File (~/.codex/config.json)**
+### **Multi-Workflow Configuration**
 
-The SDK also reads from a persistent configuration file:
+Apply configuration across multiple workflows:
 
-```json
-{
-  "notify": true,
-  "model": "gpt-4o",
-  "approvalMode": "suggest",
-  "providers": {
-    "custom": {
-      "name": "Custom Provider",
-      "baseURL": "https://api.example.com",
-      "envKey": "CUSTOM_API_KEY"
-    }
+```javascript
+runMultiWorkflows(workflows, {
+  approvalPolicy: "auto-edit", // Default policy for all workflows
+  config: {
+    tools: {
+      shell: {
+        maxBytes: 512 * 1024, // 512KB limit
+        maxLines: 500, // 500 lines limit
+      },
+    },
+    safeCommands: ["git status", "npm test"],
+    headers: [{ label: "Mode", value: "Multi-Workflow" }],
   },
-  "history": {
-    "maxSize": 5000,
-    "saveHistory": true,
-    "sensitivePatterns": ["secret", "key"]
-  },
-  "safeCommands": ["git status", "npm test"],
-  "tools": {
-    "shell": {
-      "maxBytes": 512000,
-      "maxLines": 500
-    }
-  }
+});
+```
+
+### **Safe Commands**
+
+Define commands that don't require approval for automatic execution:
+
+```javascript
+config: {
+  safeCommands: [
+    // Exact command matches
+    "git status",           // Matches exactly "git status"
+    "npm test",            // Matches exactly "npm test"
+
+    // Command name matches (any arguments allowed)
+    "ls",                  // Matches "ls", "ls -la", "ls /path", etc.
+    "pwd",                 // Matches "pwd" with any arguments
+    "kubectl",             // Matches any kubectl command
+  ],
 }
 ```
+
+**How Safe Commands Work:**
+
+- Commands in `safeCommands` bypass approval dialogs
+- Supports both exact command matching and command name matching
+- Built-in safe commands: `cd`, `ls`, `pwd`, `cat`, `grep`, `git status`, etc.
+- User-defined safe commands are checked alongside built-in ones
+- Useful for frequently used read-only or safe operations
 
 ## 🔧 Advanced Configuration
 

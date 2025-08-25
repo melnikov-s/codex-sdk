@@ -74,6 +74,7 @@ export function canAutoApprove(
   workdir: string | undefined,
   policy: ApprovalPolicy,
   writableRoots: ReadonlyArray<string>,
+  safeCommands: ReadonlyArray<string> = [],
   env: NodeJS.ProcessEnv = process.env,
 ): SafetyAssessment {
   if (command[0] === "apply_patch") {
@@ -94,6 +95,19 @@ export function canAutoApprove(
       group,
       runInSandbox: false,
     };
+  }
+
+  // Check user-defined safe commands
+  const commandString = command.join(" ");
+  for (const safeCmd of safeCommands) {
+    if (commandString === safeCmd || command[0] === safeCmd) {
+      return {
+        type: "auto-approve",
+        reason: `User-defined safe command: ${safeCmd}`,
+        group: "Safe commands",
+        runInSandbox: false,
+      };
+    }
   }
 
   if (

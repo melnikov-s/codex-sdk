@@ -1,6 +1,6 @@
 import { exec as rawExec } from "../src/utils/agent/sandbox/raw-exec.js";
 import { describe, it, expect } from "vitest";
-import type { AppConfig } from "src/utils/config.js";
+import type { LibraryConfig } from "../src/lib.js";
 
 // Import the low‑level exec implementation so we can verify that AbortSignal
 // correctly terminates a spawned process. We bypass the higher‑level wrappers
@@ -13,10 +13,7 @@ describe("exec cancellation", () => {
     // Spawn a node process that would normally run for 5 seconds before
     // printing anything. We should abort long before that happens.
     const cmd = ["node", "-e", "setTimeout(() => console.log('late'), 5000);"];
-    const config: AppConfig = {
-      model: "openai/gpt-4o",
-      instructions: "test-instructions",
-    };
+    const config: LibraryConfig = {};
     const start = Date.now();
 
     const promise = rawExec(cmd, {}, config, abortController.signal);
@@ -41,10 +38,7 @@ describe("exec cancellation", () => {
   it("allows the process to finish when not aborted", async () => {
     const abortController = new AbortController();
 
-    const config: AppConfig = {
-      model: "openai/gpt-4o",
-      instructions: "test-instructions",
-    };
+    const config: LibraryConfig = {};
 
     const cmd = ["node", "-e", "console.log('finished')"];
 

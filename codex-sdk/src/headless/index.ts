@@ -413,6 +413,7 @@ export function runHeadless(
           workdir,
           current,
           writableRoots || additionalWritableRoots,
+          config.safeCommands || [],
         );
       },
     },

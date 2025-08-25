@@ -5,11 +5,11 @@ import { describe, it, expect, vi } from "vitest";
 // ---------------------------------------------------------------------------
 
 import { exec as rawExec } from "../src/utils/agent/sandbox/raw-exec.js";
-import type { AppConfig } from "../src/utils/config.js";
+import type { LibraryConfig } from "../src/lib.js";
 describe("rawExec – invalid command handling", () => {
   it("resolves with non‑zero exit code when executable is missing", async () => {
     const cmd = ["definitely-not-a-command-1234567890"];
-    const config = { model: "openai/gpt-4o", instructions: "" } as AppConfig;
+    const config: LibraryConfig = {};
     const result = await rawExec(cmd, {}, config);
 
     expect(result.exitCode).not.toBe(0);

@@ -1,6 +1,9 @@
 // Maximum output cap: either MAX_OUTPUT_LINES lines or MAX_OUTPUT_BYTES bytes,
 // whichever limit is reached first.
-import { DEFAULT_SHELL_MAX_BYTES, DEFAULT_SHELL_MAX_LINES } from "../../config";
+import {
+  DEFAULT_SHELL_MAX_BYTES,
+  DEFAULT_SHELL_MAX_LINES,
+} from "../../config.js";
 
 /**
  * Creates a collector that accumulates data Buffers from a stream up to

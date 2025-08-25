@@ -44,18 +44,23 @@ export interface HeaderConfig {
 }
 
 /**
- * Minimal configuration required for the UI and tools
- * Excludes LLM configuration which is handled by the consumer's workflow
+ * Configuration for workflow execution and tools
  */
 export interface LibraryConfig {
-  /** Whether to show desktop notifications */
-  notify?: boolean;
   /** Tool-specific configuration */
   tools?: {
     shell?: {
       maxBytes?: number;
       maxLines?: number;
     };
+  };
+  /** User-defined safe commands that don't require approval */
+  safeCommands?: Array<string>;
+  /** Command history configuration */
+  history?: {
+    maxSize?: number;
+    saveHistory?: boolean;
+    sensitivePatterns?: Array<string>;
   };
   /** Auto error mode for unsandboxed commands */
   fullAutoErrorMode?: FullAutoErrorMode;

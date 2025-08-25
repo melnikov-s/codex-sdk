@@ -10,12 +10,16 @@ describe("canAutoApprove()", () => {
   };
 
   const writeablePaths: Array<string> = [];
-  const check = (command: ReadonlyArray<string>): SafetyAssessment =>
+  const check = (
+    command: ReadonlyArray<string>,
+    safeCommands: ReadonlyArray<string> = [],
+  ): SafetyAssessment =>
     canAutoApprove(
       command,
       /* workdir */ undefined,
       "suggest",
       writeablePaths,
+      safeCommands,
       env,
     );
 
@@ -144,6 +148,29 @@ describe("canAutoApprove()", () => {
     expect(
       check(["find", ".", "-fprintf", "/root/suid.txt", "%#m %u %p\n"]),
     ).toEqual({
+      type: "ask-user",
+    });
+  });
+
+  test("user-defined safe commands", () => {
+    // Test exact command match
+    expect(check(["npm", "test"], ["npm test"])).toEqual({
+      type: "auto-approve",
+      reason: "User-defined safe command: npm test",
+      group: "Safe commands",
+      runInSandbox: false,
+    });
+
+    // Test command name match
+    expect(check(["mycommand", "arg"], ["mycommand"])).toEqual({
+      type: "auto-approve",
+      reason: "User-defined safe command: mycommand",
+      group: "Safe commands",
+      runInSandbox: false,
+    });
+
+    // Test command not in safe list
+    expect(check(["dangerous", "cmd"], ["safe", "commands"])).toEqual({
       type: "ask-user",
     });
   });

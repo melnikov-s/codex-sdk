@@ -63,7 +63,7 @@ function TerminalChat({
   createNewWorkflow,
 }: Props): React.ReactElement | null {
   const effectiveUiConfig = useMemo(() => uiConfig ?? {}, [uiConfig]);
-  const notify = Boolean(effectiveUiConfig?.notify);
+  const notify = false;
   const overlays = useOverlays();
   const {
     overlayMode,
