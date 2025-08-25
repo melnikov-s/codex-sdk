@@ -64,7 +64,7 @@ export default function PromptOverlay({
       borderColor="cyan"
       padding={1}
     >
-      <Text color="cyan">{message}</Text>
+      <Text color="blue">{message}</Text>
       {timeoutActive && timeoutOptions && (
         <Box marginTop={1}>
           <CountdownTimer

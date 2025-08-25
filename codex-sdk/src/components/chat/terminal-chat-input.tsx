@@ -679,7 +679,7 @@ export default function TerminalChatInput({
                     idx === selectedSlashSuggestion ? "blackBright" : undefined
                   }
                 >
-                  <Text color="blueBright">{cmd.command}</Text>
+                  <Text color="blue">{cmd.command}</Text>
                   <Text> {cmd.description}</Text>
                 </Text>
               </Box>

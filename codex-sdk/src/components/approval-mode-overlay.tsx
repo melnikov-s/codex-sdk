@@ -35,7 +35,7 @@ export default function ApprovalModeOverlay({
       title="Switch approval mode"
       description={
         <Text>
-          Current mode: <Text color="greenBright">{currentMode}</Text>
+          Current mode: <Text color="green">{currentMode}</Text>
         </Text>
       }
       initialItems={items}

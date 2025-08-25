@@ -7,7 +7,7 @@ export type Props = {
 };
 
 function Item({ isSelected = false, label }: Props): JSX.Element {
-  return <Text color={isSelected ? "blue" : undefined}>{label}</Text>;
+  return <Text color={isSelected ? "green" : undefined}>{label}</Text>;
 }
 
 export default Item;

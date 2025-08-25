@@ -2,7 +2,11 @@ import type { ApprovalPolicy } from "../../approvals.js";
 import type { LibraryConfig } from "../../lib.js";
 import type { ReviewDecision } from "../../utils/agent/review.js";
 import type { UIMessage } from "../../utils/ai.js";
-import type { WorkflowController, WorkflowFactory } from "../../workflow";
+import type {
+  DisplayConfig,
+  WorkflowController,
+  WorkflowFactory,
+} from "../../workflow";
 import type { ColorName } from "chalk";
 
 import { useOverlays } from "./hooks/use-overlays.js";
@@ -31,13 +35,14 @@ type Props = {
   uiConfig?: LibraryConfig;
   onController?: (controller: WorkflowController) => void;
   onTitleChange?: (id: string, title: string) => void;
+  onDisplayConfigChange?: (id: string, displayConfig?: DisplayConfig) => void;
   openWorkflowPicker?: () => void;
   createNewWorkflow?: () => void;
 };
 
 const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
   "suggest": undefined,
-  "auto-edit": "greenBright",
+  "auto-edit": "green",
   "full-auto": "green",
 };
 
@@ -53,6 +58,7 @@ function TerminalChat({
   uiConfig,
   onController,
   onTitleChange,
+  onDisplayConfigChange,
   openWorkflowPicker,
   createNewWorkflow,
 }: Props): React.ReactElement | null {
@@ -136,6 +142,11 @@ function TerminalChat({
   const workflowState = workflowMgr.state;
   const smartSetState = workflowMgr.smartSetState;
   const displayConfig = workflowMgr.displayConfig;
+
+  // Notify parent when displayConfig changes
+  useEffect(() => {
+    onDisplayConfigChange?.(id, displayConfig);
+  }, [id, displayConfig, onDisplayConfigChange]);
   const workflow = workflowMgr.workflow;
   const inputSetterRef = (
     workflowMgr as unknown as {
@@ -230,9 +241,9 @@ function TerminalChat({
               headers,
               statusLine,
               workflowHeader:
-                (workflow?.title as unknown as React.ReactNode) ||
                 displayConfig?.header ||
-                "Codex SDK",
+                workflowFactory.meta?.title ||
+                "Untitled Workflow",
             }}
           />
         ) : (

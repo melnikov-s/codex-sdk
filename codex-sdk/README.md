@@ -191,13 +191,76 @@ const workflow = createAgentWorkflow("Custom UI", ({ actions }) => ({
     header: <Text bold color="blue">🤖 My AI</Text>,
     formatRoleHeader: (message) => {
       return message.role === "user"
-        ? <Text color="green">👤 You</Text>
-        : <Text color="blue">🤖 AI</Text>;
+        ? <Text color="blue">👤 You</Text>
+        : <Text color="blueBright">🤖 AI</Text>;
+    },
+    tabs: {
+      // Custom header for workflow tabs (null to hide)
+      header: "My Workflows",
+
+            // Styling for active tabs
+      activeTab: {
+        color: "black",
+        backgroundColor: "green",
+        bold: true
+      },
+
+      // Styling for inactive tabs
+      inactiveTab: {
+        color: "gray",
+        dimColor: true
+      },
+
+      // Header styling
+      headerStyle: {
+        color: "white",
+        bold: true,
+        marginBottom: 1
+      },
+
+      // Container layout
+      containerProps: {
+        marginBottom: 2,
+        paddingX: 1
+      }
     }
   },
   // ... workflow logic
 }));
 ```
+
+#### Tab Configuration Options
+
+The `tabs` section in `displayConfig` provides complete customization of workflow tabs:
+
+**Header Configuration:**
+
+- `header?: string | null` - Custom header text. Defaults to "Active Workflows". Set to `null` to hide header.
+
+**Styling Options:**
+
+- `activeTab` - Colors and styling for the currently selected tab
+- `inactiveTab` - Colors and styling for non-selected tabs
+- `headerStyle` - Styling for the section header text
+- `instructionStyle` - Styling for the "Press Ctrl+[...]" instruction text
+- `containerProps` - Layout properties for the tabs container
+
+**Available Style Properties:**
+
+- `color` - Text color (e.g., "blue", "green", "red", "gray", "white")
+- `backgroundColor` - Background color for tabs
+- `bold` - Bold text styling
+- `dimColor` - Dimmed text appearance
+- `marginTop/marginBottom` - Spacing around elements
+- `paddingX/paddingY` - Internal padding
+
+**Recommended Color Scheme:**
+
+- **Highlight**: "blue" (main emphasis color)
+- **Selected**: "green" (active/current selections)
+- **Muted**: "gray" (de-emphasized text)
+- **Normal**: "white" (regular text)
+- **Error**: "red" (errors only)
 
 #### Slot System for Custom UI Elements
 

@@ -10,7 +10,7 @@ function Indicator({ isSelected = false }: Props): JSX.Element {
   return (
     <Box marginRight={1}>
       {isSelected ? (
-        <Text color="blue">{figures.pointer}</Text>
+        <Text color="green">{figures.pointer}</Text>
       ) : (
         <Text> </Text>
       )}

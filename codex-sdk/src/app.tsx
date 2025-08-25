@@ -1,6 +1,10 @@
 import type { ApprovalPolicy } from "./approvals";
 import type { LibraryConfig } from "./lib.js";
-import type { WorkflowController, WorkflowFactory } from "./workflow";
+import type {
+  DisplayConfig,
+  WorkflowController,
+  WorkflowFactory,
+} from "./workflow";
 import type { ModelMessage } from "ai";
 
 import TerminalChat from "./components/chat/terminal-chat";
@@ -40,6 +44,7 @@ type CurrentWorkflow = {
   instanceIndex: number;
   displayTitle: string;
   controller?: WorkflowController;
+  displayConfig?: DisplayConfig;
 };
 
 // Helper function to generate stable IDs from workflow factories
@@ -119,6 +124,15 @@ export default function App({
       prev.map((w) => (w.id === id ? { ...w, displayTitle: title } : w)),
     );
   }, []);
+
+  const handleDisplayConfigChange = useCallback(
+    (id: string, displayConfig?: DisplayConfig) => {
+      setCurrentWorkflows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, displayConfig } : w)),
+      );
+    },
+    [],
+  );
 
   const handleController = useCallback(
     (controller: WorkflowController, workflowId: string) => {
@@ -375,6 +389,7 @@ export default function App({
             handleController(controller, workflow.id)
           }
           onTitleChange={handleTitleChange}
+          onDisplayConfigChange={handleDisplayConfigChange}
           openWorkflowPicker={openWorkflowPicker}
           createNewWorkflow={createNewWorkflow}
         />
@@ -444,6 +459,10 @@ export default function App({
               clearTerminal();
               setActiveWorkflowId(workflowId);
             }}
+            displayConfig={
+              currentWorkflows.find((w) => w.id === activeWorkflowId)
+                ?.displayConfig
+            }
           />
         )}
     </Box>

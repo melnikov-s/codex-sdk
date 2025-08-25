@@ -83,7 +83,7 @@ export default function HistoryOverlay({ items, onExit }: Props): JSX.Element {
           const absIdx = firstVisible + idx;
           const selected = absIdx === cursor;
           return (
-            <Text key={absIdx} color={selected ? "cyan" : undefined}>
+            <Text key={absIdx} color={selected ? "green" : undefined}>
               {selected ? "› " : "  "}
               {txt}
             </Text>
