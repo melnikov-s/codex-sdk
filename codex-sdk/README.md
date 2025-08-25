@@ -13,7 +13,7 @@ Run multiple AI assistants simultaneously with seamless switching and state mana
 - **Persistent State**: Each workflow maintains its own conversation history and context
 - **Tabbed Interface**: Visual tabs at the bottom show all active workflows
 - **Dynamic Creation**: Create new workflow instances on-the-fly with `/new` command
-- **Hotkey Navigation**: `Ctrl+1-9` for direct workflow access
+- **Hotkey Navigation**: Quick workflow switching with keyboard shortcuts
 
 ### **Rich Terminal UI**
 
@@ -22,6 +22,9 @@ Run multiple AI assistants simultaneously with seamless switching and state mana
 - Interactive command approval system with multiple policies
 - File system integration with secure sandbox execution
 - Queue management and task list visualization
+- **File System Autocompletion**: Smart `@filename` syntax with Tab completion
+- **Desktop Notifications**: Optional system notifications for AI responses
+- **Multi-Modal Overlays**: History, help, approval, selection, and prompt interfaces
 
 ### **Flexible Architecture**
 
@@ -131,13 +134,67 @@ runMultiWorkflows([codeAssistant, researchAssistant], {
 
 ## 🎮 Multi-Workflow Controls
 
-| Command    | Description                  |
-| ---------- | ---------------------------- |
-| `/switch`  | Show workflow picker         |
-| `/new`     | Create new workflow instance |
-| `Ctrl+]`   | Switch to next workflow      |
-| `Ctrl+[`   | Switch to previous workflow  |
-| `Ctrl+1-9` | Jump to workflow by number   |
+| Command         | Description                  |
+| --------------- | ---------------------------- |
+| `/switch`       | Show workflow picker         |
+| `/new`          | Create new workflow instance |
+| `/help`         | Show available commands      |
+| `/history`      | View command history         |
+| `/approval`     | Change approval mode         |
+| `/clearhistory` | Clear command history        |
+| `Ctrl+]`        | Switch to next workflow      |
+| `Ctrl+[`        | Switch to previous workflow  |
+
+### **Interactive Overlays**
+
+The SDK provides several interactive overlay modes:
+
+- **History Overlay** (`/history`): Browse command history with `j/k` navigation
+- **Help Overlay** (`/help`): View all available slash commands
+- **Approval Overlay** (`/approval`): Switch between approval policies
+- **Selection Overlay**: Multi-choice selections with arrow key navigation
+- **Prompt Overlay**: Text input dialogs with validation
+- **Confirmation Overlay**: Yes/No confirmation dialogs
+
+## 💡 **File System Integration**
+
+### **Smart File Autocompletion**
+
+The SDK provides intelligent file system autocompletion with `@filename` syntax:
+
+```typescript
+// In your message input, type:
+@src/components/    // Press Tab to see completions
+@package.json       // Auto-completes to exact file
+@./README.md        // Relative path completion
+```
+
+**Features:**
+
+- **Prefix Matching**: Type `@src/` and Tab to see all files in `src/`
+- **Directory Navigation**: Navigate directories with Tab completion
+- **Relative Paths**: Support for `./` and `../` path patterns
+- **Smart Filtering**: Real-time filtering as you type
+- **Keyboard Navigation**: Use arrow keys to select from completions
+
+### **Desktop Notifications**
+
+Get system notifications when AI assistants complete responses:
+
+```javascript
+runMultiWorkflows(workflows, {
+  config: {
+    notify: true, // Enable desktop notifications
+  },
+});
+```
+
+**Configuration:**
+
+- Notifications appear when workflows finish processing
+- Includes workflow name and response preview
+- Respects system notification settings
+- Can be enabled/disabled per session
 
 ## 🛠️ Workflow API
 
@@ -264,10 +321,33 @@ The `tabs` section in `displayConfig` provides complete customization of workflo
 
 #### Slot System for Custom UI Elements
 
+The slot system allows you to inject custom UI components at specific locations:
+
 ```typescript
+// Available slot positions
+actions.setSlot("aboveHeader", <EnvBanner env="prod" />);
+actions.setSlot("belowHeader", <ReleaseSummary version="v1.2.3" />);
+actions.setSlot("aboveHistory", <ProgressBar percent={75} />);
+actions.setSlot("belowHistory", <StatusIndicator />);
 actions.setSlot("aboveInput", <Text>Hint: Try asking about...</Text>);
-actions.setSlot("belowHistory", <ProgressBar percent={75} />);
+actions.setSlot("belowInput", <HelpText />);
 ```
+
+**Available Slot Positions:**
+
+- `aboveHeader` - Content above the terminal header
+- `belowHeader` - Content below the terminal header
+- `aboveHistory` - Content above the conversation history
+- `belowHistory` - Content below the conversation history
+- `aboveInput` - Content above the input field
+- `belowInput` - Content below the input field
+
+**Use Cases:**
+
+- Progress indicators and status displays
+- Environment banners and build information
+- Contextual hints and help text
+- Custom toolbars and action buttons
 
 #### Custom Commands
 
@@ -341,6 +421,77 @@ node examples/multi-workflow-demo.js
 - **Selective Rendering**: Hidden workflows return `null` (no layout cost)
 - **React.memo Optimization**: Prevents unnecessary re-renders
 - **State Persistence**: No data loss when switching between workflows
+
+## ⚙️ Configuration Reference
+
+### **Complete Configuration Options**
+
+The SDK supports comprehensive configuration through the `config` parameter:
+
+```javascript
+runMultiWorkflows(workflows, {
+  approvalPolicy: "suggest",
+  config: {
+    // Desktop notifications
+    notify: true,
+
+    // Tool configuration
+    tools: {
+      shell: {
+        maxBytes: 1024 * 1024, // 1MB max output
+        maxLines: 1000, // 1000 lines max
+      },
+    },
+
+    // History management
+    history: {
+      maxSize: 10000, // Max history entries
+      saveHistory: true, // Persist command history
+      sensitivePatterns: ["password", "token"], // Exclude from history
+    },
+
+    // Custom headers in terminal
+    headers: [
+      { label: "Environment", value: "production" },
+      { label: "Version", value: "1.2.3" },
+    ],
+
+    // Custom status line
+    statusLine: "Ready for deployment",
+  },
+});
+```
+
+### **Configuration File (~/.codex/config.json)**
+
+The SDK also reads from a persistent configuration file:
+
+```json
+{
+  "notify": true,
+  "model": "gpt-4o",
+  "approvalMode": "suggest",
+  "providers": {
+    "custom": {
+      "name": "Custom Provider",
+      "baseURL": "https://api.example.com",
+      "envKey": "CUSTOM_API_KEY"
+    }
+  },
+  "history": {
+    "maxSize": 5000,
+    "saveHistory": true,
+    "sensitivePatterns": ["secret", "key"]
+  },
+  "safeCommands": ["git status", "npm test"],
+  "tools": {
+    "shell": {
+      "maxBytes": 512000,
+      "maxLines": 500
+    }
+  }
+}
+```
 
 ## 🔧 Advanced Configuration
 

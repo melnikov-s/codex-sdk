@@ -5,28 +5,19 @@ import type {
   WorkflowController,
   WorkflowFactory,
 } from "./workflow";
-import type { ModelMessage } from "ai";
 
 import TerminalChat from "./components/chat/terminal-chat";
-import TerminalChatPastRollout from "./components/chat/terminal-chat-past-rollout";
 import { TerminalChatSelect } from "./components/chat/terminal-chat-select";
 import { TerminalTabs } from "./components/terminal-tabs";
 import { useMultiWorkflowHotkeys } from "./hooks/use-multi-workflow-hotkeys";
-import { type TerminalChatSession } from "./utils/session.js";
 import { clearTerminal } from "./utils/terminal.js";
 import { useStdin, Box, Text } from "ink";
 import React, { useState, useCallback, useMemo } from "react";
-
-export type AppRollout = {
-  session: TerminalChatSession;
-  items: Array<ModelMessage>;
-};
 
 export type AvailableWorkflow = WorkflowFactory;
 export type InitialWorkflowRef = { id: string } | WorkflowFactory;
 
 type Props = {
-  rollout?: AppRollout;
   approvalPolicy: ApprovalPolicy;
   additionalWritableRoots: ReadonlyArray<string>;
   fullStdout: boolean;
@@ -63,7 +54,6 @@ function generateWorkflowId(factory: WorkflowFactory): string {
 }
 
 export default function App({
-  rollout,
   approvalPolicy,
   additionalWritableRoots,
   fullStdout,
@@ -328,15 +318,6 @@ export default function App({
     },
     [availableWorkflows, currentWorkflows, computeDisplayTitles],
   );
-
-  if (rollout) {
-    return (
-      <TerminalChatPastRollout
-        session={rollout.session}
-        items={rollout.items}
-      />
-    );
-  }
 
   if (currentWorkflows.length === 0) {
     if (availableWorkflows.length === 0) {

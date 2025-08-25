@@ -23,9 +23,6 @@ export interface MultiWorkflowHotkeysParams {
 
 export function useMultiWorkflowHotkeys(params: MultiWorkflowHotkeysParams) {
   const {
-    workflows,
-    activeWorkflowId,
-    switchToWorkflow,
     switchToNextWorkflow,
     switchToPreviousWorkflow,
     openWorkflowPicker,
@@ -74,22 +71,6 @@ export function useMultiWorkflowHotkeys(params: MultiWorkflowHotkeysParams) {
     action: openWorkflowPicker,
     description: "Ctrl+O",
   });
-
-  // Add Ctrl+1..9 direct switching
-  for (let i = 1; i <= 9; i++) {
-    hotkeys.push({
-      ...HotkeyPatterns.ctrlNumber(i, () => {
-        const idx = i - 1;
-        const target = workflows[idx];
-        if (!target) {
-          return;
-        }
-        if (target.id !== activeWorkflowId) {
-          switchToWorkflow(target.id);
-        }
-      }),
-    });
-  }
 
   useGlobalHotkeys({
     hotkeys,
