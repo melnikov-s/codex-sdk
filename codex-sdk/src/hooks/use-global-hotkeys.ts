@@ -30,13 +30,6 @@ export const HotkeyPatterns = {
     action,
     description: "Ctrl+Shift+Tab",
   }),
-
-  ctrlNumber: (num: number, action: () => void): HotkeyAction => ({
-    key: String(num),
-    ctrl: true,
-    action,
-    description: `Ctrl+${num}`,
-  }),
 };
 
 export function useGlobalHotkeys({

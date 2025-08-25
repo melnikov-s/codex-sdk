@@ -13,7 +13,6 @@ export interface TerminalHeaderProps {
   approvalPolicy: string;
   colorsByPolicy: Record<string, string | undefined>;
   initialImagePaths?: Array<string>;
-  flexModeEnabled?: boolean;
   headers?: Array<HeaderConfig>;
   statusLine?: string;
   workflowHeader?: ReactNode;
@@ -26,7 +25,6 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   approvalPolicy,
   colorsByPolicy,
   initialImagePaths,
-  flexModeEnabled = false,
   headers = [],
   statusLine = "",
   workflowHeader,
@@ -41,7 +39,6 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
             <Text color={colorsByPolicy[approvalPolicy] || "blue"}>
               {approvalPolicy}
             </Text>
-            {flexModeEnabled ? " - flex-mode" : ""}
             {headers.length > 0 &&
               " - " + headers.map((h) => `${h.label}: ${h.value}`).join(" - ")}
           </Text>
@@ -85,12 +82,7 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
               <Text {...componentStyles.header.accent}>↳</Text> sdk version:{" "}
               <Text {...componentStyles.header.primary}>v{version}</Text>
             </Text>
-            {flexModeEnabled && (
-              <Text {...componentStyles.tabs.instruction}>
-                <Text {...componentStyles.header.accent}>↳</Text> flex-mode:{" "}
-                <Text {...componentStyles.header.primary}>enabled</Text>
-              </Text>
-            )}
+
             {headers.map((header, idx) => (
               <Text
                 key={`${header.label}-${idx}`}

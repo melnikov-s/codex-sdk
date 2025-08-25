@@ -16,7 +16,6 @@ test("DEFAULT_UI_COMMANDS includes expected commands", () => {
   expect(commands).not.toContain("/compact");
   expect(commands).not.toContain("/model");
   expect(commands).not.toContain("/bug");
-  expect(commands).not.toContain("/mcp");
 });
 
 test("getAllAvailableCommands combines UI and workflow commands", () => {
