@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { exec as rawExec } from "../src/utils/agent/sandbox/raw-exec.js";
-import type { AppConfig } from "src/utils/config.js";
+import type { LibraryConfig } from "../src/lib.js";
 
 // Regression test: When cancelling an in‑flight `rawExec()` the implementation
 // must terminate *all* processes that belong to the spawned command – not just
@@ -28,10 +28,7 @@ describe("rawExec – abort kills entire process group", () => {
     // Bash script: spawn `sleep 30` in background, print its PID, then wait.
     const script = "sleep 30 & pid=$!; echo $pid; wait $pid";
     const cmd = ["bash", "-c", script];
-    const config: AppConfig = {
-      model: "openai/gpt-4o",
-      instructions: "test-instructions",
-    };
+    const config: LibraryConfig = {};
 
     // Start a bash shell that:
     //  - spawns a background `sleep 30`

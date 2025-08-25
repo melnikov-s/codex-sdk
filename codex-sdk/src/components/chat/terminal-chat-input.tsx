@@ -11,7 +11,6 @@ import TextCompletions from "./terminal-chat-completions.js";
 import TerminalChatQueue from "./terminal-chat-queue.js";
 import TerminalChatTaskList from "./terminal-chat-task-list.js";
 import { useFileSystemSuggestions } from "../../hooks/use-file-system-suggestions.js";
-import { loadConfig } from "../../utils/config.js";
 import { processFileTokens } from "../../utils/file-tag-utils";
 import { createInputItem } from "../../utils/input-utils.js";
 import { log } from "../../utils/logger/log.js";
@@ -555,14 +554,11 @@ export default function TerminalChatInput({
       const inputItem = await createInputItem(processedText, [], attachments);
       submitInput(inputItem);
 
-      // Get config for history persistence.
-      const config = loadConfig();
-
       // Add to history and update state.
       const updatedHistory = await addToHistory(value, history, {
-        maxSize: config.history?.maxSize ?? 1000,
-        saveHistory: config.history?.saveHistory ?? true,
-        sensitivePatterns: config.history?.sensitivePatterns ?? [],
+        maxSize: 1000,
+        saveHistory: true,
+        sensitivePatterns: [],
       });
 
       setHistory(updatedHistory);

@@ -24,7 +24,7 @@ describe("TerminalChatResponseItem", () => {
     );
 
     const frame = lastFrameStripped();
-    expect(frame).toContain("user");
+    expect(frame).toContain("You");
     expect(frame).toContain("Hello world");
   });
 
@@ -34,7 +34,7 @@ describe("TerminalChatResponseItem", () => {
     );
 
     const frame = lastFrameStripped();
-    expect(frame.toLowerCase()).toContain("assistant");
+    expect(frame).toContain("AI");
     expect(frame).toContain("Sure thing");
   });
 });

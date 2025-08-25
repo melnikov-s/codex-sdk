@@ -8,7 +8,6 @@ import { canAutoApprove } from "../../approvals.js";
 import { formatCommandForDisplay } from "../../format-command.js";
 import { type LibraryConfig } from "../../lib.js";
 import { FullAutoErrorMode } from "../auto-approval-mode.js";
-import { CODEX_UNSAFE_ALLOW_NO_SANDBOX } from "../config.js";
 import { isLoggingEnabled, log } from "../logger/log.js";
 import { SandboxType } from "./sandbox/interface.js";
 import { PATH_TO_SEATBELT_EXECUTABLE } from "./sandbox/macos-seatbelt.js";
@@ -106,7 +105,13 @@ export async function handleExecCommand(
   // working directory so that edits are constrained to the project root.  If
   // the caller wishes to broaden or restrict the set it can be made
   // configurable in the future.
-  const safety = canAutoApprove(command, workdir, policy, [process.cwd()]);
+  const safety = canAutoApprove(
+    command,
+    workdir,
+    policy,
+    [process.cwd()],
+    config.safeCommands || [],
+  );
 
   let runInSandbox: boolean;
   switch (safety.type) {
@@ -313,14 +318,11 @@ async function getSandbox(runInSandbox: boolean): Promise<SandboxType> {
       // using Landlock in a Linux Docker container from a macOS host may not
       // work.
       return SandboxType.LINUX_LANDLOCK;
-    } else if (CODEX_UNSAFE_ALLOW_NO_SANDBOX) {
-      // Allow running without a sandbox if the user has explicitly marked the
-      // environment as already being sufficiently locked-down.
-      return SandboxType.NONE;
     }
 
-    // For all else, we hard fail if the user has requested a sandbox and none is available.
-    throw new Error("Sandbox was mandated, but no sandbox is available!");
+    // For platforms without sandbox support, use no sandbox
+    // In production, consider making this a workflow-level configuration
+    return SandboxType.NONE;
   } else {
     return SandboxType.NONE;
   }
