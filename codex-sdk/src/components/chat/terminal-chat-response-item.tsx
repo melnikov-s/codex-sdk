@@ -12,7 +12,7 @@ import {
   getToolCall,
   getToolCallResult,
 } from "../../utils/ai";
-import { getDisplayMessageType } from "../../utils/display";
+import { getDisplayLabel, getDisplayMessageType } from "../../utils/display";
 import { parseToolCall } from "../../utils/parsers";
 import chalk from "chalk";
 import { Box, Text } from "ink";
@@ -103,21 +103,23 @@ export function TerminalChatResponseReasoning({
   );
 }
 
+// Default color mapping for message types
+const defaultColors: Record<string, string> = {
+  assistant: "blueBright",
+  user: "blue",
+  toolCall: "blue",
+  toolResponse: "green",
+  ui: "gray",
+};
+
 // Default fallback component for messages
 function DefaultMessageDisplay({ message }: { message: UIMessage }) {
   const messageType = getDisplayMessageType(message);
-  const defaultColors: Record<string, string> = {
-    assistant: "magentaBright",
-    user: "blueBright",
-    toolCall: "cyan",
-    toolResponse: "green",
-    ui: "yellow",
-  };
 
   return (
     <Box flexDirection="column">
       <Text bold color={defaultColors[messageType] || "gray"}>
-        {messageType}
+        {getDisplayLabel(messageType)}
       </Text>
       <Markdown>{getTextContent(message)}</Markdown>
     </Box>
@@ -193,11 +195,11 @@ function TerminalChatResponseToolCall({
           />
         )}
         <Box flexDirection="column">
-          <Text bold color="cyan">
-            {messageType}
+          <Text bold color={defaultColors[messageType] || "blue"}>
+            {getDisplayLabel(messageType)}
           </Text>
           <Box flexDirection="column" marginLeft={2}>
-            <Text color="cyan" bold>
+            <Text color="blue" bold>
               asking user: {args.message}
             </Text>
             <Text color="gray">Options: {args.options.join(", ")}</Text>
@@ -217,11 +219,11 @@ function TerminalChatResponseToolCall({
         />
       )}
       <Box flexDirection="column">
-        <Text bold color="cyan">
-          {messageType}
+        <Text bold color={defaultColors[messageType] || "blue"}>
+          {getDisplayLabel(messageType)}
         </Text>
         <Box flexDirection="column" marginLeft={2}>
-          <Text color="cyan" bold>
+          <Text color="blue" bold>
             command
           </Text>
           <Text>

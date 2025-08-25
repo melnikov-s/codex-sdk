@@ -75,6 +75,51 @@ export interface DisplayConfig {
 
   /** Function to format the message content */
   formatMessage?: (message: UIMessage) => ReactNode;
+
+  /** Configuration for workflow tabs display */
+  tabs?: {
+    /** Custom header text for the tabs section. If null, no header is shown. Defaults to "Active Workflows". */
+    header?: string | null;
+
+    /** Styling for the tab container */
+    containerProps?: {
+      flexDirection?: "row" | "column";
+      marginBottom?: number;
+      marginTop?: number;
+      paddingX?: number;
+      paddingY?: number;
+    };
+
+    /** Styling for individual active tabs */
+    activeTab?: {
+      color?: string;
+      backgroundColor?: string;
+      bold?: boolean;
+      dimColor?: boolean;
+    };
+
+    /** Styling for inactive tabs */
+    inactiveTab?: {
+      color?: string;
+      backgroundColor?: string;
+      bold?: boolean;
+      dimColor?: boolean;
+    };
+
+    /** Styling for the header text */
+    headerStyle?: {
+      color?: string;
+      bold?: boolean;
+      marginBottom?: number;
+    };
+
+    /** Styling for the instruction text */
+    instructionStyle?: {
+      color?: string;
+      dimColor?: boolean;
+      marginTop?: number;
+    };
+  };
 }
 
 export interface Workflow {

@@ -1,5 +1,6 @@
 import type { Workflow } from "../workflow";
 
+import { componentStyles, spacing } from "../utils/design-system.js";
 import {
   getAllAvailableCommands,
   type SlashCommand,
@@ -40,70 +41,61 @@ export default function HelpOverlay({
       borderColor="gray"
       width={80}
     >
-      <Box paddingX={1}>
-        <Text bold>Available commands</Text>
+      <Box paddingX={spacing.sm}>
+        <Text {...componentStyles.header.primary}>Available commands</Text>
       </Box>
 
-      <Box flexDirection="column" paddingX={1} paddingTop={1}>
-        <Text bold dimColor>
-          System commands
-        </Text>
+      <Box flexDirection="column" paddingX={spacing.sm} paddingTop={spacing.sm}>
+        <Text {...componentStyles.help.section}>System commands</Text>
         {uiCommands.map((cmd: SlashCommand) => (
-          <Text key={cmd.command}>
-            <Text color="cyan">{cmd.command}</Text> – {cmd.description}
+          <Text key={cmd.command} {...componentStyles.help.description}>
+            <Text {...componentStyles.help.command}>{cmd.command}</Text> –{" "}
+            {cmd.description}
           </Text>
         ))}
 
         {workflowCommands.length > 0 && (
           <>
-            <Box marginTop={1}>
-              <Text bold dimColor>
-                Workflow commands
-              </Text>
+            <Box marginTop={spacing.sm}>
+              <Text {...componentStyles.help.section}>Workflow commands</Text>
             </Box>
             {workflowCommands.map((cmd: SlashCommand) => (
-              <Text key={cmd.command}>
-                <Text color="magenta">{cmd.command}</Text> – {cmd.description}
+              <Text key={cmd.command} {...componentStyles.help.description}>
+                <Text {...componentStyles.help.command}>{cmd.command}</Text> –{" "}
+                {cmd.description}
               </Text>
             ))}
           </>
         )}
 
-        <Box marginTop={1}>
-          <Text bold dimColor>
-            Keyboard shortcuts
-          </Text>
+        <Box marginTop={spacing.sm}>
+          <Text {...componentStyles.help.section}>Keyboard shortcuts</Text>
         </Box>
-        <Text>
-          <Text color="yellow">Enter</Text> – send message
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>Enter</Text> – send message
         </Text>
-        <Text>
-          <Text color="yellow">Ctrl+J</Text> – insert newline
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>Ctrl+J</Text> – insert
+          newline
         </Text>
-        {/* Re-enable once we re-enable new input */}
-        {/*
-        <Text>
-          <Text color="yellow">Ctrl+X</Text>/<Text color="yellow">Ctrl+E</Text>
-          &nbsp;– open external editor ($EDITOR)
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>Up/Down</Text> – scroll
+          prompt history
         </Text>
-        */}
-        <Text>
-          <Text color="yellow">Up/Down</Text> – scroll prompt history
-        </Text>
-        <Text>
-          <Text color="yellow">
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>
             Esc<Text dimColor>(✕2)</Text>
           </Text>{" "}
           – interrupt current action
         </Text>
-        <Text>
-          <Text color="yellow">Ctrl+C</Text> – quit{" "}
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>Ctrl+C</Text> – quit{" "}
           {workflow?.title ?? "Codex SDK"}
         </Text>
       </Box>
 
-      <Box paddingX={1}>
-        <Text dimColor>esc or q to close</Text>
+      <Box paddingX={spacing.sm}>
+        <Text {...componentStyles.tabs.instruction}>esc or q to close</Text>
       </Box>
     </Box>
   );

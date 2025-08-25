@@ -1,6 +1,7 @@
 import type { HeaderConfig } from "../../lib.js";
 import type { ReactNode } from "react";
 
+import { componentStyles, spacing } from "../../utils/design-system.js";
 import { Box, Text } from "ink";
 import path from "node:path";
 import React from "react";
@@ -35,62 +36,83 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
       {terminalRows < 10 ? (
         // Compact header for small terminal windows
         <>
-          <Text>
-            ● {workflowHeader || "Codex SDK"} v{version} - {PWD} -{" "}
-            <Text color={colorsByPolicy[approvalPolicy]}>{approvalPolicy}</Text>
+          <Text {...componentStyles.header.primary}>
+            ● {workflowHeader || "Codex SDK"} - {PWD} -{" "}
+            <Text color={colorsByPolicy[approvalPolicy] || "blue"}>
+              {approvalPolicy}
+            </Text>
             {flexModeEnabled ? " - flex-mode" : ""}
             {headers.length > 0 &&
               " - " + headers.map((h) => `${h.label}: ${h.value}`).join(" - ")}
           </Text>
-          {statusLine && <Text dimColor>{statusLine}</Text>}
+          {statusLine && (
+            <Text {...componentStyles.tabs.instruction}>{statusLine}</Text>
+          )}
         </>
       ) : (
         <>
-          <Box borderStyle="round" paddingX={1} width={64}>
-            <Text>
-              ● {workflowHeader ? workflowHeader : <Text bold>Codex SDK</Text>}{" "}
-              <Text dimColor>
-                <Text color="blueBright">v{version}</Text>
-              </Text>
+          <Box borderStyle="round" paddingX={spacing.sm} width={64}>
+            <Text {...componentStyles.header.primary}>
+              ●{" "}
+              {workflowHeader ? (
+                workflowHeader
+              ) : (
+                <Text {...componentStyles.header.primary}>Codex SDK</Text>
+              )}
             </Text>
           </Box>
           <Box
             borderStyle="round"
             borderColor="gray"
-            paddingX={1}
+            paddingX={spacing.sm}
             width={64}
             flexDirection="column"
           >
-            <Text dimColor>
-              <Text color="blueBright">↳</Text> workdir: <Text bold>{PWD}</Text>
+            <Text {...componentStyles.tabs.instruction}>
+              <Text {...componentStyles.header.accent}>↳</Text> workdir:{" "}
+              <Text {...componentStyles.header.primary}>{PWD}</Text>
             </Text>
-            {/* Model info removed - handled by consumer's workflow */}
-            <Text dimColor>
-              <Text color="blueBright">↳</Text> approval:{" "}
-              <Text bold color={colorsByPolicy[approvalPolicy]}>
+            <Text {...componentStyles.tabs.instruction}>
+              <Text {...componentStyles.header.accent}>↳</Text> approval:{" "}
+              <Text
+                {...componentStyles.header.primary}
+                color={colorsByPolicy[approvalPolicy] || "blue"}
+              >
                 {approvalPolicy}
               </Text>
             </Text>
+            <Text {...componentStyles.tabs.instruction}>
+              <Text {...componentStyles.header.accent}>↳</Text> sdk version:{" "}
+              <Text {...componentStyles.header.primary}>v{version}</Text>
+            </Text>
             {flexModeEnabled && (
-              <Text dimColor>
-                <Text color="blueBright">↳</Text> flex-mode:{" "}
-                <Text bold>enabled</Text>
+              <Text {...componentStyles.tabs.instruction}>
+                <Text {...componentStyles.header.accent}>↳</Text> flex-mode:{" "}
+                <Text {...componentStyles.header.primary}>enabled</Text>
               </Text>
             )}
             {headers.map((header, idx) => (
-              <Text key={`${header.label}-${idx}`} dimColor>
-                <Text color="blueBright">↳</Text> {header.label}:{" "}
-                <Text bold>{header.value}</Text>
+              <Text
+                key={`${header.label}-${idx}`}
+                {...componentStyles.tabs.instruction}
+              >
+                <Text {...componentStyles.header.accent}>↳</Text> {header.label}
+                :{" "}
+                <Text {...componentStyles.header.primary}>{header.value}</Text>
               </Text>
             ))}
             {initialImagePaths?.map((img, idx) => (
-              <Text key={img ?? idx} color="gray">
-                <Text color="blueBright">↳</Text> image:{" "}
-                <Text bold>{path.basename(img)}</Text>
+              <Text key={img ?? idx} {...componentStyles.tabs.instruction}>
+                <Text {...componentStyles.header.accent}>↳</Text> image:{" "}
+                <Text {...componentStyles.header.primary}>
+                  {path.basename(img)}
+                </Text>
               </Text>
             ))}
           </Box>
-          {statusLine && <Text dimColor>{statusLine}</Text>}
+          {statusLine && (
+            <Text {...componentStyles.tabs.instruction}>{statusLine}</Text>
+          )}
         </>
       )}
     </>
