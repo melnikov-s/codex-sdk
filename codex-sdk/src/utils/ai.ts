@@ -19,12 +19,19 @@ export function isNativeTool(toolName: string | undefined) {
   );
 }
 
-export type UIMessage =
+export interface MessageMetadata {
+  [key: string]: unknown;
+}
+
+export type UIMessageWithMetadata =
   | {
       role: "ui";
       content: string;
+      metadata?: MessageMetadata;
     }
-  | ModelMessage;
+  | (ModelMessage & { metadata?: MessageMetadata });
+
+export type UIMessage = UIMessageWithMetadata;
 
 export type MessageType =
   | "message"

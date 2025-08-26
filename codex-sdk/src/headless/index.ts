@@ -5,7 +5,7 @@ import type {
 } from "../approvals.js";
 import type { LibraryConfig } from "../lib.js";
 import type { CommandConfirmation } from "../utils/agent/review.js";
-import type { UIMessage } from "../utils/ai.js";
+import type { UIMessage, MessageMetadata } from "../utils/ai.js";
 import type {
   ConfirmOptions,
   ConfirmOptionsWithTimeout,
@@ -254,13 +254,11 @@ export function runHeadless(
   const stateGetters = createStateGetters(syncRef);
 
   const actions: WorkflowHooks["actions"] = {
-    say: (text: string | Array<string>) => {
-      const messages = Array.isArray(text)
-        ? (text.map((t) => ({ role: "ui", content: t })) as Array<UIMessage>)
-        : ([{ role: "ui", content: text }] as Array<UIMessage>);
+    say: (text: string, metadata?: MessageMetadata) => {
+      const message = { role: "ui", content: text, metadata } as UIMessage;
       void smartSetState((prev) => ({
         ...prev,
-        messages: [...prev.messages, ...messages],
+        messages: [...prev.messages, message],
       }));
     },
     addMessage: (message: UIMessage | Array<UIMessage>) => {

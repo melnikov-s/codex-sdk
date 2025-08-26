@@ -287,13 +287,11 @@ describe("Declarative State API", () => {
         inputDisabled: false,
       };
 
-      const mockSay = (text: string | Array<string>) => {
-        const messages = Array.isArray(text)
-          ? text.map((t) => ({ role: "ui" as const, content: t }))
-          : [{ role: "ui" as const, content: text }];
+      const mockSay = (text: string) => {
+        const message = { role: "ui" as const, content: text };
         currentState = {
           ...currentState,
-          messages: [...currentState.messages, ...messages],
+          messages: [...currentState.messages, message],
         };
       };
 
@@ -303,36 +301,6 @@ describe("Declarative State API", () => {
       expect(currentState.messages[0]).toEqual({
         role: "ui",
         content: "Test UI message",
-      });
-    });
-
-    it("should create multiple UI messages from string array", () => {
-      let currentState: WorkflowState = {
-        loading: false,
-        messages: [],
-        inputDisabled: false,
-      };
-
-      const mockSay = (text: string | Array<string>) => {
-        const messages = Array.isArray(text)
-          ? text.map((t) => ({ role: "ui" as const, content: t }))
-          : [{ role: "ui" as const, content: text }];
-        currentState = {
-          ...currentState,
-          messages: [...currentState.messages, ...messages],
-        };
-      };
-
-      mockSay(["Message 1", "Message 2"]);
-
-      expect(currentState.messages).toHaveLength(2);
-      expect(currentState.messages[0]).toEqual({
-        role: "ui",
-        content: "Message 1",
-      });
-      expect(currentState.messages[1]).toEqual({
-        role: "ui",
-        content: "Message 2",
       });
     });
 

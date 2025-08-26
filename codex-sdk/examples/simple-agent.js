@@ -26,7 +26,7 @@ export const workflow = createAgentWorkflow(
     return {
       title: "Simple Agent",
       initialize: async () => {
-        setState({ messages: [{ role: "ui", content: "Ready. Starting…" }] });
+        actions.say("Ready. Starting…");
         runAgentLoop();
       },
       message: async (userInput) => {

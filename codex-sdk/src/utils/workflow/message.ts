@@ -1,4 +1,5 @@
 import type { UIMessage } from "../../utils/ai.js";
+import type { ModelMessage } from "ai";
 
 export function normalizeToUiMessage(value: UIMessage | string): UIMessage {
   if (typeof value === "string") {
@@ -7,8 +8,12 @@ export function normalizeToUiMessage(value: UIMessage | string): UIMessage {
   return value;
 }
 
-export function filterTranscript(messages: Array<UIMessage>): Array<UIMessage> {
-  return messages.filter((msg) => msg.role !== "ui");
+export function filterTranscript(
+  messages: Array<UIMessage>,
+): Array<ModelMessage> {
+  return messages
+    .filter((msg) => msg.role !== "ui")
+    .map((msg) => msg as ModelMessage);
 }
 
 export function flattenUserInputContent(
