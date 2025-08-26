@@ -7,7 +7,6 @@ import type {
   WorkflowController,
   WorkflowFactory,
 } from "../../workflow";
-import type { ColorName } from "chalk";
 
 import { useOverlays } from "./hooks/use-overlays.js";
 import { useWorkflowManager } from "./hooks/use-workflow-manager.js";
@@ -15,11 +14,9 @@ import { OverlayRouter } from "./overlay-router.js";
 import TerminalChatInput from "./terminal-chat-input.js";
 import TerminalMessageHistory from "./terminal-message-history.js";
 import { useDesktopNotifications } from "../../hooks/use-desktop-notifications.js";
-import { useTerminalSize } from "../../hooks/use-terminal-size.js";
 import { log } from "../../utils/logger/log.js";
-import { CLI_VERSION } from "../../utils/session.js";
 import { shortCwd } from "../../utils/short-path.js";
-import { resolveHeaders, resolveStatusLine } from "../../utils/ui-config.js";
+import { resolveStatusLine } from "../../utils/ui-config.js";
 import { Box, Text } from "ink";
 import React, { useEffect, useMemo, useCallback } from "react";
 
@@ -38,13 +35,10 @@ type Props = {
   onDisplayConfigChange?: (id: string, displayConfig?: DisplayConfig) => void;
   openWorkflowPicker?: () => void;
   createNewWorkflow?: () => void;
+  closeCurrentWorkflow?: () => void;
 };
 
-const colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined> = {
-  "suggest": undefined,
-  "auto-edit": "green",
-  "full-auto": "green",
-};
+//
 
 // Command explanation functionality removed - should be handled by the consumer's workflow
 
@@ -61,6 +55,7 @@ function TerminalChat({
   onDisplayConfigChange,
   openWorkflowPicker,
   createNewWorkflow,
+  closeCurrentWorkflow,
 }: Props): React.ReactElement | null {
   const effectiveUiConfig = useMemo(() => uiConfig ?? {}, [uiConfig]);
   const notify = false;
@@ -198,17 +193,11 @@ function TerminalChat({
   // Dynamic layout constraints – keep total rendered rows <= terminal rows
   // ---------------------------------------------------------------------
 
-  const { rows: terminalRows } = useTerminalSize();
-
   // Just render every item in order, no grouping/collapse.
   const lastMessageBatch = items.map((item) => ({ item }));
   const groupCounts: Record<string, number> = {};
   const userMsgCount = items.filter((i) => i.role === "user").length;
 
-  const headers = useMemo(
-    () => resolveHeaders(effectiveUiConfig),
-    [effectiveUiConfig],
-  );
   const statusLine = useMemo(
     () => resolveStatusLine(effectiveUiConfig),
     [effectiveUiConfig],
@@ -232,19 +221,6 @@ function TerminalChat({
             fullStdout={fullStdout}
             displayConfig={displayConfig}
             slots={workflowState.slots}
-            headerProps={{
-              terminalRows,
-              version: CLI_VERSION,
-              PWD,
-              approvalPolicy,
-              colorsByPolicy,
-              headers,
-              statusLine,
-              workflowHeader:
-                displayConfig?.header ||
-                workflowFactory.meta?.title ||
-                "Untitled Workflow",
-            }}
           />
         ) : (
           <Box>
@@ -292,6 +268,7 @@ function TerminalChat({
               inputSetterRef={inputSetterRef}
               openWorkflowPicker={openWorkflowPicker}
               createNewWorkflow={createNewWorkflow}
+              closeCurrentWorkflow={closeCurrentWorkflow}
               interruptAgent={() => {
                 if (!workflow) {
                   return;

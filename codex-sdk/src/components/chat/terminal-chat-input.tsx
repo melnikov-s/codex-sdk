@@ -48,6 +48,7 @@ export default function TerminalChatInput({
   inputSetterRef,
   openWorkflowPicker,
   createNewWorkflow,
+  closeCurrentWorkflow,
 }: {
   loading: boolean;
   queue: Array<string>;
@@ -75,6 +76,7 @@ export default function TerminalChatInput({
   >;
   openWorkflowPicker?: () => void;
   createNewWorkflow?: () => void;
+  closeCurrentWorkflow?: () => void;
 }): React.ReactElement {
   const app = useApp();
   const [input, setInput] = useState("");
@@ -225,6 +227,9 @@ export default function TerminalChatInput({
                     break;
                   case "/new":
                     createNewWorkflow?.();
+                    break;
+                  case "/close":
+                    closeCurrentWorkflow?.();
                     break;
 
                   case "/clearhistory":

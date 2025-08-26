@@ -1,24 +1,23 @@
+import type { ApprovalPolicy } from "../../approvals.js";
 import type { HeaderConfig } from "../../lib.js";
-import type { ReactNode } from "react";
+import type { ColorName } from "chalk";
 
 import { componentStyles, spacing } from "../../utils/design-system.js";
 import { Box, Text } from "ink";
-import path from "node:path";
+import path from "path";
 import React from "react";
 
-export interface TerminalHeaderProps {
+export interface AppHeaderProps {
   terminalRows: number;
   version: string;
   PWD: string;
-  approvalPolicy: string;
-  colorsByPolicy: Record<string, string | undefined>;
+  approvalPolicy: ApprovalPolicy;
+  colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined>;
   initialImagePaths?: Array<string>;
   headers?: Array<HeaderConfig>;
-  statusLine?: string;
-  workflowHeader?: ReactNode;
 }
 
-const TerminalHeader: React.FC<TerminalHeaderProps> = ({
+const AppHeader: React.FC<AppHeaderProps> = ({
   terminalRows,
   version,
   PWD,
@@ -26,8 +25,6 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   colorsByPolicy,
   initialImagePaths,
   headers = [],
-  statusLine = "",
-  workflowHeader,
 }) => {
   return (
     <>
@@ -35,29 +32,16 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         // Compact header for small terminal windows
         <>
           <Text {...componentStyles.header.primary}>
-            ● {workflowHeader || "Codex SDK"} - {PWD} -{" "}
+            ● Codex SDK - {PWD} -{" "}
             <Text color={colorsByPolicy[approvalPolicy] || "blue"}>
               {approvalPolicy}
             </Text>
             {headers.length > 0 &&
               " - " + headers.map((h) => `${h.label}: ${h.value}`).join(" - ")}
           </Text>
-          {statusLine && (
-            <Text {...componentStyles.tabs.instruction}>{statusLine}</Text>
-          )}
         </>
       ) : (
         <>
-          <Box borderStyle="round" paddingX={spacing.sm} width={64}>
-            <Text {...componentStyles.header.primary}>
-              ●{" "}
-              {workflowHeader ? (
-                workflowHeader
-              ) : (
-                <Text {...componentStyles.header.primary}>Codex SDK</Text>
-              )}
-            </Text>
-          </Box>
           <Box
             borderStyle="round"
             borderColor="gray"
@@ -82,14 +66,10 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
               <Text {...componentStyles.header.accent}>↳</Text> sdk version:{" "}
               <Text {...componentStyles.header.primary}>v{version}</Text>
             </Text>
-
             {headers.map((header, idx) => (
-              <Text
-                key={`${header.label}-${idx}`}
-                {...componentStyles.tabs.instruction}
-              >
-                <Text {...componentStyles.header.accent}>↳</Text> {header.label}
-                :{" "}
+              <Text key={idx} {...componentStyles.tabs.instruction}>
+                <Text {...componentStyles.header.accent}>↳</Text>{" "}
+                {header.label.toLowerCase()}:{" "}
                 <Text {...componentStyles.header.primary}>{header.value}</Text>
               </Text>
             ))}
@@ -102,13 +82,10 @@ const TerminalHeader: React.FC<TerminalHeaderProps> = ({
               </Text>
             ))}
           </Box>
-          {statusLine && (
-            <Text {...componentStyles.tabs.instruction}>{statusLine}</Text>
-          )}
         </>
       )}
     </>
   );
 };
 
-export default TerminalHeader;
+export default AppHeader;

@@ -1,10 +1,8 @@
-import type { TerminalHeaderProps } from "./terminal-header.js";
 import type { GroupedResponseItem } from "./use-message-grouping.js";
 import type { UIMessage } from "../../utils/ai.js";
 import type { DisplayConfig, SlotRegion } from "../../workflow/index.js";
 
 import TerminalChatResponseItem from "./terminal-chat-response-item.js";
-import TerminalHeader from "./terminal-header.js";
 import { getId } from "../../utils/ai.js";
 import { Box } from "ink";
 import React, { useMemo, memo } from "react";
@@ -20,7 +18,6 @@ type TerminalMessageHistoryProps = {
   userMsgCount: number;
   confirmationPrompt: React.ReactNode;
   loading: boolean;
-  headerProps: TerminalHeaderProps;
   fullStdout: boolean;
   displayConfig?: DisplayConfig;
   slots?: Partial<Record<SlotRegion, React.ReactNode | null>>;
@@ -28,7 +25,6 @@ type TerminalMessageHistoryProps = {
 
 const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
   batch,
-  headerProps,
   // `loading` handled by input component now.
   loading: _loading,
   fullStdout,
@@ -38,13 +34,12 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
   // Flatten batch entries to response items.
   const messages = useMemo(() => batch.map(({ item }) => item!), [batch]);
 
+  // No scrolling logic - pure flexbox layout
+
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" flexGrow={1}>
       {/* Above-header dynamic slot */}
       {slots?.aboveHeader ?? null}
-
-      {/* Header rendered dynamically so it stays visible */}
-      <TerminalHeader {...headerProps} />
 
       {/* Below-header dynamic slot */}
       {slots?.belowHeader ?? null}
@@ -52,28 +47,30 @@ const TerminalMessageHistory: React.FC<TerminalMessageHistoryProps> = ({
       {/* Above-history dynamic slot */}
       {slots?.aboveHistory ?? null}
 
-      {/* History messages (dynamic render to keep header/slots pinned above) */}
-      {messages.map((message, index) => {
-        const msg = message as unknown as { summary?: Array<unknown> };
-        if (msg.summary?.length === 0) {
-          return null;
-        }
-        return (
-          <Box
-            key={`${getId(message)}-${index}`}
-            flexDirection="column"
-            marginLeft={message.role === "user" ? 0 : 4}
-            marginTop={message.role === "user" ? 1 : 1}
-            marginBottom={0}
-          >
-            <TerminalChatResponseItem
-              item={message}
-              fullStdout={fullStdout}
-              displayConfig={displayConfig}
-            />
-          </Box>
-        );
-      })}
+      {/* Message history area - flex grow to fill available space */}
+      <Box flexDirection="column" flexGrow={1}>
+        {messages.map((message, index) => {
+          const msg = message as unknown as { summary?: Array<unknown> };
+          if (msg.summary?.length === 0) {
+            return null;
+          }
+          return (
+            <Box
+              key={`${getId(message)}-${index}`}
+              flexDirection="column"
+              marginLeft={message.role === "user" ? 0 : 4}
+              marginTop={message.role === "user" ? 1 : 1}
+              marginBottom={0}
+            >
+              <TerminalChatResponseItem
+                item={message}
+                fullStdout={fullStdout}
+                displayConfig={displayConfig}
+              />
+            </Box>
+          );
+        })}
+      </Box>
 
       {/* Below-history dynamic slot */}
       {slots?.belowHistory ?? null}

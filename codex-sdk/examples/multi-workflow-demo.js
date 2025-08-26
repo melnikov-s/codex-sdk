@@ -8,7 +8,7 @@ import { workflow as researchAssistant } from "./research-assistant.js";
 import { workflow as simpleAgent } from "./simple-agent.js";
 import { workflow as taskListDemo } from "./task-list-demo.js";
 import { workflow as textAdventureGame } from "./text-adventure-game.js";
-import { runMultiWorkflows } from "../dist/lib.js";
+import { run } from "../dist/lib.js";
 
 // Available workflows from all examples - just pass the factories directly!
 const workflows = [
@@ -24,17 +24,34 @@ const workflows = [
   headlessRepoAnalyzer,
 ];
 
-// Run multi-workflow environment
+// Run multi-workflow environment with custom title
 // No initial workflows specified - starts with workflow selector
-runMultiWorkflows(workflows, {
+run(workflows, {
+  title: `
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║    ██████╗ ███████╗███╗   ███╗ ██████╗                                       ║
+║    ██╔══██╗██╔════╝████╗ ████║██╔═══██╗                                      ║
+║    ██║  ██║█████╗  ██╔████╔██║██║   ██║                                      ║
+║    ██║  ██║██╔══╝  ██║╚██╔╝██║██║   ██║                                      ║
+║    ██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝                                      ║
+║    ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝                                       ║
+║                                                                              ║
+║                                                                              ║
+║                         ▼ SELECT YOUR ADVENTURE BELOW ▼                      ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+`,
   approvalPolicy: "suggest",
   additionalWritableRoots: [],
   fullStdout: false,
   config: {
-    notify: true,
-    title: "Multi-Workflow Demo",
-  },
-  onController: (_controller) => {
-    // Workflow controller created
+    // Example valid config options
+    safeCommands: ["git status", "npm test"],
+    headers: [
+      { label: "Environment", value: "Demo" },
+      { label: "Version", value: "1.0.0" },
+    ],
+    statusLine: "Multi-workflow demo environment ready",
   },
 });
