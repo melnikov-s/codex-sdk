@@ -1,5 +1,5 @@
 import type { ApprovalPolicy } from "../../../approvals.js";
-import type { UIMessage } from "../../../utils/ai.js";
+import type { UIMessage, MessageMetadata } from "../../../utils/ai.js";
 import type { SlotRegion, TaskItem, WorkflowState } from "../../../workflow";
 import type { ModelMessage } from "ai";
 import type { ReactNode, MutableRefObject } from "react";
@@ -34,13 +34,11 @@ export function useWorkflowActions(params: {
   } = params;
 
   const say = useCallback(
-    (text: string | Array<string>) => {
-      const messages = Array.isArray(text)
-        ? text.map((t) => ({ role: "ui", content: t }) as UIMessage)
-        : [{ role: "ui", content: text } as UIMessage];
+    (text: string, metadata?: MessageMetadata) => {
+      const message = { role: "ui", content: text, metadata } as UIMessage;
       void smartSetState((prev) => ({
         ...prev,
-        messages: [...prev.messages, ...messages],
+        messages: [...prev.messages, message],
       }));
     },
     [smartSetState],

@@ -79,7 +79,7 @@ const multiManager = run([codeAssistant, researchAssistant], {
 });
 ```
 
-### Multi-Workflow Environment
+### Multi-Workflow Setup
 
 ```javascript
 import { createAgentWorkflow, run } from "codex-sdk";
@@ -334,6 +334,43 @@ const workflow = createAgentWorkflow("With Commands", ({ actions }) => ({
   },
 }));
 ```
+
+#### Message Metadata
+
+Attach custom metadata to any message for enhanced context tracking, analytics, or custom display formatting:
+
+```typescript
+const workflow = createAgentWorkflow("Smart Assistant", ({ actions }) => ({
+  async run({ state, actions }) {
+    // Add metadata to UI messages
+    actions.say("Processing your request...", {
+      priority: "high",
+      source: "user_request",
+      timestamp: new Date().toISOString(),
+      userId: "user_123",
+    });
+
+    // Add metadata to user messages
+    const enrichedMessage = {
+      ...userInput,
+      metadata: {
+        confidence: 0.95,
+        intent: "code_review",
+        sessionId: "session_456",
+      },
+    };
+    actions.addMessage(enrichedMessage);
+  },
+}));
+```
+
+**Why use metadata?**
+
+- **Analytics**: Track message types, user interactions, and workflow performance
+- **Context**: Store additional information like timestamps, user IDs, or confidence scores
+- **Custom Display**: Build custom UI components that respond to metadata properties
+- **Debugging**: Add debugging information that doesn't appear in AI conversations
+- **Integration**: Store data needed for external systems or APIs
 
 ## 📚 Examples
 

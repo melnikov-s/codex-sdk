@@ -1,5 +1,5 @@
 import type { ApprovalPolicy, SafetyAssessment } from "../approvals.js";
-import type { UIMessage } from "../utils/ai";
+import type { UIMessage, MessageMetadata } from "../utils/ai";
 import type { ModelMessage, ToolSet } from "ai";
 import type { ReactNode } from "react";
 
@@ -203,7 +203,7 @@ export interface WorkflowHooks {
     readonly inputDisabled: boolean;
     readonly queue: Array<string>;
     readonly taskList: Array<TaskItem>;
-    readonly transcript: Array<UIMessage>;
+    readonly transcript: Array<ModelMessage>;
     readonly statusLine?: ReactNode;
     readonly slots?: Partial<Record<SlotRegion, ReactNode | null>>;
     readonly approvalPolicy?: ApprovalPolicy;
@@ -214,11 +214,12 @@ export interface WorkflowHooks {
    */
   actions: {
     /**
-     * Add UI-only message(s) to the current messages array
+     * Add UI-only message to the current messages array
      * UI messages are excluded from transcript and used for status/info display
-     * @param text Single string or array of strings to display as UI messages
+     * @param text String to display as UI message
+     * @param metadata Optional metadata to attach to the message
      */
-    say: (text: string | Array<string>) => void;
+    say: (text: string, metadata?: MessageMetadata) => void;
 
     /**
      * Add structured message(s) to the current messages array
