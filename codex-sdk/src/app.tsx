@@ -6,11 +6,17 @@ import type {
   WorkflowFactory,
 } from "./workflow";
 
+import AppHeader from "./components/chat/app-header";
 import TerminalChat from "./components/chat/terminal-chat";
 import { TerminalChatSelect } from "./components/chat/terminal-chat-select";
+import WorkflowHeader from "./components/chat/workflow-header";
 import { TerminalTabs } from "./components/terminal-tabs";
 import { useMultiWorkflowHotkeys } from "./hooks/use-multi-workflow-hotkeys";
+import { useTerminalSize } from "./hooks/use-terminal-size";
+import { CLI_VERSION } from "./utils/session.js";
+import { shortCwd } from "./utils/short-path.js";
 import { clearTerminal } from "./utils/terminal.js";
+import { resolveHeaders } from "./utils/ui-config.js";
 import { useStdin, Box, Text } from "ink";
 import React, { useState, useCallback, useMemo } from "react";
 
@@ -26,6 +32,7 @@ type Props = {
   workflowFactory?: WorkflowFactory;
   uiConfig?: LibraryConfig;
   onController?: (controller: WorkflowController) => void;
+  title?: React.ReactNode;
 };
 
 type CurrentWorkflow = {
@@ -62,9 +69,21 @@ export default function App({
   workflowFactory,
   uiConfig,
   onController,
+  title,
 }: Props): JSX.Element {
   const { internal_eventEmitter } = useStdin();
   internal_eventEmitter.setMaxListeners(20);
+
+  // Terminal header data
+  const { rows: terminalRows } = useTerminalSize();
+  const PWD = shortCwd();
+  const headers = useMemo(() => resolveHeaders(uiConfig), [uiConfig]);
+
+  const colorsByPolicy = {
+    "suggest": undefined,
+    "auto-edit": "green" as const,
+    "full-auto": "green" as const,
+  };
 
   // Normalize workflows into availableWorkflows
   const availableWorkflows: Array<AvailableWorkflow> = useMemo(() => {
@@ -216,6 +235,50 @@ export default function App({
     setShowWorkflowPicker(false);
   }, []);
 
+  const closeCurrentWorkflow = useCallback(() => {
+    const currentWorkflow = currentWorkflows.find(
+      (w) => w.id === activeWorkflowId,
+    );
+    if (!currentWorkflow) {
+      return;
+    }
+
+    // Terminate the workflow controller
+    if (currentWorkflow.controller) {
+      currentWorkflow.controller.terminate();
+    }
+
+    // Remove the workflow from the list
+    setCurrentWorkflows((prev) => {
+      const filtered = prev.filter((w) => w.id !== activeWorkflowId);
+      return computeDisplayTitles(filtered);
+    });
+
+    // If this was the last workflow, go back to workflow selection
+    if (currentWorkflows.length <= 1) {
+      clearTerminal();
+      setActiveWorkflowId("");
+      setShowWorkflowPicker(true);
+      return;
+    }
+
+    // Switch to the next workflow (or first if closing the last one)
+    const currentIndex = currentWorkflows.findIndex(
+      (w) => w.id === activeWorkflowId,
+    );
+    const remainingWorkflows = currentWorkflows.filter(
+      (w) => w.id !== activeWorkflowId,
+    );
+
+    if (remainingWorkflows.length > 0) {
+      const nextIndex =
+        currentIndex >= remainingWorkflows.length ? 0 : currentIndex;
+      const nextWorkflow = remainingWorkflows[nextIndex];
+      clearTerminal();
+      setActiveWorkflowId(nextWorkflow?.id || "");
+    }
+  }, [currentWorkflows, activeWorkflowId, computeDisplayTitles]);
+
   // Hotkeys setup
   useMultiWorkflowHotkeys({
     workflows: currentWorkflows.map(({ id, displayTitle }) => ({
@@ -232,7 +295,7 @@ export default function App({
     switchToNextAttention: () => false,
     openWorkflowPicker,
     createNewWorkflow,
-    closeCurrentWorkflow: () => {},
+    closeCurrentWorkflow,
     killCurrentWorkflow: () => {},
     emergencyExit: () => {},
   });
@@ -334,23 +397,58 @@ export default function App({
     }));
 
     return (
-      <Box flexDirection="column" padding={2}>
-        <Text>🚀 Multi-Workflow Environment</Text>
-        <Text> </Text>
-        <Text>Choose a workflow to start:</Text>
-        <Text> </Text>
-        <TerminalChatSelect
-          items={selectItems}
-          onSelect={handleWorkflowSelection}
-          onCancel={() => {}}
-          isActive={true}
-        />
+      <Box flexDirection="column">
+        <Box paddingX={2} flexDirection="column">
+          {title && <Text>{title}</Text>}
+          <AppHeader
+            terminalRows={terminalRows}
+            version={CLI_VERSION}
+            PWD={PWD}
+            approvalPolicy={approvalPolicy}
+            colorsByPolicy={colorsByPolicy}
+            headers={headers}
+          />
+        </Box>
+        <Box padding={2}>
+          <Text>Choose a workflow to start:</Text>
+          <Text> </Text>
+          <TerminalChatSelect
+            items={selectItems}
+            onSelect={handleWorkflowSelection}
+            onCancel={() => {}}
+            isActive={true}
+          />
+        </Box>
       </Box>
     );
   }
 
   return (
     <Box flexDirection="column">
+      {!showWorkflowPicker &&
+        !showWorkflowSwitcher &&
+        currentWorkflows.length > 0 && (
+          <Box paddingX={2} flexDirection="column">
+            {title && <Text>{title}</Text>}
+            <AppHeader
+              terminalRows={terminalRows}
+              version={CLI_VERSION}
+              PWD={PWD}
+              approvalPolicy={approvalPolicy}
+              colorsByPolicy={colorsByPolicy}
+              headers={headers}
+            />
+            <WorkflowHeader
+              workflowHeader={
+                currentWorkflows.find((w) => w.id === activeWorkflowId)
+                  ?.displayConfig?.header ||
+                currentWorkflows.find((w) => w.id === activeWorkflowId)?.factory
+                  .meta?.title ||
+                "Untitled Workflow"
+              }
+            />
+          </Box>
+        )}
       {/* Render all TerminalChat instances */}
       {currentWorkflows.map((workflow) => (
         <TerminalChat
@@ -373,56 +471,83 @@ export default function App({
           onDisplayConfigChange={handleDisplayConfigChange}
           openWorkflowPicker={openWorkflowPicker}
           createNewWorkflow={createNewWorkflow}
+          closeCurrentWorkflow={closeCurrentWorkflow}
         />
       ))}
 
       {/* Workflow picker overlay */}
       {showWorkflowPicker && availableWorkflows.length > 0 && (
-        <Box flexDirection="column" padding={2}>
-          <Text>Create new workflow instance:</Text>
-          <Text> </Text>
-          <TerminalChatSelect
-            items={availableWorkflows.map((wf) => ({
-              label: wf.meta?.title || "Untitled",
-              value: generateWorkflowId(wf),
-            }))}
-            onSelect={handlePickerSelection}
-            onCancel={handlePickerCancel}
-            isActive={true}
-          />
+        <Box flexDirection="column">
+          <Box paddingX={2} flexDirection="column">
+            {title && <Text>{title}</Text>}
+            <AppHeader
+              terminalRows={terminalRows}
+              version={CLI_VERSION}
+              PWD={PWD}
+              approvalPolicy={approvalPolicy}
+              colorsByPolicy={colorsByPolicy}
+              headers={headers}
+            />
+          </Box>
+          <Box padding={2}>
+            <Text>Create new workflow instance:</Text>
+            <Text> </Text>
+            <TerminalChatSelect
+              items={availableWorkflows.map((wf) => ({
+                label: wf.meta?.title || "Untitled",
+                value: generateWorkflowId(wf),
+              }))}
+              onSelect={handlePickerSelection}
+              onCancel={handlePickerCancel}
+              isActive={true}
+            />
+          </Box>
         </Box>
       )}
 
       {/* Workflow switcher overlay */}
       {showWorkflowSwitcher && currentWorkflows.length > 0 && (
-        <Box flexDirection="column" padding={2}>
-          <Text>
-            {currentWorkflows.length > 1
-              ? "Switch to workflow:"
-              : "Workflow actions:"}
-          </Text>
-          <Text> </Text>
-          <TerminalChatSelect
-            items={[
-              ...(currentWorkflows.length > 1
-                ? currentWorkflows.map((workflow) => ({
-                    label: `${workflow.displayTitle}${workflow.id === activeWorkflowId ? " (current)" : ""}`,
-                    value: workflow.id,
-                  }))
-                : []),
-              { label: "Create new...", value: "__create_new__" },
-            ]}
-            onSelect={(value) => {
-              if (value === "__create_new__") {
-                setShowWorkflowSwitcher(false);
-                setShowWorkflowPicker(true);
-              } else {
-                handleSwitcherSelection(value);
-              }
-            }}
-            onCancel={handleSwitcherCancel}
-            isActive={true}
-          />
+        <Box flexDirection="column">
+          <Box paddingX={2} flexDirection="column">
+            {title && <Text>{title}</Text>}
+            <AppHeader
+              terminalRows={terminalRows}
+              version={CLI_VERSION}
+              PWD={PWD}
+              approvalPolicy={approvalPolicy}
+              colorsByPolicy={colorsByPolicy}
+              headers={headers}
+            />
+          </Box>
+          <Box padding={2}>
+            <Text>
+              {currentWorkflows.length > 1
+                ? "Switch to workflow:"
+                : "Workflow actions:"}
+            </Text>
+            <Text> </Text>
+            <TerminalChatSelect
+              items={[
+                ...(currentWorkflows.length > 1
+                  ? currentWorkflows.map((workflow) => ({
+                      label: `${workflow.displayTitle}${workflow.id === activeWorkflowId ? " (current)" : ""}`,
+                      value: workflow.id,
+                    }))
+                  : []),
+                { label: "Create new...", value: "__create_new__" },
+              ]}
+              onSelect={(value) => {
+                if (value === "__create_new__") {
+                  setShowWorkflowSwitcher(false);
+                  setShowWorkflowPicker(true);
+                } else {
+                  handleSwitcherSelection(value);
+                }
+              }}
+              onCancel={handleSwitcherCancel}
+              isActive={true}
+            />
+          </Box>
         </Box>
       )}
 

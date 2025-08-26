@@ -38,6 +38,11 @@ export const DEFAULT_UI_COMMANDS: Array<SlashCommand> = [
     description: "Create new workflow instance",
     source: "ui",
   },
+  {
+    command: "/close",
+    description: "Close current workflow",
+    source: "ui",
+  },
 ];
 
 /**
