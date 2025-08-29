@@ -17,7 +17,7 @@ export function TerminalChatSelect({
   onCancel: _onCancel,
   isActive = true,
 }: {
-  items: Array<SelectItem>;
+  items: Array<SelectItem & { isLoading?: boolean }>;
   options?: SelectOptions | SelectOptionsWithTimeout;
   onSelect: (value: string) => void;
   onCancel: () => void;
@@ -55,6 +55,7 @@ export function TerminalChatSelect({
     return items.map((item) => ({
       label: item.label,
       value: item.value,
+      isLoading: item.isLoading,
     }));
   }, [items]);
 

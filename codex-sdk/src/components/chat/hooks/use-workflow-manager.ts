@@ -35,7 +35,7 @@ export function useWorkflowManager(params: {
   onController?: (controller: WorkflowController) => void;
   selectionApi: {
     openSelection: (
-      items: Array<{ label: string; value: string }>,
+      items: Array<{ label: string; value: string; isLoading?: boolean }>,
       options: { label?: string; timeout?: number; defaultValue: string },
     ) => Promise<string>;
     setOverlayMode: (mode: "selection" | "none") => void;
@@ -164,7 +164,11 @@ export function useWorkflowManager(params: {
           options: SelectOptions | SelectOptionsWithTimeout,
         ) =>
           selectionApi.openSelection(
-            items as Array<{ label: string; value: string }>,
+            items as Array<{
+              label: string;
+              value: string;
+              isLoading?: boolean;
+            }>,
             options as {
               label?: string;
               timeout?: number;

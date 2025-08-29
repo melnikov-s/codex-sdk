@@ -8,6 +8,7 @@ type TabItem = {
   id: string;
   title: string;
   isActive: boolean;
+  isLoading?: boolean;
 };
 
 type Props = {
@@ -78,7 +79,12 @@ export function TerminalTabs({
                   </Text>
                 </Box>
               ) : (
-                <Text {...inactiveTabStyle}>{` ${tab.title} `}</Text>
+                <Text
+                  {...inactiveTabStyle}
+                  color={tab.isLoading ? "gray" : "cyan"}
+                >
+                  {` ${tab.title} `}
+                </Text>
               )}
             </Box>
           ))}

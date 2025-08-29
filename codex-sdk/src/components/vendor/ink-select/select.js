@@ -45,6 +45,7 @@ export function Select({
           key: option.value,
           isFocused: !isDisabled && state.focusedValue === option.value,
           isSelected: state.value === option.value,
+          isLoading: option.isLoading,
         },
         label,
       );

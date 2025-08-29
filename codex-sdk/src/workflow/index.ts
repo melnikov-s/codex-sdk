@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 export interface SelectItem {
   label: string;
   value: string;
+  isLoading?: boolean;
 }
 
 export interface SelectOptions {
