@@ -14,12 +14,16 @@ type Props = {
   tabs: Array<TabItem>;
   onTabClick: (id: string) => void;
   displayConfig?: DisplayConfig;
+  workflowStatus?: string;
+  isMultiWorkflowMode?: boolean;
 };
 
 export function TerminalTabs({
   tabs,
   onTabClick: _onTabClick,
   displayConfig,
+  workflowStatus,
+  isMultiWorkflowMode = false,
 }: Props): React.ReactElement {
   const tabConfig = displayConfig?.tabs;
 
@@ -54,7 +58,7 @@ export function TerminalTabs({
 
   return (
     <Box {...containerProps}>
-      {headerText && (
+      {headerText && tabs.length > 1 && (
         <Box marginBottom={headerStyle.marginBottom}>
           <Text color={headerStyle.color} bold={headerStyle.bold}>
             {headerText}
@@ -62,30 +66,36 @@ export function TerminalTabs({
         </Box>
       )}
 
-      <Box flexDirection="row">
-        {tabs.map((tab) => (
-          <Box key={tab.id} marginRight={1}>
-            {tab.isActive ? (
-              <Box flexDirection="column">
-                <Text {...activeTabStyle}>{` ${tab.title} `}</Text>
-                <Text color={activeTabStyle.backgroundColor || "cyan"}>
-                  {"▔".repeat(tab.title.length + 2)}
-                </Text>
-              </Box>
-            ) : (
-              <Text {...inactiveTabStyle}>{` ${tab.title} `}</Text>
-            )}
-          </Box>
-        ))}
-      </Box>
+      {tabs.length > 1 && (
+        <Box flexDirection="row">
+          {tabs.map((tab) => (
+            <Box key={tab.id} marginRight={1}>
+              {tab.isActive ? (
+                <Box flexDirection="column">
+                  <Text {...activeTabStyle}>{` ${tab.title} `}</Text>
+                  <Text color={activeTabStyle.backgroundColor || "cyan"}>
+                    {"▔".repeat(tab.title.length + 2)}
+                  </Text>
+                </Box>
+              ) : (
+                <Text {...inactiveTabStyle}>{` ${tab.title} `}</Text>
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
 
       <Box marginTop={instructionStyle.marginTop}>
-        <Text
-          color={instructionStyle.color}
-          dimColor={instructionStyle.dimColor}
-        >
-          Press Ctrl+[ / Ctrl+] to switch tabs
-        </Text>
+        {isMultiWorkflowMode && (
+          <Text
+            color={instructionStyle.color}
+            dimColor={instructionStyle.dimColor}
+          >
+            {workflowStatus && `${workflowStatus} — `}
+            Ctrl+K: app commands
+            {tabs.length > 1 && " — Press Ctrl+[ / Ctrl+] to switch tabs"}
+          </Text>
+        )}
       </Box>
     </Box>
   );

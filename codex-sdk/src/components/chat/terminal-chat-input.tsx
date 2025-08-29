@@ -46,9 +46,7 @@ export default function TerminalChatInput({
   workflow,
   inputDisabled,
   inputSetterRef,
-  openWorkflowPicker,
-  createNewWorkflow,
-  closeCurrentWorkflow,
+  closeCurrentWorkflow: _closeCurrentWorkflow,
 }: {
   loading: boolean;
   queue: Array<string>;
@@ -77,6 +75,7 @@ export default function TerminalChatInput({
   openWorkflowPicker?: () => void;
   createNewWorkflow?: () => void;
   closeCurrentWorkflow?: () => void;
+  showAppPaletteHint?: boolean;
 }): React.ReactElement {
   const app = useApp();
   const [input, setInput] = useState("");
@@ -152,9 +151,9 @@ export default function TerminalChatInput({
 
   useInput(
     (_input, _key) => {
+      // Block workflow switching keys from interfering with input
       if (
-        (_key.ctrl && (_input === "[" || _input === "]")) ||
-        _input === "\u001b" ||
+        (_key.ctrl && (_input === "o" || _input === "p")) ||
         _input === "\u001d"
       ) {
         return;
@@ -201,7 +200,6 @@ export default function TerminalChatInput({
             return;
           }
           if (_key.return) {
-            // Execute the currently selected slash command
             const selIdx = selectedSlashSuggestion;
             const cmdObj = matches[selIdx];
             if (cmdObj) {
@@ -209,8 +207,6 @@ export default function TerminalChatInput({
               setInput("");
               setDraftInput("");
               setSelectedSlashSuggestion(0);
-
-              // Handle UI commands
               if (cmdObj.source === "ui") {
                 switch (cmd) {
                   case "/history":
@@ -219,19 +215,6 @@ export default function TerminalChatInput({
                   case "/help":
                     openHelpOverlay();
                     break;
-                  case "/approval":
-                    openApprovalOverlay();
-                    break;
-                  case "/switch":
-                    openWorkflowPicker?.();
-                    break;
-                  case "/new":
-                    createNewWorkflow?.();
-                    break;
-                  case "/close":
-                    closeCurrentWorkflow?.();
-                    break;
-
                   case "/clearhistory":
                     onSubmit(cmd);
                     break;
@@ -239,14 +222,11 @@ export default function TerminalChatInput({
                     break;
                 }
               } else if (cmdObj.source === "workflow") {
-                // Handle workflow commands
                 const commandName = cmd.slice(1); // Remove the "/" prefix
                 const workflowCommands = workflow?.commands;
                 if (workflowCommands?.[commandName]) {
                   try {
-                    // Execute the command (might be sync or async)
                     const result = workflowCommands[commandName].handler();
-                    // If it's a promise, handle errors
                     if (result && typeof result.then === "function") {
                       result.catch((error: Error) => {
                         log(
@@ -255,7 +235,6 @@ export default function TerminalChatInput({
                       });
                     }
                   } catch (error) {
-                    // Handle synchronous errors
                     log(
                       `Error executing workflow command ${cmd}: ${(error as Error).message}`,
                     );
@@ -420,26 +399,6 @@ export default function TerminalChatInput({
 
       if (!inputValue) {
         return;
-      } else if (inputValue === "/history") {
-        setInput("");
-        openOverlay();
-        return;
-      } else if (inputValue === "/help") {
-        setInput("");
-        openHelpOverlay();
-        return;
-      } else if (inputValue.startsWith("/approval")) {
-        setInput("");
-        openApprovalOverlay();
-        return;
-      } else if (inputValue === "/switch") {
-        setInput("");
-        openWorkflowPicker?.();
-        return;
-      } else if (inputValue === "/new") {
-        setInput("");
-        createNewWorkflow?.();
-        return;
       } else if (["exit", "q", ":q"].includes(inputValue)) {
         setInput("");
         setTimeout(() => {
@@ -448,17 +407,20 @@ export default function TerminalChatInput({
           process.exit(0);
         }, 60); // Wait one frame.
         return;
+      } else if (inputValue === "/history") {
+        setInput("");
+        openOverlay();
+        return;
+      } else if (inputValue === "/help") {
+        setInput("");
+        openHelpOverlay();
+        return;
       } else if (inputValue === "/clearhistory") {
         setInput("");
-
-        // Import clearCommandHistory function to avoid circular dependencies
-        // Using dynamic import to lazy-load the function
         import("../../utils/storage/command-history.js").then(
           async ({ clearCommandHistory }) => {
             await clearCommandHistory();
             setHistory([]);
-
-            // Emit a system message to confirm the history clear action.
             setItems((prev) => [
               ...prev,
               {
@@ -470,7 +432,6 @@ export default function TerminalChatInput({
             ]);
           },
         );
-
         return;
       } else if (inputValue.startsWith("/")) {
         const trimmed = inputValue.trim();
@@ -581,10 +542,7 @@ export default function TerminalChatInput({
       setHistory,
       setHistoryIndex,
       openOverlay,
-      openApprovalOverlay,
       openHelpOverlay,
-      openWorkflowPicker,
-      createNewWorkflow,
       history,
       skipNextSubmit,
       workflow,
@@ -696,7 +654,7 @@ export default function TerminalChatInput({
           />
         ) : (
           <Text dimColor>
-            ctrl+c to exit | "/" to see commands
+            ctrl+c to exit | "/" workflow commands
             {inputDisabled && (
               <>
                 {" | "}

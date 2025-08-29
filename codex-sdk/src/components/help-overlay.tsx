@@ -27,12 +27,7 @@ export default function HelpOverlay({
     }
   });
 
-  // Note: Don't memoize this since disabled functions need to be evaluated with current state
-  const allCommands = getAllAvailableCommands(workflow?.commands || {});
-  const uiCommands = allCommands.filter((cmd) => cmd.source === "ui");
-  const workflowCommands = allCommands.filter(
-    (cmd) => cmd.source === "workflow",
-  );
+  const workflowCommands = getAllAvailableCommands(workflow?.commands || {});
 
   return (
     <Box
@@ -46,27 +41,13 @@ export default function HelpOverlay({
       </Box>
 
       <Box flexDirection="column" paddingX={spacing.sm} paddingTop={spacing.sm}>
-        <Text {...componentStyles.help.section}>System commands</Text>
-        {uiCommands.map((cmd: SlashCommand) => (
+        <Text {...componentStyles.help.section}>Workflow commands</Text>
+        {workflowCommands.map((cmd: SlashCommand) => (
           <Text key={cmd.command} {...componentStyles.help.description}>
             <Text {...componentStyles.help.command}>{cmd.command}</Text> –{" "}
             {cmd.description}
           </Text>
         ))}
-
-        {workflowCommands.length > 0 && (
-          <>
-            <Box marginTop={spacing.sm}>
-              <Text {...componentStyles.help.section}>Workflow commands</Text>
-            </Box>
-            {workflowCommands.map((cmd: SlashCommand) => (
-              <Text key={cmd.command} {...componentStyles.help.description}>
-                <Text {...componentStyles.help.command}>{cmd.command}</Text> –{" "}
-                {cmd.description}
-              </Text>
-            ))}
-          </>
-        )}
 
         <Box marginTop={spacing.sm}>
           <Text {...componentStyles.help.section}>Keyboard shortcuts</Text>
@@ -77,6 +58,17 @@ export default function HelpOverlay({
         <Text {...componentStyles.help.description}>
           <Text {...componentStyles.help.shortcut}>Ctrl+J</Text> – insert
           newline
+        </Text>
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>Ctrl+O</Text> – previous
+          workflow
+        </Text>
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>Ctrl+P</Text> – next workflow
+        </Text>
+        <Text {...componentStyles.help.description}>
+          <Text {...componentStyles.help.shortcut}>Ctrl+K</Text> – app commands
+          (switch/create/close workflows)
         </Text>
         <Text {...componentStyles.help.description}>
           <Text {...componentStyles.help.shortcut}>Up/Down</Text> – scroll
