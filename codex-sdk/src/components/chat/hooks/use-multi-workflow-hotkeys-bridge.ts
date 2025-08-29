@@ -3,7 +3,12 @@ import type { OverlayModeType } from "../types.js";
 
 import { useMultiWorkflowHotkeys } from "../../../hooks/use-multi-workflow-hotkeys.js";
 
-type Instance = { id: string; title: string; isActive: boolean };
+type Instance = {
+  id: string;
+  title: string;
+  isActive: boolean;
+  isLoading?: boolean;
+};
 
 export interface BridgeMultiWorkflowMgr {
   listInstances(): Array<Instance>;
@@ -27,7 +32,7 @@ export function useMultiWorkflowHotkeysBridge(params: {
   isMulti: boolean;
   multiWorkflowMgr: BridgeMultiWorkflowMgr;
   openSelection: (
-    items: Array<{ label: string; value: string }>,
+    items: Array<{ label: string; value: string; isLoading?: boolean }>,
     options: { label?: string; timeout?: number; defaultValue: string },
   ) => Promise<string>;
   setOverlayMode: (mode: OverlayModeType) => void;
@@ -65,6 +70,7 @@ export function useMultiWorkflowHotkeysBridge(params: {
       const items = instances.map((i: Instance) => ({
         label: `${i.isActive ? "▶ " : ""}${i.title}`,
         value: i.id,
+        isLoading: i.isLoading,
       }));
       openSelection(items, {
         defaultValue:

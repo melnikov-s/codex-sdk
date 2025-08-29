@@ -16,7 +16,7 @@ type Props = {
   approvalPolicy: ApprovalPolicy;
   colorsByPolicy: Record<ApprovalPolicy, ColorName | undefined>;
   headers?: Array<HeaderConfig>;
-  items: Array<{ label: string; value: string }>;
+  items: Array<{ label: string; value: string; isLoading?: boolean }>;
   onSelect: (value: string) => void;
   onCancel: () => void;
   isActive?: boolean;

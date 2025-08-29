@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import figures from "figures";
 import { styles } from "./theme";
-export function SelectOption({ isFocused, isSelected, children }) {
+export function SelectOption({ isFocused, isSelected, isLoading, children }) {
   return React.createElement(
     Box,
     { ...styles.option({ isFocused }) },
@@ -14,7 +14,7 @@ export function SelectOption({ isFocused, isSelected, children }) {
       ),
     React.createElement(
       Text,
-      { ...styles.label({ isFocused, isSelected }) },
+      { ...styles.label({ isFocused, isSelected, isLoading }) },
       children,
     ),
     isSelected &&

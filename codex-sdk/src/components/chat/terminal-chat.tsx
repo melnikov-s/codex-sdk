@@ -33,6 +33,7 @@ type Props = {
   onController?: (controller: WorkflowController) => void;
   onTitleChange?: (id: string, title: string) => void;
   onDisplayConfigChange?: (id: string, displayConfig?: DisplayConfig) => void;
+  onLoadingStateChange?: (id: string, isLoading: boolean) => void;
   openWorkflowPicker?: () => void;
   createNewWorkflow?: () => void;
   closeCurrentWorkflow?: () => void;
@@ -54,6 +55,7 @@ function TerminalChat({
   onController,
   onTitleChange,
   onDisplayConfigChange,
+  onLoadingStateChange,
   openWorkflowPicker,
   createNewWorkflow,
   closeCurrentWorkflow,
@@ -75,7 +77,7 @@ function TerminalChat({
 
   const openSelectionStable = useCallback(
     (
-      items: Array<{ label: string; value: string }>,
+      items: Array<{ label: string; value: string; isLoading?: boolean }>,
       options: { label?: string; timeout?: number; defaultValue: string },
     ) =>
       new Promise<string>((resolve, reject) => {
@@ -144,6 +146,11 @@ function TerminalChat({
   useEffect(() => {
     onDisplayConfigChange?.(id, displayConfig);
   }, [id, displayConfig, onDisplayConfigChange]);
+
+  // Notify parent when loading state changes
+  useEffect(() => {
+    onLoadingStateChange?.(id, loading);
+  }, [id, loading, onLoadingStateChange]);
   const workflow = workflowMgr.workflow;
   const inputSetterRef = (
     workflowMgr as unknown as {

@@ -48,6 +48,7 @@ type CurrentWorkflow = {
   displayTitle: string;
   controller?: WorkflowController;
   displayConfig?: DisplayConfig;
+  isLoading?: boolean;
 };
 
 // Helper function to generate stable IDs from workflow factories
@@ -143,6 +144,15 @@ export default function App({
     (id: string, displayConfig?: DisplayConfig) => {
       setCurrentWorkflows((prev) =>
         prev.map((w) => (w.id === id ? { ...w, displayConfig } : w)),
+      );
+    },
+    [],
+  );
+
+  const handleLoadingStateChange = useCallback(
+    (id: string, isLoading: boolean) => {
+      setCurrentWorkflows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, isLoading } : w)),
       );
     },
     [],
@@ -479,6 +489,7 @@ export default function App({
     const selectItems = availableWorkflows.map((wf) => ({
       label: wf.meta?.title || "Untitled",
       value: generateWorkflowId(wf),
+      isLoading: false,
     }));
 
     return (
@@ -548,6 +559,7 @@ export default function App({
           }
           onTitleChange={handleTitleChange}
           onDisplayConfigChange={handleDisplayConfigChange}
+          onLoadingStateChange={handleLoadingStateChange}
           openWorkflowPicker={openWorkflowPicker}
           createNewWorkflow={createNewWorkflow}
           closeCurrentWorkflow={closeCurrentWorkflow}
@@ -579,6 +591,7 @@ export default function App({
           items={availableWorkflows.map((wf) => ({
             label: wf.meta?.title || "Untitled",
             value: generateWorkflowId(wf),
+            isLoading: false,
           }))}
           onSelect={handlePickerSelection}
           onCancel={handlePickerCancel}
@@ -606,9 +619,14 @@ export default function App({
               ? currentWorkflows.map((workflow) => ({
                   label: `${workflow.displayTitle}${workflow.id === activeWorkflowId ? " (current)" : ""}`,
                   value: workflow.id,
+                  isLoading: workflow.isLoading || false,
                 }))
               : []),
-            { label: "Create new...", value: "__create_new__" },
+            {
+              label: "Create new...",
+              value: "__create_new__",
+              isLoading: false,
+            },
           ]}
           onSelect={(value) => {
             if (value === "__create_new__") {
@@ -635,9 +653,9 @@ export default function App({
           colorsByPolicy={colorsByPolicy}
           headers={headers}
           items={[
-            { label: "suggest", value: "suggest" },
-            { label: "auto-edit", value: "auto-edit" },
-            { label: "full-auto", value: "full-auto" },
+            { label: "suggest", value: "suggest", isLoading: false },
+            { label: "auto-edit", value: "auto-edit", isLoading: false },
+            { label: "full-auto", value: "full-auto", isLoading: false },
           ]}
           onSelect={(policyValue: string) =>
             handleApprovalPolicyChange(policyValue as ApprovalPolicy)
@@ -659,6 +677,7 @@ export default function App({
               id: workflow.id,
               title: workflow.displayTitle,
               isActive: workflow.id === activeWorkflowId,
+              isLoading: workflow.isLoading || false,
             }))}
             onTabClick={(workflowId: string) => {
               clearTerminal();

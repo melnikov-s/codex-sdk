@@ -13,14 +13,21 @@ const theme = {
     focusIndicator: () => ({
       color: "blue",
     }),
-    label({ isFocused, isSelected }) {
+    label({ isFocused, isSelected, isLoading }) {
       let color;
+
       if (isSelected) {
         color = "green";
+      } else if (isLoading) {
+        color = "gray";
+      } else {
+        color = "cyan";
       }
-      if (isFocused) {
-        color = "blue";
+
+      if (isFocused && !isSelected) {
+        color = isLoading ? "gray" : "cyan";
       }
+
       return { color };
     },
     highlightedText: () => ({

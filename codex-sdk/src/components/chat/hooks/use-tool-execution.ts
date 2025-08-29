@@ -10,7 +10,7 @@ import { useCallback } from "react";
 
 type SelectApi = {
   openSelection: (
-    items: Array<{ label: string; value: string }>,
+    items: Array<{ label: string; value: string; isLoading?: boolean }>,
     options: { label?: string; timeout?: number; defaultValue: string },
   ) => Promise<string>;
   setOverlayMode: (mode: "selection" | "none") => void;
