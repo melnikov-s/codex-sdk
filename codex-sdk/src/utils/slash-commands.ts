@@ -6,43 +6,14 @@ export interface SlashCommand {
   source?: "ui" | "workflow";
 }
 
-// Default commands handled by the UI layer
 export const DEFAULT_UI_COMMANDS: Array<SlashCommand> = [
   {
     command: "/clearhistory",
     description: "Clear command history",
     source: "ui",
   },
-  {
-    command: "/history",
-    description: "Open command history",
-    source: "ui",
-  },
-  {
-    command: "/help",
-    description: "Show list of commands",
-    source: "ui",
-  },
-  {
-    command: "/approval",
-    description: "Open approval mode selection panel",
-    source: "ui",
-  },
-  {
-    command: "/switch",
-    description: "Switch active workflow",
-    source: "ui",
-  },
-  {
-    command: "/new",
-    description: "Create new workflow instance",
-    source: "ui",
-  },
-  {
-    command: "/close",
-    description: "Close current workflow",
-    source: "ui",
-  },
+  { command: "/history", description: "Open command history", source: "ui" },
+  { command: "/help", description: "Show list of commands", source: "ui" },
 ];
 
 /**
@@ -64,7 +35,6 @@ export function getAllAvailableCommands(
     workflowCommands,
   )
     .filter(([, commandConfig]) => {
-      // Filter out disabled commands
       const disabled = commandConfig.disabled;
       if (disabled === undefined) {
         return true;
@@ -79,6 +49,3 @@ export function getAllAvailableCommands(
 
   return [...DEFAULT_UI_COMMANDS, ...workflowSlashCommands];
 }
-
-// Legacy export for backward compatibility
-export const SLASH_COMMANDS = DEFAULT_UI_COMMANDS;

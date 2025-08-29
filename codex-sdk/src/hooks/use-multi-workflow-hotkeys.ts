@@ -37,26 +37,23 @@ export function useMultiWorkflowHotkeys(params: MultiWorkflowHotkeysParams) {
       description: "Next workflow",
     },
     {
-      key: "[",
+      key: "o",
       ctrl: true,
       action: switchToPreviousWorkflow,
       description: "Previous workflow",
     },
     {
-      key: "escape",
-      action: switchToPreviousWorkflow,
-      description: "Escape (Ctrl+[)",
+      key: "p",
+      ctrl: true,
+      action: switchToNextWorkflow,
+      description: "Next workflow",
     },
-    // Raw control codes (some terminals don't set key.ctrl for these)
+
+    // Raw control codes for Ctrl+] only (Ctrl+[ conflicts with ESC)
     {
       key: "\u001d",
       action: switchToNextWorkflow,
       description: "Ctrl+] (raw)",
-    },
-    {
-      key: "\u001b",
-      action: switchToPreviousWorkflow,
-      description: "Ctrl+[ (raw)",
     },
   ];
 
@@ -64,12 +61,13 @@ export function useMultiWorkflowHotkeys(params: MultiWorkflowHotkeysParams) {
   hotkeys.push(HotkeyPatterns.ctrlTab(switchToNextWorkflow));
   hotkeys.push(HotkeyPatterns.ctrlShiftTab(switchToPreviousWorkflow));
 
-  // Ctrl+O to open workflow picker
+  // Ctrl+Shift+O to open workflow picker (moved from Ctrl+O to avoid conflict)
   hotkeys.push({
     key: "o",
     ctrl: true,
+    shift: true,
     action: openWorkflowPicker,
-    description: "Ctrl+O",
+    description: "Open workflow picker",
   });
 
   useGlobalHotkeys({

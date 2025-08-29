@@ -41,25 +41,35 @@ export function useGlobalHotkeys({
       return;
     }
 
-    const normalizedInput = (key as { escape?: boolean }).escape
-      ? "["
-      : input === "\u001d"
-        ? "]"
-        : input === "\u001b"
-          ? "["
-          : input;
-
     for (const hotkey of hotkeys) {
-      const matchesKey =
-        hotkey.key === normalizedInput ||
-        hotkey.key === (key as { name?: string }).name;
-      const isCtrlBracketEquivalent =
-        (hotkey.key === "[" &&
-          (input === "\u001b" || (key as { escape?: boolean }).escape)) ||
-        (hotkey.key === "]" && input === "\u001d");
-      const matchesCtrl = !hotkey.ctrl || key.ctrl || isCtrlBracketEquivalent;
-      const matchesMeta = !hotkey.meta || key.meta;
-      const matchesShift = !hotkey.shift || key.shift;
+      let matchesKey = false;
+      let matchesCtrl = !hotkey.ctrl;
+      let matchesMeta = !hotkey.meta;
+      let matchesShift = !hotkey.shift;
+
+      // Handle raw control codes first - these match directly
+      if (hotkey.key === input && (input === "\u001d" || input === "\u001b")) {
+        matchesKey = true;
+        matchesCtrl = !hotkey.ctrl;
+        matchesMeta = !hotkey.meta;
+        matchesShift = !hotkey.shift;
+      }
+      // Handle regular key matches
+      else if (
+        hotkey.key === input ||
+        hotkey.key === (key as { name?: string }).name
+      ) {
+        matchesKey = true;
+        if (hotkey.ctrl) {
+          matchesCtrl = key.ctrl;
+        }
+        if (hotkey.meta) {
+          matchesMeta = key.meta;
+        }
+        if (hotkey.shift) {
+          matchesShift = key.shift;
+        }
+      }
 
       if (matchesKey && matchesCtrl && matchesMeta && matchesShift) {
         hotkey.action();

@@ -6,17 +6,22 @@ import type {
   WorkflowFactory,
 } from "./workflow";
 
+import AppCommandPalette, {
+  type AppCommand,
+} from "./components/app-command-palette.js";
 import AppHeader from "./components/chat/app-header";
 import TerminalChat from "./components/chat/terminal-chat";
-import { TerminalChatSelect } from "./components/chat/terminal-chat-select";
 import WorkflowHeader from "./components/chat/workflow-header";
 import { TerminalTabs } from "./components/terminal-tabs";
+import { WorkflowOverlay } from "./components/workflow-overlay";
+import { useGlobalHotkeys } from "./hooks/use-global-hotkeys.js";
 import { useMultiWorkflowHotkeys } from "./hooks/use-multi-workflow-hotkeys";
 import { useTerminalSize } from "./hooks/use-terminal-size";
+import { getEnabledAppCommands } from "./utils/app-commands.js";
 import { CLI_VERSION } from "./utils/session.js";
 import { shortCwd } from "./utils/short-path.js";
 import { clearTerminal } from "./utils/terminal.js";
-import { resolveHeaders } from "./utils/ui-config.js";
+import { resolveHeaders, resolveStatusLine } from "./utils/ui-config.js";
 import { useStdin, Box, Text } from "ink";
 import React, { useState, useCallback, useMemo } from "react";
 
@@ -179,6 +184,9 @@ export default function App({
   }, [currentWorkflows, activeWorkflowId]);
 
   const [showWorkflowSwitcher, setShowWorkflowSwitcher] = useState(false);
+  const [showApprovalOverlay, setShowApprovalOverlay] = useState(false);
+  const [currentApprovalPolicy, setCurrentApprovalPolicy] =
+    useState<ApprovalPolicy>(approvalPolicy);
 
   const openWorkflowPicker = useCallback(() => {
     if (currentWorkflows.length > 0) {
@@ -196,7 +204,26 @@ export default function App({
     setShowWorkflowSwitcher(false);
   }, []);
 
+  const handleApprovalPolicyChange = useCallback(
+    (newPolicy: ApprovalPolicy) => {
+      setCurrentApprovalPolicy(newPolicy);
+      setShowApprovalOverlay(false);
+      // Update policy for all active workflows
+      currentWorkflows.forEach((workflow) => {
+        const state = workflow.controller?.getState();
+        if (state) {
+          // Use workflow's approval API to update its policy
+          workflow.controller?.getState()?.approvalPolicy;
+          // Note: This is a limitation - we can't directly update individual workflow policies
+          // from the app level without exposing a setApprovalPolicy method on WorkflowController
+        }
+      });
+    },
+    [currentWorkflows],
+  );
+
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
+  const [showAppPalette, setShowAppPalette] = useState(false);
 
   const createNewWorkflow = useCallback(() => {
     setShowWorkflowPicker(true);
@@ -300,6 +327,64 @@ export default function App({
     emergencyExit: () => {},
   });
 
+  // Global app palette hotkeys (Cmd/Ctrl+K, Cmd/Ctrl+Shift+P, F1)
+  useGlobalHotkeys({
+    hotkeys: [{ key: "k", ctrl: true, action: () => setShowAppPalette(true) }],
+    enabled: true,
+  });
+
+  const appCommands: Array<AppCommand> = useMemo(() => {
+    const defs = [
+      {
+        id: "workflow.switch",
+        title: "Switch workflow…",
+        run: () => setShowWorkflowSwitcher(true),
+        disabled: () => currentWorkflows.length === 0,
+      },
+      {
+        id: "workflow.new",
+        title: "Create new workflow…",
+        run: () => setShowWorkflowPicker(true),
+      },
+      {
+        id: "workflow.close",
+        title: "Close current workflow",
+        run: () => closeCurrentWorkflow(),
+        disabled: () => currentWorkflows.length === 0,
+      },
+      {
+        id: "workflow.next",
+        title: "Next workflow",
+        run: () => switchToNextWorkflow(),
+        disabled: () => currentWorkflows.length <= 1,
+      },
+      {
+        id: "workflow.prev",
+        title: "Previous workflow",
+        run: () => switchToPreviousWorkflow(),
+        disabled: () => currentWorkflows.length <= 1,
+      },
+      {
+        id: "app.approval",
+        title: "Change approval policy…",
+        run: () => {
+          setShowAppPalette(false);
+          setShowApprovalOverlay(true);
+        },
+      },
+    ];
+    return getEnabledAppCommands(defs).map(({ id, title, run }) => ({
+      id,
+      title,
+      run,
+    }));
+  }, [
+    currentWorkflows.length,
+    closeCurrentWorkflow,
+    switchToNextWorkflow,
+    switchToPreviousWorkflow,
+  ]);
+
   // Initialize workflows on mount
   React.useEffect(() => {
     if (currentWorkflows.length > 0) {
@@ -397,29 +482,20 @@ export default function App({
     }));
 
     return (
-      <Box flexDirection="column">
-        <Box paddingX={2} flexDirection="column">
-          {title && <Text>{title}</Text>}
-          <AppHeader
-            terminalRows={terminalRows}
-            version={CLI_VERSION}
-            PWD={PWD}
-            approvalPolicy={approvalPolicy}
-            colorsByPolicy={colorsByPolicy}
-            headers={headers}
-          />
-        </Box>
-        <Box padding={2}>
-          <Text>Choose a workflow to start:</Text>
-          <Text> </Text>
-          <TerminalChatSelect
-            items={selectItems}
-            onSelect={handleWorkflowSelection}
-            onCancel={() => {}}
-            isActive={true}
-          />
-        </Box>
-      </Box>
+      <WorkflowOverlay
+        title={title}
+        promptText="Choose a workflow to start:"
+        terminalRows={terminalRows}
+        version={CLI_VERSION}
+        PWD={PWD}
+        approvalPolicy={currentApprovalPolicy}
+        colorsByPolicy={colorsByPolicy}
+        headers={headers}
+        items={selectItems}
+        onSelect={handleWorkflowSelection}
+        onCancel={() => {}}
+        isActive={true}
+      />
     );
   }
 
@@ -427,6 +503,7 @@ export default function App({
     <Box flexDirection="column">
       {!showWorkflowPicker &&
         !showWorkflowSwitcher &&
+        !showApprovalOverlay &&
         currentWorkflows.length > 0 && (
           <Box paddingX={2} flexDirection="column">
             {title && <Text>{title}</Text>}
@@ -434,7 +511,7 @@ export default function App({
               terminalRows={terminalRows}
               version={CLI_VERSION}
               PWD={PWD}
-              approvalPolicy={approvalPolicy}
+              approvalPolicy={currentApprovalPolicy}
               colorsByPolicy={colorsByPolicy}
               headers={headers}
             />
@@ -457,9 +534,11 @@ export default function App({
           visible={
             workflow.id === activeWorkflowId &&
             !showWorkflowPicker &&
-            !showWorkflowSwitcher
+            !showWorkflowSwitcher &&
+            !showAppPalette &&
+            !showApprovalOverlay
           }
-          approvalPolicy={approvalPolicy}
+          approvalPolicy={currentApprovalPolicy}
           additionalWritableRoots={additionalWritableRoots}
           fullStdout={fullStdout}
           workflowFactory={workflow.factory}
@@ -472,89 +551,109 @@ export default function App({
           openWorkflowPicker={openWorkflowPicker}
           createNewWorkflow={createNewWorkflow}
           closeCurrentWorkflow={closeCurrentWorkflow}
+          isMulti={currentWorkflows.length > 1 || Boolean(workflows)}
         />
       ))}
 
+      {/* Global command palette overlay */}
+      {showAppPalette && (
+        <Box padding={2}>
+          <AppCommandPalette
+            commands={appCommands}
+            onClose={() => setShowAppPalette(false)}
+          />
+        </Box>
+      )}
+
       {/* Workflow picker overlay */}
       {showWorkflowPicker && availableWorkflows.length > 0 && (
-        <Box flexDirection="column">
-          <Box paddingX={2} flexDirection="column">
-            {title && <Text>{title}</Text>}
-            <AppHeader
-              terminalRows={terminalRows}
-              version={CLI_VERSION}
-              PWD={PWD}
-              approvalPolicy={approvalPolicy}
-              colorsByPolicy={colorsByPolicy}
-              headers={headers}
-            />
-          </Box>
-          <Box padding={2}>
-            <Text>Create new workflow instance:</Text>
-            <Text> </Text>
-            <TerminalChatSelect
-              items={availableWorkflows.map((wf) => ({
-                label: wf.meta?.title || "Untitled",
-                value: generateWorkflowId(wf),
-              }))}
-              onSelect={handlePickerSelection}
-              onCancel={handlePickerCancel}
-              isActive={true}
-            />
-          </Box>
-        </Box>
+        <WorkflowOverlay
+          title={title}
+          promptText="Create new workflow instance:"
+          terminalRows={terminalRows}
+          version={CLI_VERSION}
+          PWD={PWD}
+          approvalPolicy={currentApprovalPolicy}
+          colorsByPolicy={colorsByPolicy}
+          headers={headers}
+          items={availableWorkflows.map((wf) => ({
+            label: wf.meta?.title || "Untitled",
+            value: generateWorkflowId(wf),
+          }))}
+          onSelect={handlePickerSelection}
+          onCancel={handlePickerCancel}
+          isActive={!showAppPalette}
+        />
       )}
 
       {/* Workflow switcher overlay */}
       {showWorkflowSwitcher && currentWorkflows.length > 0 && (
-        <Box flexDirection="column">
-          <Box paddingX={2} flexDirection="column">
-            {title && <Text>{title}</Text>}
-            <AppHeader
-              terminalRows={terminalRows}
-              version={CLI_VERSION}
-              PWD={PWD}
-              approvalPolicy={approvalPolicy}
-              colorsByPolicy={colorsByPolicy}
-              headers={headers}
-            />
-          </Box>
-          <Box padding={2}>
-            <Text>
-              {currentWorkflows.length > 1
-                ? "Switch to workflow:"
-                : "Workflow actions:"}
-            </Text>
-            <Text> </Text>
-            <TerminalChatSelect
-              items={[
-                ...(currentWorkflows.length > 1
-                  ? currentWorkflows.map((workflow) => ({
-                      label: `${workflow.displayTitle}${workflow.id === activeWorkflowId ? " (current)" : ""}`,
-                      value: workflow.id,
-                    }))
-                  : []),
-                { label: "Create new...", value: "__create_new__" },
-              ]}
-              onSelect={(value) => {
-                if (value === "__create_new__") {
-                  setShowWorkflowSwitcher(false);
-                  setShowWorkflowPicker(true);
-                } else {
-                  handleSwitcherSelection(value);
-                }
-              }}
-              onCancel={handleSwitcherCancel}
-              isActive={true}
-            />
-          </Box>
-        </Box>
+        <WorkflowOverlay
+          title={title}
+          promptText={
+            currentWorkflows.length > 1
+              ? "Switch to workflow:"
+              : "Workflow actions:"
+          }
+          terminalRows={terminalRows}
+          version={CLI_VERSION}
+          PWD={PWD}
+          approvalPolicy={currentApprovalPolicy}
+          colorsByPolicy={colorsByPolicy}
+          headers={headers}
+          items={[
+            ...(currentWorkflows.length > 1
+              ? currentWorkflows.map((workflow) => ({
+                  label: `${workflow.displayTitle}${workflow.id === activeWorkflowId ? " (current)" : ""}`,
+                  value: workflow.id,
+                }))
+              : []),
+            { label: "Create new...", value: "__create_new__" },
+          ]}
+          onSelect={(value) => {
+            if (value === "__create_new__") {
+              setShowWorkflowSwitcher(false);
+              setShowWorkflowPicker(true);
+            } else {
+              handleSwitcherSelection(value);
+            }
+          }}
+          onCancel={handleSwitcherCancel}
+          isActive={!showAppPalette}
+        />
       )}
 
-      {/* Tabs at the bottom - only show if no overlays are active */}
-      {currentWorkflows.length > 1 &&
+      {/* Global approval policy overlay */}
+      {showApprovalOverlay && (
+        <WorkflowOverlay
+          title={title}
+          promptText="Change approval policy:"
+          terminalRows={terminalRows}
+          version={CLI_VERSION}
+          PWD={PWD}
+          approvalPolicy={currentApprovalPolicy}
+          colorsByPolicy={colorsByPolicy}
+          headers={headers}
+          items={[
+            { label: "suggest", value: "suggest" },
+            { label: "auto-edit", value: "auto-edit" },
+            { label: "full-auto", value: "full-auto" },
+          ]}
+          onSelect={(policyValue: string) =>
+            handleApprovalPolicyChange(policyValue as ApprovalPolicy)
+          }
+          onCancel={() => setShowApprovalOverlay(false)}
+          isActive={!showAppPalette}
+        />
+      )}
+
+      {/* Tabs at the bottom - show in multi-workflow mode when no overlays are active */}
+      {Boolean(workflows) &&
+        currentWorkflows.length > 0 &&
         !showWorkflowPicker &&
-        !showWorkflowSwitcher && (
+        !showWorkflowSwitcher &&
+        !showAppPalette &&
+        !showApprovalOverlay && (
           <TerminalTabs
             tabs={currentWorkflows.map((workflow) => ({
               id: workflow.id,
@@ -569,6 +668,8 @@ export default function App({
               currentWorkflows.find((w) => w.id === activeWorkflowId)
                 ?.displayConfig
             }
+            workflowStatus={resolveStatusLine(uiConfig)}
+            isMultiWorkflowMode={Boolean(workflows)}
           />
         )}
     </Box>

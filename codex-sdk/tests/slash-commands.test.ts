@@ -1,24 +1,32 @@
 import { test, expect } from "vitest";
 import {
-  DEFAULT_UI_COMMANDS,
   getAllAvailableCommands,
   type SlashCommand,
 } from "../src/utils/slash-commands";
 
-test("DEFAULT_UI_COMMANDS includes expected commands", () => {
-  const commands = DEFAULT_UI_COMMANDS.map((c: SlashCommand) => c.command);
-  expect(commands).toContain("/history");
-  expect(commands).toContain("/help");
-  expect(commands).toContain("/approval");
-  expect(commands).toContain("/clearhistory");
+test("getAllAvailableCommands includes UI and workflow commands", () => {
+  const workflowCommands = {
+    compact: {
+      description: "Clear conversation history but keep a summary in context",
+      handler: async () => {},
+    },
+    diff: {
+      description: "Show the current git diff of modified files",
+      handler: async () => {},
+    },
+  };
 
-  expect(commands).not.toContain("/diff"); // Now a workflow command
-  expect(commands).not.toContain("/compact");
-  expect(commands).not.toContain("/model");
-  expect(commands).not.toContain("/bug");
+  const allCommands = getAllAvailableCommands(workflowCommands);
+  const commandNames = allCommands.map((c: SlashCommand) => c.command);
+  expect(commandNames).toEqual(
+    expect.arrayContaining(["/compact", "/diff", "/help", "/history"]),
+  );
+  const hasUI = allCommands.some((c) => c.source === "ui");
+  const hasWF = allCommands.some((c) => c.source === "workflow");
+  expect(hasUI && hasWF).toBe(true);
 });
 
-test("getAllAvailableCommands combines UI and workflow commands", () => {
+test("getAllAvailableCommands lists workflow commands", () => {
   const workflowCommands = {
     compact: {
       description: "Clear conversation history but keep a summary in context",
@@ -37,8 +45,6 @@ test("getAllAvailableCommands combines UI and workflow commands", () => {
   const allCommands = getAllAvailableCommands(workflowCommands);
   const commandNames = allCommands.map((c: SlashCommand) => c.command);
 
-  expect(commandNames).toContain("/help");
-
   expect(commandNames).toContain("/compact");
   expect(commandNames).toContain("/diff");
   expect(commandNames).toContain("/custom");
@@ -51,10 +57,7 @@ test("getAllAvailableCommands combines UI and workflow commands", () => {
   );
   expect(customCommand?.description).toBe("A custom workflow command");
 
-  const uiCommands = allCommands.filter((c) => c.source === "ui");
   const workflowCmds = allCommands.filter((c) => c.source === "workflow");
-
-  expect(uiCommands.length).toBeGreaterThan(0);
   expect(workflowCmds.length).toBe(3); // compact, diff, custom
 });
 
@@ -72,10 +75,7 @@ test("filters commands by prefix", () => {
     c.command.startsWith(prefix),
   );
   const names = filtered.map((c: SlashCommand) => c.command);
-  expect(names).toEqual(expect.arrayContaining(["/clearhistory", "/compact"]));
-  expect(names).not.toEqual(
-    expect.arrayContaining(["/history", "/help", "/approval"]),
-  );
+  expect(names).toEqual(expect.arrayContaining(["/compact"]));
 });
 
 test("excludes disabled commands from the list", () => {

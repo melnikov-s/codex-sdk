@@ -9,10 +9,10 @@ A TypeScript SDK for building AI-powered terminal applications with interactive 
 Run multiple AI assistants simultaneously with seamless switching and state management:
 
 - Multiple AI assistants running in parallel, each with independent state
-- Use `Ctrl+]` / `Ctrl+[` or `/switch` command to navigate between workflows
+- Use `Ctrl+P` / `Ctrl+O` or `Ctrl+K` command palette to navigate between workflows
 - Each workflow maintains its own conversation history and context
 - Visual tabs at the bottom show all active workflows
-- Create workflow instances on-the-fly with `/new` command
+- Create workflow instances on-the-fly with `Ctrl+K` command palette
 - Quick workflow switching with keyboard shortcuts
 
 ### Terminal UI
@@ -123,13 +123,11 @@ manager.on("workflow:switch", (event) => {
 
 ## 🎮 Multi-Workflow Controls
 
-| Command   | Description                                                    |
-| --------- | -------------------------------------------------------------- |
-| `Ctrl+]`  | Switch to next workflow                                        |
-| `Ctrl+[`  | Switch to previous workflow                                    |
-| `/switch` | Show workflow picker                                           |
-| `/new`    | Create workflow instance                                       |
-| `/close`  | Close current workflow (returns to selection if last workflow) |
+| Command  | Description                                              |
+| -------- | -------------------------------------------------------- |
+| `Ctrl+P` | Switch to next workflow                                  |
+| `Ctrl+O` | Switch to previous workflow                              |
+| `Ctrl+K` | Open app command palette (switch/create/close workflows) |
 
 Workflow tabs appear at the bottom showing all active assistants.
 

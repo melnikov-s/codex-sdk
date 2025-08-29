@@ -36,6 +36,7 @@ type Props = {
   openWorkflowPicker?: () => void;
   createNewWorkflow?: () => void;
   closeCurrentWorkflow?: () => void;
+  isMulti?: boolean;
 };
 
 //
@@ -56,6 +57,7 @@ function TerminalChat({
   openWorkflowPicker,
   createNewWorkflow,
   closeCurrentWorkflow,
+  isMulti: _isMulti,
 }: Props): React.ReactElement | null {
   const effectiveUiConfig = useMemo(() => uiConfig ?? {}, [uiConfig]);
   const notify = false;
@@ -202,6 +204,16 @@ function TerminalChat({
     () => resolveStatusLine(effectiveUiConfig),
     [effectiveUiConfig],
   );
+  const statusLineWithHint = useMemo(() => {
+    // In multi-workflow mode, workflow status goes to app status area, not here
+    if (_isMulti) {
+      return undefined;
+    }
+    if (statusLine) {
+      return statusLine;
+    }
+    return undefined;
+  }, [statusLine, _isMulti]);
 
   if (!visible) {
     return null;
@@ -257,7 +269,7 @@ function TerminalChat({
                   customDenyMessage,
                 })
               }
-              statusLine={statusLine}
+              statusLine={statusLineWithHint}
               workflowStatusLine={workflowState.statusLine}
               openOverlay={() => setOverlayMode("history")}
               openApprovalOverlay={() => setOverlayMode("approval")}
