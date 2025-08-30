@@ -20,7 +20,9 @@ export interface ProcessedInput {
  * Handles both text and binary files appropriately.
  */
 export async function processFileTokens(raw: string): Promise<ProcessedInput> {
-  const re = /@([\w./~-]+)/g;
+  // Match @path patterns, supporting quotes for paths with spaces
+  // Patterns: @'path with spaces', @"path with spaces", @unquoted_path_to_end_of_line
+  const re = /@(?:'([^']*)'|"([^"]*)"|(.+?)(?=\s+@|$))/g;
   const attachments: Array<FileAttachment> = [];
   const placeholders = new Map<string, string>();
 
@@ -34,12 +36,13 @@ export async function processFileTokens(raw: string): Promise<ProcessedInput> {
 
   for (const m of raw.matchAll(re) as IterableIterator<RegExpMatchArray>) {
     const idx = m.index;
-    const captured = m[1];
+    // Extract the path from whichever capture group matched
+    const captured = m[1] || m[2] || m[3]; // single quote, double quote, or unquoted
     if (idx !== undefined && captured) {
       matches.push({
         index: idx,
         length: m[0].length,
-        path: captured,
+        path: captured.trim(), // Clean up whitespace
         token: m[0],
       });
     }

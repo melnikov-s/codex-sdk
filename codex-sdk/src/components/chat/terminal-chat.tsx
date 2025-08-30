@@ -297,36 +297,7 @@ function TerminalChat({
               }}
               submitInput={(input) => {
                 if (workflow != null) {
-                  // Transform content array to simple string for user messages
-                  const transformedInput =
-                    input.role === "user" && Array.isArray(input.content)
-                      ? {
-                          role: "user" as const,
-                          content: input.content
-                            .map((item) => {
-                              if (typeof item === "string") {
-                                return item;
-                              }
-                              if (
-                                typeof item === "object" &&
-                                item != null &&
-                                "text" in item
-                              ) {
-                                return (item as { text: string }).text;
-                              }
-                              if (
-                                typeof item === "object" &&
-                                item != null &&
-                                "content" in item
-                              ) {
-                                return (item as { content: string }).content;
-                              }
-                              return String(item);
-                            })
-                            .join(""),
-                        }
-                      : input;
-                  workflow.message(transformedInput);
+                  workflow.message(input);
                 }
                 return {};
               }}
