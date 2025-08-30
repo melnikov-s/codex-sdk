@@ -343,6 +343,222 @@ interface WorkflowInstance {
 }
 ```
 
+## Programmatic Workflow Management
+
+The `WorkflowManager` returned by `run()` provides complete programmatic control over workflows and manager properties, equivalent to all Ctrl+K menu functionality.
+
+### Manager Properties
+
+Access and update all manager-level settings programmatically:
+
+```typescript
+const manager = run([codeAssistant, researchAssistant], {
+  title: "🛠️ AI Development Workspace",
+  approvalPolicy: "suggest",
+});
+
+// Read current properties
+console.log(manager.title); // "🛠️ AI Development Workspace"
+console.log(manager.approvalPolicy); // "suggest"
+console.log(manager.config); // LibraryConfig object
+console.log(manager.hotkeyConfig); // CustomizableHotkeyConfig object
+
+// Update properties (triggers immediate UI re-renders)
+manager.setTitle("🚀 Updated Development Environment");
+manager.setApprovalPolicy("auto-edit");
+manager.setConfig({
+  safeCommands: ["git status", "npm test", "ls -la"],
+  tools: {
+    shell: { maxBytes: 2048 * 1024 },
+  },
+});
+manager.setHotkeyConfig({
+  nextWorkflow: { key: "l", ctrl: true },
+  previousWorkflow: { key: "h", ctrl: true },
+});
+```
+
+### Workflow Lifecycle Management
+
+Programmatically create, close, and switch between workflows:
+
+```typescript
+const manager = run([codeAssistant, researchAssistant], {
+  title: "🛠️ AI Development Workspace",
+});
+
+// Create new workflow instances
+const newAssistant = await manager.createWorkflow(codeAssistant, {
+  activate: true, // Switch to this workflow immediately
+});
+const backgroundResearcher = await manager.createWorkflow(researchAssistant);
+
+// Get all workflows and active workflow
+const allWorkflows = manager.getWorkflows();
+const activeWorkflow = manager.getActiveWorkflow();
+
+// Switch between workflows
+await manager.switchToWorkflow(backgroundResearcher);
+
+// Close workflows
+await manager.closeWorkflow(newAssistant);
+```
+
+### Workflow Navigation
+
+Navigate between workflows programmatically:
+
+```typescript
+// Navigate workflows (equivalent to Ctrl+P, Ctrl+O, Ctrl+N)
+manager.switchToNextWorkflow();
+manager.switchToPreviousWorkflow();
+manager.switchToNextNonLoadingWorkflow();
+```
+
+### Direct Workflow Control
+
+Each workflow instance provides direct access to its state and control methods:
+
+```typescript
+const activeWorkflow = manager.getActiveWorkflow();
+if (activeWorkflow) {
+  // Direct state management
+  await activeWorkflow.setState({
+    statusLine: "Processing request...",
+    loading: true,
+  });
+
+  const currentState = activeWorkflow.getState();
+  console.log(currentState.messages.length);
+
+  // Direct workflow control
+  activeWorkflow.message({ role: "user", content: "Hello!" });
+  activeWorkflow.stop();
+
+  // Check workflow status
+  console.log(activeWorkflow.isLoading);
+  console.log(activeWorkflow.isActive);
+}
+```
+
+### Workflow Iteration and Management
+
+Loop over workflows and manage them programmatically:
+
+```typescript
+// Iterate over all workflows
+manager.getWorkflows().forEach((workflow) => {
+  console.log(`Workflow: ${workflow.title}`);
+  console.log(`Active: ${workflow.isActive}`);
+  console.log(`Loading: ${workflow.isLoading}`);
+
+  if (workflow.isActive) {
+    workflow.message({ role: "user", content: "Status update" });
+  }
+});
+
+// Find specific workflows
+const codeWorkflows = manager
+  .getWorkflows()
+  .filter((w) => w.title.includes("Code"));
+
+// Bulk operations
+const loadingWorkflows = manager.getWorkflows().filter((w) => w.isLoading);
+loadingWorkflows.forEach((w) => w.stop());
+```
+
+### Event-Driven Management
+
+Combine programmatic control with event handling:
+
+```typescript
+const manager = run([codeAssistant, researchAssistant], {
+  title: "🛠️ AI Development Workspace",
+});
+
+// Automatically switch to new workflows
+manager.on("workflow:create", async ({ workflow }) => {
+  console.log(`New workflow created: ${workflow.title}`);
+  await manager.switchToWorkflow(workflow);
+});
+
+// Auto-restart failed workflows
+manager.on("workflow:error", async ({ workflow }) => {
+  console.log(`Workflow ${workflow.title} encountered an error, restarting...`);
+  await manager.closeWorkflow(workflow);
+  await manager.createWorkflow(workflow.factory, { activate: true });
+});
+
+// Dynamic property updates based on workflow state
+manager.on("workflow:switch", ({ workflow }) => {
+  if (workflow.title.includes("Research")) {
+    manager.setApprovalPolicy("suggest"); // More careful for research
+  } else {
+    manager.setApprovalPolicy("auto-edit"); // Faster for coding
+  }
+});
+```
+
+### Complete Example
+
+Here's a comprehensive example showing all programmatic capabilities:
+
+```typescript
+import { run, createAgentWorkflow } from "codex-sdk";
+
+const codeAssistant = createAgentWorkflow("Code Assistant", /* ... */);
+const researchAssistant = createAgentWorkflow("Research Assistant", /* ... */);
+
+const manager = run([codeAssistant, researchAssistant], {
+  title: "🛠️ Development Workspace",
+  approvalPolicy: "suggest",
+});
+
+// Set up event handlers
+manager.on("workflow:create", ({ workflow }) => {
+  console.log(`✅ Created: ${workflow.title}`);
+});
+
+manager.on("workflow:switch", ({ workflow, previousWorkflow }) => {
+  console.log(`🔄 Switched from ${previousWorkflow?.title} to ${workflow.title}`);
+});
+
+// Programmatic workflow management
+async function setupWorkspace() {
+  // Update manager properties
+  manager.setTitle("🚀 Active Development Session");
+  manager.setHotkeyConfig({
+    nextWorkflow: { key: "j", ctrl: true },
+    previousWorkflow: { key: "k", ctrl: true }
+  });
+
+  // Create additional workflows
+  const debugger = await manager.createWorkflow(codeAssistant);
+  const analyzer = await manager.createWorkflow(researchAssistant, { activate: true });
+
+  // Set up workflow states
+  await debugger.setState({
+    statusLine: "Ready for debugging",
+    queue: ["Check logs", "Analyze stack trace"]
+  });
+
+  await analyzer.setState({
+    statusLine: "Analyzing codebase...",
+    loading: true
+  });
+
+  // Send messages to specific workflows
+  debugger.message({ role: "user", content: "Debug the login issue" });
+  analyzer.message({ role: "user", content: "Analyze performance bottlenecks" });
+
+  console.log(`Total workflows: ${manager.getWorkflows().length}`);
+}
+
+setupWorkspace();
+```
+
+This programmatic API provides complete control over the workflow environment, allowing you to build sophisticated multi-agent systems, automated workflow orchestration, and dynamic user interfaces.
+
 ## 🛠️ Workflow API
 
 ### Workflow Creation

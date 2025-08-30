@@ -440,6 +440,7 @@ export function runHeadless(
     stop: () => workflow.stop(),
     terminate: (_code?: number) => workflow.terminate(),
     getState: () => syncRef.current,
+    setState: smartSetState,
   };
 
   return controller;
