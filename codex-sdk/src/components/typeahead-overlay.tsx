@@ -117,6 +117,7 @@ export default function TypeaheadOverlay({
       borderStyle="round"
       borderColor="gray"
       width={80}
+      alignSelf="flex-start"
     >
       <Box paddingX={1}>
         <Text bold>{title}</Text>

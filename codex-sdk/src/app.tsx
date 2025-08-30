@@ -272,50 +272,6 @@ export default function App({
     setShowWorkflowPicker(false);
   }, []);
 
-  const closeCurrentWorkflow = useCallback(() => {
-    const currentWorkflow = currentWorkflows.find(
-      (w) => w.id === activeWorkflowId,
-    );
-    if (!currentWorkflow) {
-      return;
-    }
-
-    // Terminate the workflow controller
-    if (currentWorkflow.controller) {
-      currentWorkflow.controller.terminate();
-    }
-
-    // Remove the workflow from the list
-    setCurrentWorkflows((prev) => {
-      const filtered = prev.filter((w) => w.id !== activeWorkflowId);
-      return computeDisplayTitles(filtered);
-    });
-
-    // If this was the last workflow, go back to workflow selection
-    if (currentWorkflows.length <= 1) {
-      clearTerminal();
-      setActiveWorkflowId("");
-      setShowWorkflowPicker(true);
-      return;
-    }
-
-    // Switch to the next workflow (or first if closing the last one)
-    const currentIndex = currentWorkflows.findIndex(
-      (w) => w.id === activeWorkflowId,
-    );
-    const remainingWorkflows = currentWorkflows.filter(
-      (w) => w.id !== activeWorkflowId,
-    );
-
-    if (remainingWorkflows.length > 0) {
-      const nextIndex =
-        currentIndex >= remainingWorkflows.length ? 0 : currentIndex;
-      const nextWorkflow = remainingWorkflows[nextIndex];
-      clearTerminal();
-      setActiveWorkflowId(nextWorkflow?.id || "");
-    }
-  }, [currentWorkflows, activeWorkflowId, computeDisplayTitles]);
-
   // Hotkeys setup
   useMultiWorkflowHotkeys({
     workflows: currentWorkflows.map(({ id, displayTitle }) => ({
@@ -332,7 +288,6 @@ export default function App({
     switchToNextAttention: () => false,
     openWorkflowPicker,
     createNewWorkflow,
-    closeCurrentWorkflow,
     killCurrentWorkflow: () => {},
     emergencyExit: () => {},
   });
@@ -356,12 +311,7 @@ export default function App({
         title: "Create new workflow…",
         run: () => setShowWorkflowPicker(true),
       },
-      {
-        id: "workflow.close",
-        title: "Close current workflow",
-        run: () => closeCurrentWorkflow(),
-        disabled: () => currentWorkflows.length === 0,
-      },
+
       {
         id: "workflow.next",
         title: "Next workflow",
@@ -388,12 +338,7 @@ export default function App({
       title,
       run,
     }));
-  }, [
-    currentWorkflows.length,
-    closeCurrentWorkflow,
-    switchToNextWorkflow,
-    switchToPreviousWorkflow,
-  ]);
+  }, [currentWorkflows.length, switchToNextWorkflow, switchToPreviousWorkflow]);
 
   // Initialize workflows on mount
   React.useEffect(() => {
@@ -493,25 +438,27 @@ export default function App({
     }));
 
     return (
-      <WorkflowOverlay
-        title={title}
-        promptText="Choose a workflow to start:"
-        terminalRows={terminalRows}
-        version={CLI_VERSION}
-        PWD={PWD}
-        approvalPolicy={currentApprovalPolicy}
-        colorsByPolicy={colorsByPolicy}
-        headers={headers}
-        items={selectItems}
-        onSelect={handleWorkflowSelection}
-        onCancel={() => {}}
-        isActive={true}
-      />
+      <Box flexDirection="column" alignItems="flex-start" width="100%">
+        <WorkflowOverlay
+          title={title}
+          promptText="Choose a workflow to start:"
+          terminalRows={terminalRows}
+          version={CLI_VERSION}
+          PWD={PWD}
+          approvalPolicy={currentApprovalPolicy}
+          colorsByPolicy={colorsByPolicy}
+          headers={headers}
+          items={selectItems}
+          onSelect={handleWorkflowSelection}
+          onCancel={() => {}}
+          isActive={true}
+        />
+      </Box>
     );
   }
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" alignItems="flex-start">
       {!showWorkflowPicker &&
         !showWorkflowSwitcher &&
         !showApprovalOverlay &&
@@ -562,7 +509,6 @@ export default function App({
           onLoadingStateChange={handleLoadingStateChange}
           openWorkflowPicker={openWorkflowPicker}
           createNewWorkflow={createNewWorkflow}
-          closeCurrentWorkflow={closeCurrentWorkflow}
           isMulti={currentWorkflows.length > 1 || Boolean(workflows)}
         />
       ))}

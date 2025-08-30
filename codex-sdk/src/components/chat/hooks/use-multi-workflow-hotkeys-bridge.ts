@@ -142,13 +142,7 @@ export function useMultiWorkflowHotkeysBridge(params: {
         })
         .catch(() => {});
     },
-    closeCurrentWorkflow: () => {
-      if (isMulti && multiWorkflowMgr.activeWorkflowId) {
-        multiWorkflowMgr.removeInstance(multiWorkflowMgr.activeWorkflowId, {
-          graceful: true,
-        });
-      }
-    },
+
     killCurrentWorkflow: () => {
       if (isMulti && multiWorkflowMgr.activeWorkflowId) {
         multiWorkflowMgr.removeInstance(multiWorkflowMgr.activeWorkflowId, {

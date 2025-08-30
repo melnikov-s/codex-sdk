@@ -137,26 +137,28 @@ export function TerminalChatSelect({
   // Render custom input mode
   if (showCustomInput) {
     return (
-      <Box flexDirection="column" gap={1} borderStyle="round" marginTop={1}>
-        <Text bold>Enter your custom option:</Text>
-        <Box paddingX={2} flexDirection="column" gap={1}>
-          <Box borderStyle="single" paddingX={1}>
-            <MultilineTextEditor
-              initialText={customInputValue}
-              height={3}
-              focus={isActive}
-              onChange={setCustomInputValue}
-              onSubmit={handleCustomInputSubmit}
-            />
+      <Box flexDirection="column" alignItems="flex-start" width="100%">
+        <Box borderStyle="round" paddingX={1} paddingY={1} width="100%">
+          <Box flexDirection="column" gap={1}>
+            <Text bold>Enter your custom option:</Text>
+            <Box borderStyle="single" paddingX={1}>
+              <MultilineTextEditor
+                initialText={customInputValue}
+                height={3}
+                focus={isActive}
+                onChange={setCustomInputValue}
+                onSubmit={handleCustomInputSubmit}
+              />
+            </Box>
           </Box>
         </Box>
-        <Box paddingX={2}>
+        <Box marginTop={1} paddingLeft={1}>
           <Text dimColor>
             ↵ to submit • Shift+↵ for new line • esc to select default
           </Text>
         </Box>
         {timeoutActive && timeoutOptions && (
-          <Box paddingX={2}>
+          <Box marginTop={1} paddingLeft={1}>
             <CountdownTimer
               timeoutSeconds={timeoutOptions.timeout}
               onTimeout={handleTimeout}
@@ -173,25 +175,21 @@ export function TerminalChatSelect({
 
   // Render normal selection mode
   return (
-    <Box
-      flexDirection="column"
-      gap={1}
-      borderStyle="round"
-      marginTop={1}
-      alignSelf="flex-start"
-    >
-      <Text bold>{options?.label || "Select an option:"}</Text>
-      <Box paddingX={2} flexDirection="column" gap={1}>
-        <Select
-          isDisabled={!isActive}
-          visibleOptionCount={Math.min(selectOptions.length, 10)}
-          highlightText=""
-          defaultValue={selectOptions[defaultIndex]?.value}
-          onChange={handleSelectionChange}
-          options={selectOptions}
-        />
+    <Box flexDirection="column" alignItems="flex-start" width="100%">
+      <Box borderStyle="round" paddingX={1} paddingY={1} width="100%">
+        <Box flexDirection="column" gap={1}>
+          <Text bold>{options?.label || "Select an option:"}</Text>
+          <Select
+            isDisabled={!isActive}
+            visibleOptionCount={Math.min(selectOptions.length, 10)}
+            highlightText=""
+            defaultValue={selectOptions[defaultIndex]?.value}
+            onChange={handleSelectionChange}
+            options={selectOptions}
+          />
+        </Box>
       </Box>
-      <Box paddingX={2}>
+      <Box marginTop={1} paddingLeft={1}>
         <Text dimColor>
           {options?.required
             ? "↵ to select (escape disabled)"
@@ -212,7 +210,7 @@ export function TerminalChatSelect({
         </Text>
       </Box>
       {timeoutActive && timeoutOptions && (
-        <Box paddingX={2}>
+        <Box marginTop={1} paddingLeft={1}>
           <CountdownTimer
             timeoutSeconds={timeoutOptions.timeout}
             onTimeout={handleTimeout}

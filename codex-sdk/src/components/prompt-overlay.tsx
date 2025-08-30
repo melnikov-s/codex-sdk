@@ -63,6 +63,7 @@ export default function PromptOverlay({
       borderStyle="round"
       borderColor="cyan"
       padding={1}
+      alignSelf="flex-start"
     >
       <Text color="blue">{message}</Text>
       {timeoutActive && timeoutOptions && (

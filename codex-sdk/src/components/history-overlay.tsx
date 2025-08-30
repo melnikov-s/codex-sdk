@@ -71,6 +71,7 @@ export default function HistoryOverlay({ items, onExit }: Props): JSX.Element {
       borderStyle="round"
       borderColor="gray"
       width={100}
+      alignSelf="flex-start"
     >
       <Box paddingX={1}>
         <Text bold>

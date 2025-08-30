@@ -99,7 +99,7 @@ export function TerminalTabs({
           >
             {workflowStatus && `${workflowStatus} — `}
             Ctrl+K: app commands
-            {tabs.length > 1 && " — Press Ctrl+[ / Ctrl+] to switch tabs"}
+            {tabs.length > 1 && " — Press Ctrl+O / Ctrl+P to switch tabs"}
           </Text>
         )}
       </Box>

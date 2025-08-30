@@ -5,7 +5,6 @@ const theme = {
     }),
     option: ({ isFocused }) => ({
       gap: 1,
-      paddingLeft: isFocused ? 0 : 2,
     }),
     selectedIndicator: () => ({
       color: "green",

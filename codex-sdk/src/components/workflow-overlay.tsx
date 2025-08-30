@@ -37,8 +37,8 @@ export function WorkflowOverlay({
   isActive = true,
 }: Props): JSX.Element {
   return (
-    <Box flexDirection="column" alignItems="flex-start">
-      <Box paddingX={2} flexDirection="column">
+    <Box flexDirection="column" alignItems="flex-start" width="100%">
+      <Box paddingX={2} flexDirection="column" marginBottom={1}>
         {title && <Text>{title}</Text>}
         <AppHeader
           terminalRows={terminalRows}
@@ -49,15 +49,16 @@ export function WorkflowOverlay({
           headers={headers}
         />
       </Box>
-      <Box paddingX={2}>
+      <Box paddingX={2} flexDirection="column" alignItems="flex-start">
         <Text>{promptText}</Text>
-        <Text> </Text>
-        <TerminalChatSelect
-          items={items}
-          onSelect={onSelect}
-          onCancel={onCancel}
-          isActive={isActive}
-        />
+        <Box marginTop={1}>
+          <TerminalChatSelect
+            items={items}
+            onSelect={onSelect}
+            onCancel={onCancel}
+            isActive={isActive}
+          />
+        </Box>
       </Box>
     </Box>
   );
