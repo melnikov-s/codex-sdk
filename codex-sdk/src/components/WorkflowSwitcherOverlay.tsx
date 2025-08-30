@@ -1,6 +1,7 @@
 import type { ApprovalPolicy } from "../approvals.js";
 import type { CurrentWorkflow } from "../hooks/use-workflows.js";
 import type { HeaderConfig } from "../utils/workflow-config.js";
+import type { WorkflowFactory } from "../workflow/index.js";
 
 import { WorkflowOverlay } from "./workflow-overlay.js";
 import React from "react";
@@ -20,6 +21,7 @@ export interface WorkflowSwitcherOverlayProps {
     description?: string;
   }>;
   currentWorkflows: Array<CurrentWorkflow>;
+  availableWorkflows: Array<WorkflowFactory>;
   activeWorkflowId: string;
   onSelect: (value: string) => void;
   onCancel: () => void;
@@ -36,6 +38,7 @@ export function WorkflowSwitcherOverlay({
   headers,
   availableHotkeys,
   currentWorkflows,
+  availableWorkflows,
   activeWorkflowId,
   onSelect,
   onCancel,
@@ -65,7 +68,8 @@ export function WorkflowSwitcherOverlay({
             }))
           : []),
         {
-          label: "Create new...",
+          label:
+            availableWorkflows.length === 1 ? "Create new" : "Create new...",
           value: "__create_new__",
           isLoading: false,
         },

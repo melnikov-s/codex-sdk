@@ -63,7 +63,6 @@ type Props = {
   onTabClick: (id: string) => void;
   displayConfig?: DisplayConfig;
   workflowStatus?: string;
-  isMultiWorkflowMode?: boolean;
   availableHotkeys?: Array<HotkeyAction>;
 };
 
@@ -72,7 +71,6 @@ export function TerminalTabs({
   onTabClick: _onTabClick,
   displayConfig,
   workflowStatus,
-  isMultiWorkflowMode = false,
   availableHotkeys = [],
 }: Props): React.ReactElement {
   const tabConfig = displayConfig?.tabs;
@@ -141,7 +139,7 @@ export function TerminalTabs({
       )}
 
       <Box marginTop={instructionStyle.marginTop}>
-        {isMultiWorkflowMode && (
+        {tabs.length > 1 && (
           <Text
             color={instructionStyle.color}
             dimColor={instructionStyle.dimColor}
