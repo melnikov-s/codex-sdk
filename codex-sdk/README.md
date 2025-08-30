@@ -123,13 +123,43 @@ manager.on("workflow:switch", (event) => {
 
 ## 🎮 Multi-Workflow Controls
 
+### Default Keyboard Shortcuts
+
 | Command  | Description                                              |
 | -------- | -------------------------------------------------------- |
 | `Ctrl+P` | Switch to next workflow                                  |
 | `Ctrl+O` | Switch to previous workflow                              |
+| `Ctrl+N` | Switch to next non-loading workflow                      |
 | `Ctrl+K` | Open app command palette (switch/create/close workflows) |
 
 Workflow tabs appear at the bottom showing all active assistants.
+
+### Customizable Controls
+
+You can now customize keyboard shortcuts and see them displayed permanently in overlays:
+
+```javascript
+import { run, createAgentWorkflow } from "codex-sdk";
+
+const customHotkeyConfig = {
+  previousWorkflow: { key: "h", ctrl: true }, // Ctrl+H instead of Ctrl+O
+  nextWorkflow: { key: "l", ctrl: true }, // Ctrl+L instead of Ctrl+P
+  nextNonLoading: { key: "j", ctrl: true }, // Ctrl+J instead of Ctrl+N
+  appCommands: { key: "k", ctrl: true, shift: true }, // Ctrl+Shift+K instead of Ctrl+K
+};
+
+run([myWorkflow], {
+  title: "Custom Controls Demo",
+  hotkeyConfig: customHotkeyConfig,
+});
+```
+
+**Features:**
+
+- **Always visible controls**: Keyboard shortcuts are displayed at the bottom of selection overlays
+- **Full customization**: Configure any combination of `ctrl`, `shift`, `meta`, and `key`
+- **Type safety**: Full TypeScript support for hotkey configuration
+- **Per-session**: Different hotkey configurations for different workflow sessions
 
 ### Interactive Overlays
 
@@ -219,11 +249,34 @@ interface SingleWorkflowOptions {
   imagePaths?: Array<string>;
   headless?: boolean;
   title?: React.ReactNode;
+  hotkeyConfig?: Partial<CustomizableHotkeyConfig>;
 }
 
 interface MultiWorkflowOptions {
   initialWorkflows?: Array<InitialWorkflowRef>;
   title?: React.ReactNode;
+  hotkeyConfig?: Partial<CustomizableHotkeyConfig>;
+}
+
+interface CustomizableHotkeyConfig {
+  previousWorkflow: Partial<{
+    key: string;
+    ctrl?: boolean;
+    meta?: boolean;
+    shift?: boolean;
+  }>;
+  nextWorkflow: Partial<{
+    key: string;
+    ctrl?: boolean;
+    meta?: boolean;
+    shift?: boolean;
+  }>;
+  appCommands: Partial<{
+    key: string;
+    ctrl?: boolean;
+    meta?: boolean;
+    shift?: boolean;
+  }>;
 }
 
 type WorkflowOptions = SingleWorkflowOptions | MultiWorkflowOptions;
@@ -382,6 +435,7 @@ The SDK includes examples:
 - Queue Demo: Task queue management
 - Codebase Quiz: Interactive code learning
 - Multi-Workflow Demo: Complete multi-assistant setup
+- Customizable Controls Demo: Shows customizable keyboard shortcuts and always-visible controls
 
 **Run any example:**
 
@@ -433,6 +487,13 @@ run([workflow1, workflow2], {
   approvalPolicy: "auto-edit", // Default policy for all workflows
   initialWorkflows: [{ id: "primary" }], // Start with specific workflows
   title: "Development Environment",
+
+  // Customize keyboard shortcuts
+  hotkeyConfig: {
+    previousWorkflow: { key: "h", ctrl: true }, // Ctrl+H
+    nextWorkflow: { key: "l", ctrl: true }, // Ctrl+L
+    appCommands: { key: "k", ctrl: true, shift: true }, // Ctrl+Shift+K
+  },
 });
 ```
 
@@ -550,6 +611,9 @@ export interface SingleWorkflowOptions {
   /* ... */
 }
 export interface MultiWorkflowOptions {
+  /* ... */
+}
+export interface CustomizableHotkeyConfig {
   /* ... */
 }
 ```

@@ -24,11 +24,15 @@ export { exit as exitSafely } from "./utils/terminal.js";
 export type { ApprovalPolicy, SafetyAssessment } from "./approvals.js";
 export { getTextContent } from "./utils/ai.js";
 
+// Export hotkey customization types
+export type { CustomizableHotkeyConfig } from "./hooks/use-customizable-hotkeys.js";
+
 // Export workflow API types (declared below)
 
 // Import necessary components
 import type { AvailableWorkflow, InitialWorkflowRef } from "./app.js";
 import type { ApprovalPolicy } from "./approvals.js";
+import type { CustomizableHotkeyConfig } from "./hooks/use-customizable-hotkeys.js";
 import type { UIMessage } from "./utils/ai.js";
 import type { FullAutoErrorMode } from "./utils/auto-approval-mode.js";
 import type {
@@ -40,6 +44,7 @@ import type {
 
 import App from "./app.js";
 import { runHeadless as runHeadlessInternal } from "./headless/index.js";
+import { HotkeyProvider } from "./hooks/use-customizable-hotkeys.js";
 import { AutoApprovalMode } from "./utils/auto-approval-mode.js";
 import { clearTerminal, onExit, setInkRenderer } from "./utils/terminal.js";
 import { EventEmitter } from "events";
@@ -100,6 +105,8 @@ interface BaseWorkflowOptions {
   onController?: (controller: WorkflowController) => void;
   /** Custom title for the multi-workflow environment */
   title?: ReactNode;
+  /** Custom keyboard shortcut configuration (optional) */
+  hotkeyConfig?: Partial<CustomizableHotkeyConfig>;
 }
 
 /**
@@ -295,19 +302,23 @@ export function run(
     // Render the App with multiple workflows
     clearTerminal();
     const inkInstance = render(
-      <App
-        uiConfig={uiConfig}
-        approvalPolicy={multiOptions.approvalPolicy || AutoApprovalMode.SUGGEST}
-        additionalWritableRoots={multiOptions.additionalWritableRoots || []}
-        fullStdout={multiOptions.fullStdout || false}
-        workflows={workflows}
-        initialWorkflows={multiOptions.initialWorkflows}
-        title={multiOptions.title || "Multi-Workflow Environment"}
-        onController={(controller) => {
-          controllers.push(controller);
-          multiOptions.onController?.(controller);
-        }}
-      />,
+      <HotkeyProvider initialConfig={multiOptions.hotkeyConfig}>
+        <App
+          uiConfig={uiConfig}
+          approvalPolicy={
+            multiOptions.approvalPolicy || AutoApprovalMode.SUGGEST
+          }
+          additionalWritableRoots={multiOptions.additionalWritableRoots || []}
+          fullStdout={multiOptions.fullStdout || false}
+          workflows={workflows}
+          initialWorkflows={multiOptions.initialWorkflows}
+          title={multiOptions.title || "Multi-Workflow Environment"}
+          onController={(controller) => {
+            controllers.push(controller);
+            multiOptions.onController?.(controller);
+          }}
+        />
+      </HotkeyProvider>,
     );
     setInkRenderer(inkInstance);
 
@@ -377,20 +388,24 @@ export function run(
       // Render the App with the custom workflow
       clearTerminal();
       const inkInstance = render(
-        <App
-          uiConfig={uiConfig}
-          approvalPolicy={
-            singleOptions.approvalPolicy || AutoApprovalMode.SUGGEST
-          }
-          additionalWritableRoots={singleOptions.additionalWritableRoots || []}
-          fullStdout={singleOptions.fullStdout || false}
-          workflowFactory={workflows}
-          title={singleOptions.title}
-          onController={(c) => {
-            controllerRef = c;
-            singleOptions.onController?.(c);
-          }}
-        />,
+        <HotkeyProvider initialConfig={singleOptions.hotkeyConfig}>
+          <App
+            uiConfig={uiConfig}
+            approvalPolicy={
+              singleOptions.approvalPolicy || AutoApprovalMode.SUGGEST
+            }
+            additionalWritableRoots={
+              singleOptions.additionalWritableRoots || []
+            }
+            fullStdout={singleOptions.fullStdout || false}
+            workflowFactory={workflows}
+            title={singleOptions.title}
+            onController={(c) => {
+              controllerRef = c;
+              singleOptions.onController?.(c);
+            }}
+          />
+        </HotkeyProvider>,
       );
       setInkRenderer(inkInstance);
 

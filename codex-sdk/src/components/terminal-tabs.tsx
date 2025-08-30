@@ -1,8 +1,55 @@
+import type { HotkeyAction } from "../hooks/use-global-hotkeys.js";
 import type { DisplayConfig } from "../workflow/index.js";
 
 import { componentStyles, spacing } from "../utils/design-system.js";
 import { Box, Text } from "ink";
 import React from "react";
+
+function renderControls(
+  hotkeys: Array<HotkeyAction>,
+  tabCount: number,
+): string {
+  // Filter out tab navigation shortcuts (Ctrl+Tab, Ctrl+Shift+Tab)
+  const filteredHotkeys = hotkeys.filter(
+    (hotkey) => !(hotkey.key === "tab" && hotkey.ctrl),
+  );
+
+  // Filter out previous/next workflow controls if we have less than 2 tabs
+  const relevantHotkeys =
+    tabCount > 1
+      ? filteredHotkeys
+      : filteredHotkeys.filter(
+          (hotkey) =>
+            hotkey.description !== "Previous workflow" &&
+            hotkey.description !== "Next workflow" &&
+            hotkey.description !== "Next non-loading workflow",
+        );
+
+  // Format hotkey combinations
+  const formatKeyCombo = (hotkey: HotkeyAction): string => {
+    const parts: Array<string> = [];
+    if (hotkey.ctrl) {
+      parts.push("Ctrl");
+    }
+    if (hotkey.meta) {
+      parts.push("Cmd");
+    }
+    if (hotkey.shift) {
+      parts.push("Shift");
+    }
+    parts.push(hotkey.key.toUpperCase());
+    return parts.join("+");
+  };
+
+  // Convert to display format
+  const controlStrings = relevantHotkeys.map((hotkey) => {
+    const keyCombo = formatKeyCombo(hotkey);
+    const description = hotkey.description?.toLowerCase() || "";
+    return `${keyCombo}: ${description}`;
+  });
+
+  return controlStrings.join(" — ");
+}
 
 type TabItem = {
   id: string;
@@ -17,6 +64,7 @@ type Props = {
   displayConfig?: DisplayConfig;
   workflowStatus?: string;
   isMultiWorkflowMode?: boolean;
+  availableHotkeys?: Array<HotkeyAction>;
 };
 
 export function TerminalTabs({
@@ -25,6 +73,7 @@ export function TerminalTabs({
   displayConfig,
   workflowStatus,
   isMultiWorkflowMode = false,
+  availableHotkeys = [],
 }: Props): React.ReactElement {
   const tabConfig = displayConfig?.tabs;
 
@@ -98,8 +147,7 @@ export function TerminalTabs({
             dimColor={instructionStyle.dimColor}
           >
             {workflowStatus && `${workflowStatus} — `}
-            Ctrl+K: app commands
-            {tabs.length > 1 && " — Press Ctrl+O / Ctrl+P to switch tabs"}
+            {renderControls(availableHotkeys, tabs.length)}
           </Text>
         )}
       </Box>

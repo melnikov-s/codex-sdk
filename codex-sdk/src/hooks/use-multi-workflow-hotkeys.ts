@@ -1,3 +1,4 @@
+import { useHotkeyConfig } from "./use-customizable-hotkeys.js";
 import {
   useGlobalHotkeys,
   type HotkeyAction,
@@ -24,37 +25,47 @@ export function useMultiWorkflowHotkeys(params: MultiWorkflowHotkeysParams) {
   const {
     switchToNextWorkflow,
     switchToPreviousWorkflow,
-    openWorkflowPicker,
+    switchToNextNonLoading,
     enabled = true,
   } = params;
 
+  // openWorkflowPicker is in params but not used (removed hotkey)
+
+  const { config } = useHotkeyConfig();
+
   const hotkeys: Array<HotkeyAction> = [
     {
-      key: "o",
-      ctrl: true,
+      key: config.previousWorkflow.key || "o",
+      ctrl: config.previousWorkflow.ctrl,
+      meta: config.previousWorkflow.meta,
+      shift: config.previousWorkflow.shift,
       action: switchToPreviousWorkflow,
       description: "Previous workflow",
     },
     {
-      key: "p",
-      ctrl: true,
+      key: config.nextWorkflow.key || "p",
+      ctrl: config.nextWorkflow.ctrl,
+      meta: config.nextWorkflow.meta,
+      shift: config.nextWorkflow.shift,
       action: switchToNextWorkflow,
       description: "Next workflow",
     },
   ];
 
+  if (switchToNextNonLoading) {
+    hotkeys.push({
+      key: config.nextNonLoading.key || "n",
+      ctrl: config.nextNonLoading.ctrl,
+      meta: config.nextNonLoading.meta,
+      shift: config.nextNonLoading.shift,
+      action: switchToNextNonLoading,
+      description: "Next non-loading workflow",
+    });
+  }
+
   // Add Ctrl+Tab / Ctrl+Shift+Tab fallbacks
   hotkeys.push(HotkeyPatterns.ctrlTab(switchToNextWorkflow));
   hotkeys.push(HotkeyPatterns.ctrlShiftTab(switchToPreviousWorkflow));
-
-  // Ctrl+Shift+O to open workflow picker (moved from Ctrl+O to avoid conflict)
-  hotkeys.push({
-    key: "o",
-    ctrl: true,
-    shift: true,
-    action: openWorkflowPicker,
-    description: "Open workflow picker",
-  });
 
   useGlobalHotkeys({
     hotkeys,
