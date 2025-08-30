@@ -35,6 +35,7 @@ export default function HelpOverlay({
       borderStyle="round"
       borderColor="gray"
       width={80}
+      alignSelf="flex-start"
     >
       <Box paddingX={spacing.sm}>
         <Text {...componentStyles.header.primary}>Available commands</Text>

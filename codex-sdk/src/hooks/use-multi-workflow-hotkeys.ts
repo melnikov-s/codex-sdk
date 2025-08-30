@@ -15,7 +15,6 @@ export interface MultiWorkflowHotkeysParams {
   switchToPreviousNonLoading?: () => boolean;
   openWorkflowPicker: () => void;
   createNewWorkflow: () => void;
-  closeCurrentWorkflow: () => void;
   killCurrentWorkflow: () => void;
   emergencyExit: () => void;
   enabled?: boolean;
@@ -31,12 +30,6 @@ export function useMultiWorkflowHotkeys(params: MultiWorkflowHotkeysParams) {
 
   const hotkeys: Array<HotkeyAction> = [
     {
-      key: "]",
-      ctrl: true,
-      action: switchToNextWorkflow,
-      description: "Next workflow",
-    },
-    {
       key: "o",
       ctrl: true,
       action: switchToPreviousWorkflow,
@@ -47,13 +40,6 @@ export function useMultiWorkflowHotkeys(params: MultiWorkflowHotkeysParams) {
       ctrl: true,
       action: switchToNextWorkflow,
       description: "Next workflow",
-    },
-
-    // Raw control codes for Ctrl+] only (Ctrl+[ conflicts with ESC)
-    {
-      key: "\u001d",
-      action: switchToNextWorkflow,
-      description: "Ctrl+] (raw)",
     },
   ];
 

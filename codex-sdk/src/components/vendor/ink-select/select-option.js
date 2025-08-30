@@ -6,12 +6,16 @@ export function SelectOption({ isFocused, isSelected, isLoading, children }) {
   return React.createElement(
     Box,
     { ...styles.option({ isFocused }) },
-    isFocused &&
-      React.createElement(
-        Text,
-        { ...styles.focusIndicator() },
-        figures.pointer,
-      ),
+    React.createElement(
+      Box,
+      { width: 2 },
+      isFocused &&
+        React.createElement(
+          Text,
+          { ...styles.focusIndicator() },
+          figures.pointer,
+        ),
+    ),
     React.createElement(
       Text,
       { ...styles.label({ isFocused, isSelected, isLoading }) },

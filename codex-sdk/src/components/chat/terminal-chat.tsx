@@ -36,7 +36,6 @@ type Props = {
   onLoadingStateChange?: (id: string, isLoading: boolean) => void;
   openWorkflowPicker?: () => void;
   createNewWorkflow?: () => void;
-  closeCurrentWorkflow?: () => void;
   isMulti?: boolean;
 };
 
@@ -58,7 +57,6 @@ function TerminalChat({
   onLoadingStateChange,
   openWorkflowPicker,
   createNewWorkflow,
-  closeCurrentWorkflow,
   isMulti: _isMulti,
 }: Props): React.ReactElement | null {
   const effectiveUiConfig = useMemo(() => uiConfig ?? {}, [uiConfig]);
@@ -287,7 +285,6 @@ function TerminalChat({
               inputSetterRef={inputSetterRef}
               openWorkflowPicker={openWorkflowPicker}
               createNewWorkflow={createNewWorkflow}
-              closeCurrentWorkflow={closeCurrentWorkflow}
               interruptAgent={() => {
                 if (!workflow) {
                   return;
