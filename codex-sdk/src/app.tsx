@@ -193,6 +193,28 @@ export default function App({
     setActiveWorkflowId(currentWorkflows[prevIndex]?.id || "");
   }, [currentWorkflows, activeWorkflowId]);
 
+  const switchToNextNonLoading = useCallback(() => {
+    if (currentWorkflows.length <= 1) {
+      return false;
+    }
+
+    const nonLoadingWorkflows = currentWorkflows.filter((w) => !w.isLoading);
+    if (nonLoadingWorkflows.length === 0) {
+      return false;
+    }
+
+    clearTerminal();
+    const currentIndex = nonLoadingWorkflows.findIndex(
+      (w) => w.id === activeWorkflowId,
+    );
+
+    const nextIndex =
+      currentIndex === -1 ? 0 : (currentIndex + 1) % nonLoadingWorkflows.length;
+
+    setActiveWorkflowId(nonLoadingWorkflows[nextIndex]?.id || "");
+    return true;
+  }, [currentWorkflows, activeWorkflowId]);
+
   const [showWorkflowSwitcher, setShowWorkflowSwitcher] = useState(false);
   const [showApprovalOverlay, setShowApprovalOverlay] = useState(false);
   const [currentApprovalPolicy, setCurrentApprovalPolicy] =
@@ -273,7 +295,7 @@ export default function App({
   }, []);
 
   // Hotkeys setup
-  useMultiWorkflowHotkeys({
+  const { hotkeys: workflowHotkeys } = useMultiWorkflowHotkeys({
     workflows: currentWorkflows.map(({ id, displayTitle }) => ({
       id,
       title: displayTitle,
@@ -286,6 +308,7 @@ export default function App({
     switchToNextWorkflow,
     switchToPreviousWorkflow,
     switchToNextAttention: () => false,
+    switchToNextNonLoading,
     openWorkflowPicker,
     createNewWorkflow,
     killCurrentWorkflow: () => {},
@@ -293,10 +316,23 @@ export default function App({
   });
 
   // Global app palette hotkeys (Cmd/Ctrl+K, Cmd/Ctrl+Shift+P, F1)
+  const appHotkeys = [
+    {
+      key: "k",
+      ctrl: true,
+      action: () => {
+        clearTerminal();
+        setShowAppPalette(true);
+      },
+      description: "App commands",
+    },
+  ];
   useGlobalHotkeys({
-    hotkeys: [{ key: "k", ctrl: true, action: () => setShowAppPalette(true) }],
+    hotkeys: appHotkeys,
     enabled: true,
   });
+
+  const allHotkeys = [...workflowHotkeys, ...appHotkeys];
 
   const appCommands: Array<AppCommand> = useMemo(() => {
     const defs = [
@@ -450,6 +486,7 @@ export default function App({
           headers={headers}
           items={selectItems}
           onSelect={handleWorkflowSelection}
+          availableHotkeys={allHotkeys}
           onCancel={() => {}}
           isActive={true}
         />
@@ -534,6 +571,7 @@ export default function App({
           approvalPolicy={currentApprovalPolicy}
           colorsByPolicy={colorsByPolicy}
           headers={headers}
+          availableHotkeys={allHotkeys}
           items={availableWorkflows.map((wf) => ({
             label: wf.meta?.title || "Untitled",
             value: generateWorkflowId(wf),
@@ -558,6 +596,7 @@ export default function App({
           version={CLI_VERSION}
           PWD={PWD}
           approvalPolicy={currentApprovalPolicy}
+          availableHotkeys={allHotkeys}
           colorsByPolicy={colorsByPolicy}
           headers={headers}
           items={[
@@ -598,6 +637,7 @@ export default function App({
           approvalPolicy={currentApprovalPolicy}
           colorsByPolicy={colorsByPolicy}
           headers={headers}
+          availableHotkeys={allHotkeys}
           items={[
             { label: "suggest", value: "suggest", isLoading: false },
             { label: "auto-edit", value: "auto-edit", isLoading: false },
@@ -635,6 +675,7 @@ export default function App({
             }
             workflowStatus={resolveStatusLine(uiConfig)}
             isMultiWorkflowMode={Boolean(workflows)}
+            availableHotkeys={allHotkeys}
           />
         )}
     </Box>
