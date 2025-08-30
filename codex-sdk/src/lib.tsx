@@ -41,6 +41,7 @@ import type {
   WorkflowState,
   DisplayConfig,
 } from "./workflow/index.js";
+import type { ModelMessage } from "ai";
 
 import App from "./app.js";
 import { runHeadless as runHeadlessInternal } from "./headless/index.js";
@@ -148,6 +149,20 @@ export interface WorkflowInstance {
   isActive: boolean;
   state: WorkflowState;
   displayConfig?: DisplayConfig;
+
+  // Direct state management (with React re-render propagation)
+  setState(
+    state: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
+  ): Promise<void>;
+  getState(): WorkflowState;
+
+  // Direct workflow control
+  message(input: ModelMessage): void;
+  stop(): void;
+  terminate(): void;
+
+  // Simple status
+  isLoading: boolean;
 }
 
 /**
@@ -179,12 +194,38 @@ export interface WorkflowManager {
   /** Terminate all workflows and exit */
   terminate: (code?: number) => void;
   /** Whether running headless */
-  headless: boolean;
+  readonly headless: boolean;
 
   // Event registration
   on(event: WorkflowEventType, listener: WorkflowEventListener): void;
   off(event: WorkflowEventType, listener: WorkflowEventListener): void;
   once(event: WorkflowEventType, listener: WorkflowEventListener): void;
+
+  // Core workflow management (Ctrl+K equivalents)
+  createWorkflow(
+    factory: WorkflowFactory,
+    options?: { activate?: boolean },
+  ): Promise<WorkflowInstance>;
+  closeWorkflow(workflow: WorkflowInstance): Promise<boolean>;
+  switchToWorkflow(workflow: WorkflowInstance): Promise<boolean>;
+  getActiveWorkflow(): WorkflowInstance | null;
+
+  // Workflow navigation
+  switchToNextWorkflow(): boolean;
+  switchToPreviousWorkflow(): boolean;
+  switchToNextNonLoadingWorkflow(): boolean;
+
+  // Manager property management (with React re-render propagation)
+  setTitle(title: ReactNode): void;
+  setApprovalPolicy(policy: ApprovalPolicy): void;
+  setConfig(config: Partial<LibraryConfig>): void;
+  setHotkeyConfig(config: Partial<CustomizableHotkeyConfig>): void;
+
+  // Read-only properties
+  readonly title: ReactNode;
+  readonly approvalPolicy: ApprovalPolicy;
+  readonly config: LibraryConfig;
+  readonly hotkeyConfig: CustomizableHotkeyConfig;
 }
 
 /**
@@ -195,11 +236,41 @@ class WorkflowManagerImpl extends EventEmitter implements WorkflowManager {
   private controllers: Array<WorkflowController> = [];
   public readonly headless: boolean;
 
+  // Manager properties
+  private _title: ReactNode = "Multi-Workflow Environment";
+  private _approvalPolicy: ApprovalPolicy = AutoApprovalMode.SUGGEST;
+  private _config: LibraryConfig = {};
+  private _hotkeyConfig: CustomizableHotkeyConfig = {
+    previousWorkflow: { key: "o", ctrl: true },
+    nextWorkflow: { key: "p", ctrl: true },
+    nextNonLoading: { key: "n", ctrl: true },
+    appCommands: { key: "k", ctrl: true },
+  };
+
+  // React integration callbacks
+  private appStateUpdaters: {
+    setTitle?: (title: ReactNode) => void;
+    setApprovalPolicy?: (policy: ApprovalPolicy) => void;
+    setConfig?: (config: LibraryConfig) => void;
+    updateHotkeyConfig?: (config: Partial<CustomizableHotkeyConfig>) => void;
+    createWorkflow?: (
+      factory: WorkflowFactory,
+      options?: { activate?: boolean },
+    ) => Promise<WorkflowInstance>;
+    closeWorkflow?: (workflow: WorkflowInstance) => Promise<boolean>;
+    switchToWorkflow?: (workflow: WorkflowInstance) => Promise<boolean>;
+    getActiveWorkflow?: () => WorkflowInstance | null;
+    switchToNextWorkflow?: () => boolean;
+    switchToPreviousWorkflow?: () => boolean;
+    switchToNextNonLoadingWorkflow?: () => boolean;
+  } = {};
+
   constructor(headless: boolean = false) {
     super();
     this.headless = headless;
   }
 
+  // Existing methods
   getWorkflows(): Array<WorkflowInstance> {
     return [...this.workflows];
   }
@@ -209,9 +280,119 @@ class WorkflowManagerImpl extends EventEmitter implements WorkflowManager {
     this.emit("manager:terminating");
   }
 
-  // EventEmitter methods are inherited
+  // Property getters
+  get title(): ReactNode {
+    return this._title;
+  }
 
-  // Internal methods for updating workflows
+  get approvalPolicy(): ApprovalPolicy {
+    return this._approvalPolicy;
+  }
+
+  get config(): LibraryConfig {
+    return this._config;
+  }
+
+  get hotkeyConfig(): CustomizableHotkeyConfig {
+    return this._hotkeyConfig;
+  }
+
+  // Property setters (with React state propagation)
+  setTitle(title: ReactNode): void {
+    this._title = title;
+    this.appStateUpdaters.setTitle?.(title);
+  }
+
+  setApprovalPolicy(policy: ApprovalPolicy): void {
+    this._approvalPolicy = policy;
+    this.appStateUpdaters.setApprovalPolicy?.(policy);
+  }
+
+  setConfig(config: Partial<LibraryConfig>): void {
+    this._config = { ...this._config, ...config };
+    this.appStateUpdaters.setConfig?.(this._config);
+  }
+
+  setHotkeyConfig(config: Partial<CustomizableHotkeyConfig>): void {
+    this._hotkeyConfig = { ...this._hotkeyConfig, ...config };
+    this.appStateUpdaters.updateHotkeyConfig?.(config);
+  }
+
+  // Core workflow management (delegate to App component)
+  async createWorkflow(
+    factory: WorkflowFactory,
+    options?: { activate?: boolean },
+  ): Promise<WorkflowInstance> {
+    if (!this.appStateUpdaters.createWorkflow) {
+      throw new Error("Workflow creation not available in this context");
+    }
+    return this.appStateUpdaters.createWorkflow(factory, options);
+  }
+
+  async closeWorkflow(workflow: WorkflowInstance): Promise<boolean> {
+    if (!this.appStateUpdaters.closeWorkflow) {
+      throw new Error("Workflow closing not available in this context");
+    }
+    return this.appStateUpdaters.closeWorkflow(workflow);
+  }
+
+  async switchToWorkflow(workflow: WorkflowInstance): Promise<boolean> {
+    if (!this.appStateUpdaters.switchToWorkflow) {
+      throw new Error("Workflow switching not available in this context");
+    }
+    return this.appStateUpdaters.switchToWorkflow(workflow);
+  }
+
+  getActiveWorkflow(): WorkflowInstance | null {
+    if (!this.appStateUpdaters.getActiveWorkflow) {
+      return this.workflows.find((w) => w.isActive) || null;
+    }
+    return this.appStateUpdaters.getActiveWorkflow();
+  }
+
+  // Navigation methods (delegate to App component)
+  switchToNextWorkflow(): boolean {
+    if (!this.appStateUpdaters.switchToNextWorkflow) {
+      return false;
+    }
+    return this.appStateUpdaters.switchToNextWorkflow();
+  }
+
+  switchToPreviousWorkflow(): boolean {
+    if (!this.appStateUpdaters.switchToPreviousWorkflow) {
+      return false;
+    }
+    return this.appStateUpdaters.switchToPreviousWorkflow();
+  }
+
+  switchToNextNonLoadingWorkflow(): boolean {
+    if (!this.appStateUpdaters.switchToNextNonLoadingWorkflow) {
+      return false;
+    }
+    return this.appStateUpdaters.switchToNextNonLoadingWorkflow();
+  }
+
+  // Internal method to set React state updaters (called by App component)
+  _setAppStateUpdaters(updaters: typeof this.appStateUpdaters): void {
+    this.appStateUpdaters = updaters;
+  }
+
+  // Internal method to initialize from run() options
+  _initializeFromOptions(options: {
+    title: ReactNode;
+    approvalPolicy: ApprovalPolicy;
+    config: LibraryConfig;
+    hotkeyConfig?: Partial<CustomizableHotkeyConfig>;
+  }): void {
+    this._title = options.title;
+    this._approvalPolicy = options.approvalPolicy;
+    this._config = options.config;
+    if (options.hotkeyConfig) {
+      this._hotkeyConfig = { ...this._hotkeyConfig, ...options.hotkeyConfig };
+    }
+  }
+
+  // Internal methods for updating workflows (keep existing for compatibility)
   _addWorkflow(
     workflow: WorkflowInstance,
     controller: WorkflowController,
@@ -293,6 +474,14 @@ export function run(
     const multiOptions = options as MultiWorkflowOptions;
     const manager = new WorkflowManagerImpl(false);
 
+    // Initialize manager with provided options
+    manager._initializeFromOptions({
+      title: multiOptions.title || "Multi-Workflow Environment",
+      approvalPolicy: multiOptions.approvalPolicy || AutoApprovalMode.SUGGEST,
+      config: multiOptions.config || {},
+      hotkeyConfig: multiOptions.hotkeyConfig,
+    });
+
     // Create minimal UI config
     const uiConfig = multiOptions.config || {};
 
@@ -313,6 +502,7 @@ export function run(
           workflows={workflows}
           initialWorkflows={multiOptions.initialWorkflows}
           title={multiOptions.title || "Multi-Workflow Environment"}
+          workflowManager={manager}
           onController={(controller) => {
             controllers.push(controller);
             multiOptions.onController?.(controller);
@@ -369,6 +559,14 @@ export function run(
     const singleOptions = options as SingleWorkflowOptions;
     const manager = new WorkflowManagerImpl(singleOptions.headless || false);
 
+    // Initialize manager with provided options
+    manager._initializeFromOptions({
+      title: singleOptions.title || "Workflow Environment",
+      approvalPolicy: singleOptions.approvalPolicy || AutoApprovalMode.SUGGEST,
+      config: singleOptions.config || {},
+      hotkeyConfig: singleOptions.hotkeyConfig,
+    });
+
     let controllerRef: WorkflowController | null = null;
 
     if (singleOptions.headless) {
@@ -400,6 +598,7 @@ export function run(
             fullStdout={singleOptions.fullStdout || false}
             workflowFactory={workflows}
             title={singleOptions.title}
+            workflowManager={manager}
             onController={(c) => {
               controllerRef = c;
               singleOptions.onController?.(c);

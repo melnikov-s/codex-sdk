@@ -179,6 +179,9 @@ export interface WorkflowController {
   stop(): void;
   terminate(code?: number): void;
   getState(): WorkflowState;
+  setState?(
+    state: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
+  ): Promise<void>;
 }
 
 export interface WorkflowHooks {

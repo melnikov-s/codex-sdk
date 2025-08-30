@@ -228,6 +228,7 @@ export function useWorkflowManager(params: {
         stop: () => workflowRef.current?.stop?.(),
         terminate: () => workflowRef.current?.terminate?.(),
         getState: () => syncRef.current,
+        setState: smartSetState,
       };
       onController(controller);
     }

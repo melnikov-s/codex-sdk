@@ -1,10 +1,17 @@
 import type { ApprovalPolicy } from "./approvals";
-import type { LibraryConfig } from "./lib.js";
+import type { CustomizableHotkeyConfig } from "./hooks/use-customizable-hotkeys.js";
+import type {
+  LibraryConfig,
+  WorkflowManager,
+  WorkflowInstance,
+} from "./lib.js";
 import type {
   DisplayConfig,
   WorkflowController,
   WorkflowFactory,
+  WorkflowState,
 } from "./workflow";
+import type { ModelMessage } from "ai";
 
 import AppCommandPalette, {
   type AppCommand,
@@ -38,6 +45,7 @@ type Props = {
   uiConfig?: LibraryConfig;
   onController?: (controller: WorkflowController) => void;
   title?: React.ReactNode;
+  workflowManager?: WorkflowManager;
 };
 
 type CurrentWorkflow = {
@@ -49,6 +57,60 @@ type CurrentWorkflow = {
   controller?: WorkflowController;
   displayConfig?: DisplayConfig;
   isLoading?: boolean;
+};
+
+type ExtendedWorkflowInstance = WorkflowInstance & {
+  _updateController: (newController: WorkflowController) => void;
+};
+
+type AppStateUpdaters = {
+  setTitle: (title: React.ReactNode) => void;
+  setApprovalPolicy: (policy: ApprovalPolicy) => void;
+  setConfig: (config: LibraryConfig) => void;
+  updateHotkeyConfig: (config: Partial<CustomizableHotkeyConfig>) => void;
+  createWorkflow: (
+    factory: WorkflowFactory,
+    options?: { activate?: boolean },
+  ) => Promise<{
+    title: string;
+    factory: WorkflowFactory;
+    isActive: boolean;
+    state: WorkflowState;
+    setState: (
+      state: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
+    ) => Promise<void>;
+    getState: () => WorkflowState;
+    message: (input: string | ModelMessage) => void;
+    stop: () => void;
+    terminate: () => void;
+    isLoading: boolean;
+    _updateController: (newController: WorkflowController) => void;
+  }>;
+  closeWorkflow: (workflow: {
+    title: string;
+    factory: WorkflowFactory;
+  }) => Promise<boolean>;
+  switchToWorkflow: (workflow: {
+    title: string;
+    factory: WorkflowFactory;
+  }) => Promise<boolean>;
+  getActiveWorkflow: () => {
+    title: string;
+    factory: WorkflowFactory;
+    isActive: boolean;
+    state: WorkflowState;
+    setState: (
+      state: Partial<WorkflowState> | ((prev: WorkflowState) => WorkflowState),
+    ) => Promise<void>;
+    getState: () => WorkflowState;
+    message: (input: string | ModelMessage) => void;
+    stop: () => void;
+    terminate: () => void;
+    isLoading: boolean;
+  } | null;
+  switchToNextWorkflow: () => boolean;
+  switchToPreviousWorkflow: () => boolean;
+  switchToNextNonLoadingWorkflow: () => boolean;
 };
 
 // Helper function to generate stable IDs from workflow factories
@@ -76,6 +138,7 @@ export default function App({
   uiConfig,
   onController,
   title,
+  workflowManager,
 }: Props): JSX.Element {
   const { internal_eventEmitter } = useStdin();
   internal_eventEmitter.setMaxListeners(20);
@@ -160,9 +223,19 @@ export default function App({
 
   const handleController = useCallback(
     (controller: WorkflowController, workflowId: string) => {
-      setCurrentWorkflows((prev) =>
-        prev.map((w) => (w.id === workflowId ? { ...w, controller } : w)),
-      );
+      setCurrentWorkflows((prev) => {
+        const updated = prev.map((w) =>
+          w.id === workflowId ? { ...w, controller } : w,
+        );
+
+        // Update stored workflow instances with new controller
+        const storedInstance = workflowInstancesRef.current.get(workflowId);
+        if (storedInstance) {
+          storedInstance._updateController(controller);
+        }
+
+        return updated;
+      });
       onController?.(controller);
     },
     [onController],
@@ -293,6 +366,252 @@ export default function App({
   const handlePickerCancel = useCallback(() => {
     setShowWorkflowPicker(false);
   }, []);
+
+  // Workflow Manager Integration
+  const [managerTitle, setManagerTitle] = useState<React.ReactNode>(title);
+
+  // Store workflow instances by ID for direct access
+  const workflowInstancesRef = React.useRef<
+    Map<string, ExtendedWorkflowInstance>
+  >(new Map());
+
+  // Set up manager state updaters
+  React.useEffect(() => {
+    if (workflowManager && "_setAppStateUpdaters" in workflowManager) {
+      const manager = workflowManager as WorkflowManager & {
+        _setAppStateUpdaters: (updaters: AppStateUpdaters) => void;
+      };
+      manager._setAppStateUpdaters({
+        setTitle: setManagerTitle,
+        setApprovalPolicy: setCurrentApprovalPolicy,
+        setConfig: (_config: LibraryConfig) => {
+          // Config updates will be handled when we implement full config management
+        },
+        updateHotkeyConfig: (_config: Partial<CustomizableHotkeyConfig>) => {
+          // Update hotkey config through context
+          // This will be implemented when we update the hotkey integration
+        },
+        createWorkflow: async (
+          factory: WorkflowFactory,
+          options?: { activate?: boolean },
+        ) => {
+          const factoryId = generateWorkflowId(factory);
+          const id = `${factoryId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const newWorkflow: CurrentWorkflow = {
+            id,
+            factoryId,
+            factory,
+            instanceIndex: currentWorkflows.filter(
+              (w) => w.factoryId === factoryId,
+            ).length,
+            displayTitle: factory.meta?.title || "Untitled",
+          };
+
+          // Create a WorkflowInstance with mutable controller reference
+          let controller: WorkflowController | undefined = undefined;
+
+          const workflowInstance = {
+            title: newWorkflow.displayTitle,
+            factory: newWorkflow.factory,
+            get isActive(): boolean {
+              return activeWorkflowId === id;
+            },
+            get state(): WorkflowState {
+              return (
+                controller?.getState() || {
+                  loading: false,
+                  messages: [],
+                  inputDisabled: false,
+                  queue: [],
+                  taskList: [],
+                }
+              );
+            },
+            setState: async (
+              state:
+                | Partial<WorkflowState>
+                | ((prev: WorkflowState) => WorkflowState),
+            ) => {
+              if (controller?.setState) {
+                await controller.setState(state);
+              }
+            },
+            getState: (): WorkflowState => {
+              return (
+                controller?.getState() || {
+                  loading: false,
+                  messages: [],
+                  inputDisabled: false,
+                  queue: [],
+                  taskList: [],
+                }
+              );
+            },
+            message: (input: string | ModelMessage) => {
+              if (controller) {
+                controller.message(input);
+              }
+            },
+            stop: () => {
+              if (controller) {
+                controller.stop();
+              }
+            },
+            terminate: () => {
+              if (controller) {
+                controller.terminate();
+              }
+            },
+            get isLoading(): boolean {
+              const workflow = currentWorkflows.find((w) => w.id === id);
+              return workflow?.isLoading || false;
+            },
+            _updateController: (newController: WorkflowController) => {
+              controller = newController;
+            },
+          };
+
+          // Store the workflow instance for controller updates
+          workflowInstancesRef.current.set(
+            id,
+            workflowInstance as ExtendedWorkflowInstance,
+          );
+
+          setCurrentWorkflows((prev) => {
+            const updated = [...prev, newWorkflow];
+            return computeDisplayTitles(updated);
+          });
+
+          if (options?.activate) {
+            setActiveWorkflowId(id);
+          }
+
+          return workflowInstance;
+        },
+        closeWorkflow: async (workflow: {
+          title: string;
+          factory: WorkflowFactory;
+        }) => {
+          const workflowToClose = currentWorkflows.find(
+            (w) =>
+              w.displayTitle === workflow.title &&
+              w.factory === workflow.factory,
+          );
+          if (workflowToClose) {
+            setCurrentWorkflows((prev) =>
+              prev.filter((w) => w.id !== workflowToClose.id),
+            );
+            if (
+              activeWorkflowId === workflowToClose.id &&
+              currentWorkflows.length > 1
+            ) {
+              const remaining = currentWorkflows.filter(
+                (w) => w.id !== workflowToClose.id,
+              );
+              setActiveWorkflowId(remaining[0]?.id || "");
+            }
+            return true;
+          }
+          return false;
+        },
+        switchToWorkflow: async (workflow: {
+          title: string;
+          factory: WorkflowFactory;
+        }) => {
+          const workflowToSwitch = currentWorkflows.find(
+            (w) =>
+              w.displayTitle === workflow.title &&
+              w.factory === workflow.factory,
+          );
+          if (workflowToSwitch) {
+            clearTerminal();
+            setActiveWorkflowId(workflowToSwitch.id);
+            return true;
+          }
+          return false;
+        },
+        getActiveWorkflow: () => {
+          const activeWorkflow = currentWorkflows.find(
+            (w) => w.id === activeWorkflowId,
+          );
+          if (!activeWorkflow) {
+            return null;
+          }
+
+          return {
+            title: activeWorkflow.displayTitle,
+            factory: activeWorkflow.factory,
+            isActive: true,
+            get state(): WorkflowState {
+              return (
+                activeWorkflow.controller?.getState() || {
+                  loading: false,
+                  messages: [],
+                  inputDisabled: false,
+                  queue: [],
+                  taskList: [],
+                }
+              );
+            },
+            setState: async (
+              state:
+                | Partial<WorkflowState>
+                | ((prev: WorkflowState) => WorkflowState),
+            ) => {
+              if (activeWorkflow.controller?.setState) {
+                await activeWorkflow.controller.setState(state);
+              }
+            },
+            getState: (): WorkflowState =>
+              activeWorkflow.controller?.getState() || {
+                loading: false,
+                messages: [],
+                inputDisabled: false,
+                queue: [],
+                taskList: [],
+              },
+            message: (input: string | ModelMessage) => {
+              if (activeWorkflow.controller) {
+                activeWorkflow.controller.message(input);
+              }
+            },
+            stop: () => {
+              if (activeWorkflow.controller) {
+                activeWorkflow.controller.stop();
+              }
+            },
+            terminate: () => {
+              if (activeWorkflow.controller) {
+                activeWorkflow.controller.terminate();
+              }
+            },
+            get isLoading(): boolean {
+              return activeWorkflow.isLoading || false;
+            },
+          };
+        },
+        switchToNextWorkflow: () => {
+          switchToNextWorkflow();
+          return true;
+        },
+        switchToPreviousWorkflow: () => {
+          switchToPreviousWorkflow();
+          return true;
+        },
+        switchToNextNonLoadingWorkflow: () => {
+          return switchToNextNonLoading();
+        },
+      });
+    }
+  }, [
+    workflowManager,
+    currentWorkflows,
+    activeWorkflowId,
+    switchToNextWorkflow,
+    switchToPreviousWorkflow,
+    switchToNextNonLoading,
+    computeDisplayTitles,
+  ]);
 
   // Hotkeys setup
   const { hotkeys: workflowHotkeys } = useMultiWorkflowHotkeys({
@@ -476,7 +795,7 @@ export default function App({
     return (
       <Box flexDirection="column" alignItems="flex-start" width="100%">
         <WorkflowOverlay
-          title={title}
+          title={managerTitle}
           promptText="Choose a workflow to start:"
           terminalRows={terminalRows}
           version={CLI_VERSION}
@@ -501,7 +820,7 @@ export default function App({
         !showApprovalOverlay &&
         currentWorkflows.length > 0 && (
           <Box paddingX={2} flexDirection="column">
-            {title && <Text>{title}</Text>}
+            {managerTitle && <Text>{managerTitle}</Text>}
             <AppHeader
               terminalRows={terminalRows}
               version={CLI_VERSION}
@@ -563,7 +882,7 @@ export default function App({
       {/* Workflow picker overlay */}
       {showWorkflowPicker && availableWorkflows.length > 0 && (
         <WorkflowOverlay
-          title={title}
+          title={managerTitle}
           promptText="Create new workflow instance:"
           terminalRows={terminalRows}
           version={CLI_VERSION}
@@ -586,7 +905,7 @@ export default function App({
       {/* Workflow switcher overlay */}
       {showWorkflowSwitcher && currentWorkflows.length > 0 && (
         <WorkflowOverlay
-          title={title}
+          title={managerTitle}
           promptText={
             currentWorkflows.length > 1
               ? "Switch to workflow:"
@@ -629,7 +948,7 @@ export default function App({
       {/* Global approval policy overlay */}
       {showApprovalOverlay && (
         <WorkflowOverlay
-          title={title}
+          title={managerTitle}
           promptText="Change approval policy:"
           terminalRows={terminalRows}
           version={CLI_VERSION}
