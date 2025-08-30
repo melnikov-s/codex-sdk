@@ -122,6 +122,22 @@ export default function App({
     handleApprovalSelection,
   } = useOverlays();
 
+  const smartCreateNewWorkflow = useCallback(() => {
+    if (availableWorkflows.length === 1) {
+      const workflow = availableWorkflows[0];
+      if (workflow) {
+        const selectedWorkflow = availableWorkflows.find(
+          (w) => generateWorkflowId(w) === generateWorkflowId(workflow),
+        );
+        if (selectedWorkflow) {
+          createWorkflow(selectedWorkflow, { activate: true });
+        }
+      }
+    } else {
+      openWorkflowPicker();
+    }
+  }, [availableWorkflows, createWorkflow, openWorkflowPicker]);
+
   // Hotkeys and commands
   const allHotkeys = useAppHotkeys({
     currentWorkflows,
@@ -130,17 +146,18 @@ export default function App({
     switchToNextWorkflow,
     switchToPreviousWorkflow,
     switchToNextNonLoading,
-    openWorkflowPicker: () => openWorkflowPicker(),
+    openWorkflowPicker: smartCreateNewWorkflow,
     openAppPalette,
-    createNewWorkflow: openWorkflowPicker,
+    createNewWorkflow: smartCreateNewWorkflow,
   });
 
   const appCommands = useAppCommands({
     currentWorkflowsLength: currentWorkflows.length,
+    availableWorkflowsLength: availableWorkflows.length,
     switchToNextWorkflow,
     switchToPreviousWorkflow,
     openWorkflowSwitcher,
-    openWorkflowPicker,
+    openWorkflowPicker: smartCreateNewWorkflow,
     closeAppPalette,
     openApprovalOverlay,
   });
@@ -245,6 +262,18 @@ export default function App({
       );
     }
 
+    if (availableWorkflows.length === 1) {
+      const workflow = availableWorkflows[0];
+      if (workflow) {
+        handleWorkflowSelection(generateWorkflowId(workflow));
+        return (
+          <Box>
+            <Text>Starting workflow...</Text>
+          </Box>
+        );
+      }
+    }
+
     return (
       <Box flexDirection="column" alignItems="flex-start" width="100%">
         <WorkflowPickerOverlay
@@ -307,7 +336,7 @@ export default function App({
         onLoadingStateChange={handleLoadingStateChange}
         openWorkflowPicker={openWorkflowPickerIfWorkflows}
         createNewWorkflow={openWorkflowPicker}
-        isMulti={currentWorkflows.length > 1 || Boolean(workflows)}
+        isMulti={currentWorkflows.length > 1}
       />
 
       {/* Global command palette overlay */}
@@ -345,11 +374,19 @@ export default function App({
           headers={headers}
           availableHotkeys={allHotkeys}
           currentWorkflows={currentWorkflows}
+          availableWorkflows={availableWorkflows}
           activeWorkflowId={activeWorkflowId}
           onSelect={(value) => {
             if (value === "__create_new__") {
               closeWorkflowSwitcher();
-              openWorkflowPicker();
+              if (availableWorkflows.length === 1) {
+                const workflow = availableWorkflows[0];
+                if (workflow) {
+                  handleWorkflowSelection(generateWorkflowId(workflow));
+                }
+              } else {
+                openWorkflowPicker();
+              }
             } else {
               handleSwitcherSelectionWithTerminal(value);
             }
@@ -378,9 +415,8 @@ export default function App({
         />
       )}
 
-      {/* Tabs at the bottom - show in multi-workflow mode when no overlays are active */}
-      {Boolean(workflows) &&
-        currentWorkflows.length > 0 &&
+      {/* Tabs at the bottom - show when multiple workflows are active and no overlays are active */}
+      {currentWorkflows.length > 1 &&
         !showWorkflowPicker &&
         !showWorkflowSwitcher &&
         !showAppPalette &&
@@ -401,7 +437,6 @@ export default function App({
                 ?.displayConfig
             }
             workflowStatus={resolveStatusLine(uiConfig)}
-            isMultiWorkflowMode={Boolean(workflows)}
             availableHotkeys={allHotkeys}
           />
         )}

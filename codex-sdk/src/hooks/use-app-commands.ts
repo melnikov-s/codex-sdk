@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 export interface UseAppCommandsParams {
   currentWorkflowsLength: number;
+  availableWorkflowsLength: number;
   switchToNextWorkflow: () => void;
   switchToPreviousWorkflow: () => void;
   openWorkflowSwitcher: () => void;
@@ -15,6 +16,7 @@ export interface UseAppCommandsParams {
 
 export function useAppCommands({
   currentWorkflowsLength,
+  availableWorkflowsLength,
   switchToNextWorkflow,
   switchToPreviousWorkflow,
   openWorkflowSwitcher,
@@ -32,7 +34,10 @@ export function useAppCommands({
       },
       {
         id: "workflow.new",
-        title: "Create new workflow…",
+        title:
+          availableWorkflowsLength === 1
+            ? "Create new workflow"
+            : "Create new workflow…",
         run: () => openWorkflowPicker(),
       },
 
@@ -64,6 +69,7 @@ export function useAppCommands({
     }));
   }, [
     currentWorkflowsLength,
+    availableWorkflowsLength,
     switchToNextWorkflow,
     switchToPreviousWorkflow,
     openWorkflowSwitcher,
