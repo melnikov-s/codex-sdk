@@ -41,11 +41,32 @@ export async function createInputItem(
         mediaType: attachment.mimeType,
         image: `data:${attachment.mimeType};base64,${encoded}`,
       });
-    } else {
-      // For other binary files, include a reference
+    } else if (
+      attachment.mimeType === "application/pdf" ||
+      attachment.mimeType === "application/msword" ||
+      attachment.mimeType ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      (attachment.mimeType?.startsWith("application/") &&
+        attachment.content.length < 10 * 1024 * 1024) // 10MB limit
+    ) {
+      // For supported document types, include as base64 with size limit
+      const encoded = attachment.content.toString("base64");
+      const fileName = path.basename(attachment.resolvedPath);
+
       (inputItem.content as Array<TextPart>).push({
         type: "text",
-        text: `[binary file: ${path.basename(attachment.resolvedPath)} (${attachment.mimeType || "unknown type"})]`,
+        text: `[document: ${fileName}]\ndata:${attachment.mimeType};base64,${encoded}\n[/document]`,
+      });
+    } else {
+      // For other binary files, we could potentially support more types
+      // For now, include a reference with the file info
+      const fileName = path.basename(attachment.resolvedPath);
+      const fileSize = attachment.content.length;
+      const fileSizeKB = Math.round(fileSize / 1024);
+
+      (inputItem.content as Array<TextPart>).push({
+        type: "text",
+        text: `[file: ${fileName} (${attachment.mimeType || "unknown type"}, ${fileSizeKB}KB)]`,
       });
     }
   }
