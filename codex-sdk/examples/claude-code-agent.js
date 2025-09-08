@@ -70,7 +70,6 @@ export const workflow = createAgentWorkflow(
   },
 );
 
-// eslint-disable-next-line no-undef
 if (import.meta.url === `file://${process.argv[1]}`) {
   run(workflow);
 }

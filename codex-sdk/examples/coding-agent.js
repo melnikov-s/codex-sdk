@@ -109,7 +109,6 @@ Be explicit and concise. Prefer small, verifiable steps.`,
 );
 
 // Run directly if this file is executed (not imported)
-// eslint-disable-next-line no-undef
 if (import.meta.url === `file://${process.argv[1]}`) {
   run(workflow);
 }

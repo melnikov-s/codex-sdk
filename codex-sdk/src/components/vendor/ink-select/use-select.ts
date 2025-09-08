@@ -1,5 +1,16 @@
 import { useInput } from "ink";
-export const useSelect = ({ isDisabled = false, state }) => {
+
+export const useSelect = ({
+  isDisabled = false,
+  state,
+}: {
+  isDisabled?: boolean;
+  state: {
+    focusNextOption: () => void;
+    focusPreviousOption: () => void;
+    selectFocusedOption: () => void;
+  };
+}) => {
   useInput(
     (_input, key) => {
       if (key.downArrow) {

@@ -1,5 +1,5 @@
 import TypeaheadOverlay from "./typeahead-overlay.js";
-import { AutoApprovalMode } from "../utils/auto-approval-mode.js";
+import { AutoApprovalMode } from "../utils/auto-approval-mode";
 import { Text } from "ink";
 import React, { useMemo } from "react";
 

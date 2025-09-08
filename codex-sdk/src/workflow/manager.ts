@@ -5,7 +5,7 @@ import type { CustomizableHotkeyConfig } from "../hooks/use-customizable-hotkeys
 import type { LibraryConfig } from "../utils/workflow-config.js";
 import type React from "react";
 
-import { AutoApprovalMode } from "../utils/auto-approval-mode.js";
+import { AutoApprovalMode } from "../utils/auto-approval-mode";
 import { EventEmitter } from "events";
 
 /**

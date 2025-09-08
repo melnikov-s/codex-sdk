@@ -1,27 +1,46 @@
 import { isDeepStrictEqual } from "node:util";
 import { useReducer, useCallback, useMemo, useState, useEffect } from "react";
-import OptionMap from "./option-map";
-const reducer = (state, action) => {
+import OptionMap, { type OptionMapItem, type SelectOption } from "./option-map";
+
+type State<T extends string = string> = {
+  optionMap: OptionMap<T>;
+  visibleOptionCount: number;
+  focusedValue?: T;
+  visibleFromIndex: number;
+  visibleToIndex: number;
+  previousValue: string | null;
+  value?: T;
+  selectionCount: number;
+};
+
+type Action<T extends string = string> =
+  | { type: "focus-next-option" }
+  | { type: "focus-previous-option" }
+  | { type: "select-focused-option" }
+  | { type: "reset"; state: State<T> };
+
+const reducer = <T extends string>(
+  state: State<T>,
+  action: Action<T>,
+): State<T> => {
   switch (action.type) {
     case "focus-next-option": {
       if (!state.focusedValue) {
         return state;
       }
-      const item = state.optionMap.get(state.focusedValue);
+      const item = state.optionMap.get(state.focusedValue) as
+        | OptionMapItem<T>
+        | undefined;
       if (!item) {
         return state;
       }
-      // eslint-disable-next-line prefer-destructuring
       const next = item.next;
       if (!next) {
         return state;
       }
       const needsToScroll = next.index >= state.visibleToIndex;
       if (!needsToScroll) {
-        return {
-          ...state,
-          focusedValue: next.value,
-        };
+        return { ...state, focusedValue: next.value };
       }
       const nextVisibleToIndex = Math.min(
         state.optionMap.size,
@@ -40,21 +59,19 @@ const reducer = (state, action) => {
       if (!state.focusedValue) {
         return state;
       }
-      const item = state.optionMap.get(state.focusedValue);
+      const item = state.optionMap.get(state.focusedValue) as
+        | OptionMapItem<T>
+        | undefined;
       if (!item) {
         return state;
       }
-      // eslint-disable-next-line prefer-destructuring
       const previous = item.previous;
       if (!previous) {
         return state;
       }
       const needsToScroll = previous.index <= state.visibleFromIndex;
       if (!needsToScroll) {
-        return {
-          ...state,
-          focusedValue: previous.value,
-        };
+        return { ...state, focusedValue: previous.value };
       }
       const nextVisibleFromIndex = Math.max(0, state.visibleFromIndex - 1);
       const nextVisibleToIndex =
@@ -69,7 +86,7 @@ const reducer = (state, action) => {
     case "select-focused-option": {
       return {
         ...state,
-        previousValue: state.value,
+        previousValue: state.value ?? null,
         value: state.focusedValue,
         selectionCount: (state.selectionCount || 0) + 1,
       };
@@ -79,26 +96,36 @@ const reducer = (state, action) => {
     }
   }
 };
-const createDefaultState = ({
+
+const createDefaultState = <T extends string>({
   visibleOptionCount: customVisibleOptionCount,
   defaultValue,
   options,
-}) => {
+}: {
+  visibleOptionCount?: number;
+  defaultValue?: T;
+  options: ReadonlyArray<SelectOption<T>>;
+}): State<T> => {
   const visibleOptionCount =
     typeof customVisibleOptionCount === "number"
       ? Math.min(customVisibleOptionCount, options.length)
       : options.length;
-  const optionMap = new OptionMap(options);
+  const optionMap = new OptionMap<T>(options);
   const defaultItem = defaultValue ? optionMap.get(defaultValue) : null;
-  const focusedValue = defaultItem ? defaultValue : optionMap.first?.value;
+  const focusedValue = defaultItem
+    ? defaultValue
+    : (optionMap.first?.value as T | undefined);
 
   let visibleFromIndex = 0;
   let visibleToIndex = visibleOptionCount;
 
-  if (defaultItem && defaultItem.index >= visibleOptionCount) {
+  if (
+    defaultItem &&
+    (defaultItem as OptionMapItem).index >= visibleOptionCount
+  ) {
     visibleFromIndex = Math.max(
       0,
-      defaultItem.index - Math.floor(visibleOptionCount / 2),
+      (defaultItem as OptionMapItem).index - Math.floor(visibleOptionCount / 2),
     );
     visibleToIndex = Math.min(
       options.length,
@@ -118,16 +145,22 @@ const createDefaultState = ({
     selectionCount: 0,
   };
 };
-export const useSelectState = ({
+
+export const useSelectState = <T extends string>({
   visibleOptionCount = 5,
   options,
   defaultValue,
   onChange,
+}: {
+  visibleOptionCount?: number;
+  options: ReadonlyArray<SelectOption<T>>;
+  defaultValue?: T;
+  onChange?: (value: T) => void;
 }) => {
   const [state, dispatch] = useReducer(
-    reducer,
-    { visibleOptionCount, defaultValue, options },
-    createDefaultState,
+    reducer as unknown as (prev: State<T>, action: Action<T>) => State<T>,
+    { visibleOptionCount, defaultValue, options } as any,
+    () => createDefaultState<T>({ visibleOptionCount, defaultValue, options }),
   );
   const [lastOptions, setLastOptions] = useState(options);
   const [lastDefaultValue, setLastDefaultValue] = useState(defaultValue);
@@ -145,29 +178,25 @@ export const useSelectState = ({
     setLastDefaultValue(defaultValue);
     setLastSelectionCount(0);
   }
+
   const focusNextOption = useCallback(() => {
-    dispatch({
-      type: "focus-next-option",
-    });
+    dispatch({ type: "focus-next-option" });
   }, []);
+
   const focusPreviousOption = useCallback(() => {
-    dispatch({
-      type: "focus-previous-option",
-    });
+    dispatch({ type: "focus-previous-option" });
   }, []);
+
   const selectFocusedOption = useCallback(() => {
-    dispatch({
-      type: "select-focused-option",
-    });
+    dispatch({ type: "select-focused-option" });
   }, []);
+
   const visibleOptions = useMemo(() => {
     return options
-      .map((option, index) => ({
-        ...option,
-        index,
-      }))
+      .map((option, index) => ({ ...(option as SelectOption<T>), index }))
       .slice(state.visibleFromIndex, state.visibleToIndex);
   }, [options, state.visibleFromIndex, state.visibleToIndex]);
+
   useEffect(() => {
     if (
       state.value !== undefined &&
@@ -177,6 +206,7 @@ export const useSelectState = ({
       setLastSelectionCount(state.selectionCount);
     }
   }, [state.value, state.selectionCount, lastSelectionCount, onChange]);
+
   return {
     focusedValue: state.focusedValue,
     visibleFromIndex: state.visibleFromIndex,
@@ -186,5 +216,5 @@ export const useSelectState = ({
     focusNextOption,
     focusPreviousOption,
     selectFocusedOption,
-  };
+  } as const;
 };

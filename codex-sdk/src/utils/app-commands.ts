@@ -10,4 +10,3 @@ export function getEnabledAppCommands(
 ): Array<AppCommandDef> {
   return defs.filter((d) => !d.disabled || !d.disabled());
 }
-

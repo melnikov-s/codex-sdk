@@ -1,9 +1,15 @@
+type LabelArgs = {
+  isFocused: boolean;
+  isSelected: boolean;
+  isLoading?: boolean;
+};
+
 const theme = {
   styles: {
     container: () => ({
-      flexDirection: "column",
+      flexDirection: "column" as const,
     }),
-    option: ({ isFocused }) => ({
+    option: (_args: { isFocused: boolean }) => ({
       gap: 1,
     }),
     selectedIndicator: () => ({
@@ -12,9 +18,8 @@ const theme = {
     focusIndicator: () => ({
       color: "blue",
     }),
-    label({ isFocused, isSelected, isLoading }) {
-      let color;
-
+    label({ isFocused, isSelected, isLoading }: LabelArgs) {
+      let color: string;
       if (isSelected) {
         color = "green";
       } else if (isLoading) {
@@ -22,11 +27,9 @@ const theme = {
       } else {
         color = "cyan";
       }
-
       if (isFocused && !isSelected) {
         color = isLoading ? "gray" : "cyan";
       }
-
       return { color };
     },
     highlightedText: () => ({
@@ -34,5 +37,6 @@ const theme = {
     }),
   },
 };
+
 export const styles = theme.styles;
 export default theme;
