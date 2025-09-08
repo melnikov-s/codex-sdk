@@ -17,9 +17,15 @@ export function ControlsDisplay({
   const formatKeyCombo = (hotkey: HotkeyAction): string => {
     const parts: Array<string> = [];
 
-    if (hotkey.ctrl) {parts.push("Ctrl");}
-    if (hotkey.meta) {parts.push("Cmd");}
-    if (hotkey.shift) {parts.push("Shift");}
+    if (hotkey.ctrl) {
+      parts.push("Ctrl");
+    }
+    if (hotkey.meta) {
+      parts.push("Cmd");
+    }
+    if (hotkey.shift) {
+      parts.push("Shift");
+    }
 
     parts.push(hotkey.key.toUpperCase());
 

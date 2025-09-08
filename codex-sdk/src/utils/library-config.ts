@@ -1,6 +1,6 @@
 import type { ApprovalPolicy } from "../approvals.js";
 import type { UIMessage } from "./ai.js";
-import type { FullAutoErrorMode } from "./auto-approval-mode.js";
+import type { FullAutoErrorMode } from "./auto-approval-mode";
 import type { CustomizableHotkeyConfig } from "../hooks/use-customizable-hotkeys.js";
 import type { WorkflowController } from "../workflow/index.js";
 import type { InitialWorkflowRef } from "../workflow/multi-types.js";

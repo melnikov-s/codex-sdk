@@ -7,7 +7,7 @@ import { ReviewDecision } from "./review.js";
 import { canAutoApprove } from "../../approvals.js";
 import { formatCommandForDisplay } from "../../format-command.js";
 import { type LibraryConfig } from "../../lib.js";
-import { FullAutoErrorMode } from "../auto-approval-mode.js";
+import { FullAutoErrorMode } from "../auto-approval-mode";
 import { isLoggingEnabled, log } from "../logger/log.js";
 import { SandboxType } from "./sandbox/interface.js";
 import { PATH_TO_SEATBELT_EXECUTABLE } from "./sandbox/macos-seatbelt.js";

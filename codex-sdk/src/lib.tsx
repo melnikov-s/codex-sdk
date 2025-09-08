@@ -54,7 +54,7 @@ import type { WorkflowController, WorkflowFactory } from "./workflow/index.js";
 import type { WorkflowManager } from "./workflow/manager-types.js";
 
 import { runHeadless as runHeadlessInternal } from "./headless/index.js";
-import { AutoApprovalMode } from "./utils/auto-approval-mode.js";
+import { AutoApprovalMode } from "./utils/auto-approval-mode";
 import {
   renderSingleWorkflow,
   renderMultiWorkflow,

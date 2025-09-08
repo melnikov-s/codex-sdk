@@ -1,4 +1,4 @@
-import { run, createAgentWorkflow } from "../dist/lib.js";
+import { run, createAgentWorkflow, getTextContent } from "../dist/lib.js";
 
 export const workflow = createAgentWorkflow(
   "Queue Demo",
@@ -37,7 +37,7 @@ export const workflow = createAgentWorkflow(
       },
 
       message: async (input) => {
-        const userMessage = input.content;
+        const userMessage = getTextContent(input);
 
         actions.addMessage(input);
         actions.addToQueue(userMessage);
@@ -62,7 +62,6 @@ export const workflow = createAgentWorkflow(
 );
 
 // Run directly if this file is executed (not imported)
-// eslint-disable-next-line no-undef
 if (import.meta.url === `file://${process.argv[1]}`) {
   run(workflow);
 }

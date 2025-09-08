@@ -1,5 +1,5 @@
 import type { FileAttachment } from "./file-tag-utils.js";
-import type { CoreUserMessage, ImagePart, TextPart } from "ai";
+import type { ModelMessage, ImagePart, TextPart } from "ai";
 
 import { fileTypeFromBuffer } from "file-type";
 import fs from "fs/promises";
@@ -9,8 +9,8 @@ export async function createInputItem(
   text: string,
   images: Array<string> = [],
   fileAttachments: Array<FileAttachment> = [],
-): Promise<CoreUserMessage> {
-  const inputItem: CoreUserMessage = {
+): Promise<ModelMessage> {
+  const inputItem: ModelMessage = {
     role: "user",
     content: [],
   };

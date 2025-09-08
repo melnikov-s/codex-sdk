@@ -21,7 +21,6 @@ const cliUrl = pathToFileURL(cliPath).href;
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(err);
-    // eslint-disable-next-line no-undef
     process.exit(1);
   }
 })();

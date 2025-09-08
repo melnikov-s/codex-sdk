@@ -2,7 +2,18 @@ import React from "react";
 import { Box, Text } from "ink";
 import figures from "figures";
 import { styles } from "./theme";
-export function SelectOption({ isFocused, isSelected, isLoading, children }) {
+
+export function SelectOption({
+  isFocused,
+  isSelected,
+  isLoading,
+  children,
+}: {
+  isFocused: boolean;
+  isSelected: boolean;
+  isLoading?: boolean;
+  children: React.ReactNode;
+}): React.ReactElement {
   return React.createElement(
     Box,
     { ...styles.option({ isFocused }) },

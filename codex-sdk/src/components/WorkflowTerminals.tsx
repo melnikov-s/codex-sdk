@@ -1,10 +1,7 @@
 import type { ApprovalPolicy } from "../approvals.js";
 import type { CurrentWorkflow } from "../hooks/use-workflows.js";
 import type { LibraryConfig } from "../utils/workflow-config.js";
-import type {
-  DisplayConfig,
-  WorkflowController,
-} from "../workflow/index.js";
+import type { DisplayConfig, WorkflowController } from "../workflow/index.js";
 
 import TerminalChat from "./chat/terminal-chat.js";
 import React from "react";

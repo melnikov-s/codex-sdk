@@ -202,12 +202,12 @@ export function TerminalChatCommandReview({
           <>
             <Text>Allow command?</Text>
             <Box paddingX={2} flexDirection="column" gap={1}>
-              <Select
+              <Select<ReviewDecision | "edit" | "switch">
                 isDisabled={!isActive}
                 visibleOptionCount={approvalOptions.length}
                 highlightText=""
                 defaultValue={approvalOptions[0]?.value}
-                onChange={(value: ReviewDecision | "edit" | "switch") => {
+                onChange={(value) => {
                   if (value === "edit") {
                     setMode("input");
                   } else if (value === "switch") {
