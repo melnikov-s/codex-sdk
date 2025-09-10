@@ -726,7 +726,6 @@ This is the object your `agentLogicFunction` must return. It defines the lifecyc
   ```
 
   **Command Properties:**
-
   - **`description`**: A human-readable description shown in help and autocomplete
   - **`handler`**: The function to execute when the command is invoked
   - **`disabled`** (optional): A function that returns boolean. When the function returns `true`, the command is hidden from the user and cannot be executed. The function is evaluated each time the command list is shown, allowing for dynamic visibility based on current state.
