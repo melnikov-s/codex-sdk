@@ -21,8 +21,8 @@ export interface ProcessedInput {
  */
 export async function processFileTokens(raw: string): Promise<ProcessedInput> {
   // Match @path patterns, supporting quotes for paths with spaces
-  // Patterns: @'path with spaces', @"path with spaces", @unquoted_path_to_end_of_line
-  const re = /@(?:'([^']*)'|"([^"]*)"|(.+?)(?=\s+@|$))/g;
+  // Patterns: @'path with spaces', @"path with spaces", @unquoted_path
+  const re = /@(?:'([^']*)'|"([^"]*)"|(\S+))/g;
   const attachments: Array<FileAttachment> = [];
   const placeholders = new Map<string, string>();
 
