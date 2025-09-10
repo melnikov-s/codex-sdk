@@ -94,6 +94,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/openai/codex"
+    "url": "https://github.com/melnikov-s/codex-sdk"
   }
 }
