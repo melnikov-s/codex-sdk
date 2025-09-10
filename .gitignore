@@ -74,3 +74,7 @@ yarn.lock
 package.json-e
 session.ts-e
 CHANGELOG.ignore.md
+
+# Added from codex-sdk
+/bin/codex-linux-sandbox-arm64
+/bin/codex-linux-sandbox-x64
