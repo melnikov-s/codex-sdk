@@ -1,38 +1,99 @@
 # Codex SDK
 
-A TypeScript SDK for building AI-powered terminal applications with interactive workflows.
+A TypeScript SDK for building AI-powered terminal applications with interactive workflows. [Originally forked from OpenAI's codex.]
 
-## 🚀 Key Features
+## When to use this
 
-### Multi-Workflow Environment
+High-level AI coding agents (like Claude Code) work well for most general coding tasks. This library is for building small, focused workflows that are easily shareable and reproducible.
 
-Run multiple AI assistants simultaneously with seamless switching and state management:
+Instead of one large coding agent, you create specific workflows: a deploy dashboard, project setup assistant, code review helper, or database migration tool. Each workflow handles one job well and can be shared with your team or the community.
 
-- Multiple AI assistants running in parallel, each with independent state
-- Use `Ctrl+P` / `Ctrl+O` or `Ctrl+K` command palette to navigate between workflows
-- Each workflow maintains its own conversation history and context
-- Visual tabs at the bottom show all active workflows
-- Create workflow instances on-the-fly with `Ctrl+K` command palette
-- Quick workflow switching with keyboard shortcuts
+The key architectural difference: coding agents typically offer two modes - a high-level interface where the agent manages everything, or an SDK that gives you programmatic control but loses the human-in-the-loop interaction (no text box, no approval flows). This library gives you both: YOU manage the context and call the model (using ai-sdk) while keeping the human-in-the-loop interface intact. You get programmatic control over the entire workflow AND the collaborative terminal UI.
 
-### Terminal UI
+In summary:
 
-- Command-line interface with syntax highlighting
-- Real-time message streaming and typing indicators
-- Interactive command approval system with multiple policies
-- File system integration with secure sandbox execution
-- Queue management and task list visualization
-- File system autocompletion with `@filename` syntax and Tab completion
-- Optional system notifications for AI responses
-- History, help, approval, selection, and prompt interfaces
+- **Claude Code**: High abstraction, lower flexibility
+- **Codex SDK**: Low abstraction, high flexibility
 
-### Architecture
+## When it fits
 
-- TypeScript-first with full type safety
-- Extensible workflow system with custom tools
-- Headless mode for programmatic usage
-- State management with hooks
-- Built-in approval modes: `suggest`, `auto-edit`, `full-auto`
+- **Developer tools**: Deploy dashboards, code review helpers, repo analyzers, CLI copilots that need approvals and quick iteration
+- **Ops/SRE automation**: Human-in-the-loop workflows with safe command whitelists and visible command history
+- **Team-shareable tools**: Reproducible, focused assistants that ship as terminal apps with good UX
+
+This gives you infrastructure for human-in-the-loop AI workflows with built-in UI, approval policies, and tool execution. Works with any AI provider via ai-sdk.
+
+## When it doesn't fit
+
+- IDE-native assistants only: Prefer MCP tools inside Claude or Cursor to keep everything in-editor
+
+## 🚀 Declarative API
+
+### Responsibility Boundaries
+
+**You control:**
+
+- Full control of model context
+- State management (messages, loading, queues, task lists)
+- AI model calls (when to call, what context to include)
+- Business logic and workflow coordination
+- Data persistence and external integrations
+
+**Library handles:**
+
+- Multi-workflow orchestration and switching
+- Terminal UI rendering and user interactions
+- Tool execution with approval policies
+- File system integration and command sandboxing
+
+### Workflow Lifecycle
+
+Your workflow factory returns an object with these methods:
+
+- **`initialize()`** - Called once when workflow is created
+- **`message(userInput)`** - Called each time user sends input
+- **`stop()`** - Called when user stops current processing
+- **`terminate()`** - Called when workflow is closed/destroyed
+
+### Declarative State
+
+Your workflow receives `state` (current values) and `setState` (updater function). Changes are immediately reflected in the UI:
+
+```javascript
+// Read current state
+const { loading, messages, queue, taskList } = state;
+
+// Update state declaratively
+await setState({
+  loading: true,
+  messages: [...state.messages, { role: "user", content: "Hello" }],
+  statusLine: "Processing your request...",
+});
+
+// Or use functional updates
+await setState((prev) => ({
+  ...prev,
+  queue: [...prev.queue, "new task"],
+  taskList: prev.taskList.map((task) =>
+    task.label === "Deploy" ? { ...task, completed: true } : task,
+  ),
+}));
+```
+
+### Action Shortcuts
+
+The `actions` API provides convenient shortcuts for common state updates:
+
+```javascript
+// These actions are equivalent to setState calls:
+actions.setLoading(true); // setState({ loading: true })
+actions.addMessage(userMessage); // setState({ messages: [...messages, userMessage] })
+actions.say("Processing..."); // Add UI-only message
+actions.addToQueue("pending"); // setState({ queue: [...queue, "pending"] })
+actions.addTask("Deploy staging"); // setState({ taskList: [...taskList, task] })
+```
+
+You decide when to call the AI, what context to include, and how to handle responses. The library provides the infrastructure and UI.
 
 ## 📦 Installation
 
@@ -51,27 +112,38 @@ import { createAgentWorkflow, run } from "codex-sdk";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
-const workflow = createAgentWorkflow("My Assistant", ({ tools }) => {
-  return {
-    async run({ state, actions }) {
-      // Handle user input with AI
-      const result = await generateText({
-        model: openai("gpt-4o"),
-        system: "You are a helpful assistant.",
-        messages: state.transcript,
-        tools: tools.definitions,
-      });
+const workflow = createAgentWorkflow(
+  "My Assistant",
+  ({ state, actions, tools }) => {
+    return {
+      initialize: async () => {
+        actions.say("Ready! How can I help you?");
+      },
 
-      await actions.say(result.text);
-      await tools.execute(result.toolCalls);
-    },
-  };
-});
+      message: async (userInput) => {
+        actions.setLoading(true);
+        actions.addMessage(userInput);
+
+        // Handle user input with AI
+        const result = await generateText({
+          model: openai("gpt-4o"),
+          system: "You are a helpful assistant.",
+          messages: state.transcript,
+          tools: tools.definitions,
+        });
+
+        await actions.handleModelResult(result);
+        actions.setLoading(false);
+      },
+
+      stop: () => actions.setLoading(false),
+      terminate: () => {},
+    };
+  },
+);
 
 // Single workflow
-const manager = run(workflow, {
-  title: "My Personal AI Assistant",
-});
+const manager = run(workflow);
 
 // Multiple workflows - pass Array<WorkflowFactory>
 const multiManager = run([codeAssistant, researchAssistant], {
@@ -85,27 +157,42 @@ const multiManager = run([codeAssistant, researchAssistant], {
 import { createAgentWorkflow, run } from "codex-sdk";
 
 // Define your AI assistants
-const codeAssistant = createAgentWorkflow("Code Assistant", ({ tools }) => ({
-  async run({ state, actions }) {
-    // AI logic for coding tasks
-  },
-}));
+const codeAssistant = createAgentWorkflow(
+  "Code Assistant",
+  ({ state, actions, tools }) => ({
+    initialize: async () => {
+      actions.say("Code assistant ready!");
+    },
+    message: async (userInput) => {
+      // AI logic for coding tasks
+      actions.addMessage(userInput);
+      // ... AI processing logic
+    },
+    stop: () => actions.setLoading(false),
+    terminate: () => {},
+  }),
+);
 
 const researchAssistant = createAgentWorkflow(
   "Research Assistant",
-  ({ tools }) => ({
-    async run({ state, actions }) {
-      // AI logic for research tasks
+  ({ state, actions, tools }) => ({
+    initialize: async () => {
+      actions.say("Research assistant ready!");
     },
+    message: async (userInput) => {
+      // AI logic for research tasks
+      actions.addMessage(userInput);
+      // ... AI processing logic
+    },
+    stop: () => actions.setLoading(false),
+    terminate: () => {},
   }),
 );
 
 // Run multiple workflows with seamless switching
 const manager = run([codeAssistant, researchAssistant], {
-  // Start with both workflows active
-  initialWorkflows: [{ id: "code-assistant" }, { id: "research-assistant" }],
-  approvalPolicy: "suggest",
   title: "🚀 My AI Development Environment",
+  approvalPolicy: "suggest",
   config: {
     safeCommands: ["git status", "npm test"],
     headers: [
@@ -136,7 +223,7 @@ Workflow tabs appear at the bottom showing all active assistants.
 
 ### Customizable Controls
 
-You can now customize keyboard shortcuts and see them displayed permanently in overlays:
+Customize keyboard shortcuts and display them in overlays:
 
 ```javascript
 import { run, createAgentWorkflow } from "codex-sdk";
@@ -241,42 +328,32 @@ manager.terminate();
 
 ### WorkflowOptions
 
-Configuration options for single vs. multi-workflow execution:
+Configuration options:
 
 ```typescript
-interface SingleWorkflowOptions {
+interface BaseWorkflowOptions {
+  approvalPolicy?: ApprovalPolicy;
+  additionalWritableRoots?: ReadonlyArray<string>;
+  fullStdout?: boolean;
+  config?: LibraryConfig;
+  onController?: (controller: WorkflowController) => void;
+  title?: React.ReactNode;
+  hotkeyConfig?: Partial<CustomizableHotkeyConfig>;
+}
+
+interface SingleWorkflowOptions extends BaseWorkflowOptions {
   prompt?: string;
   imagePaths?: Array<string>;
   headless?: boolean;
-  title?: React.ReactNode;
-  hotkeyConfig?: Partial<CustomizableHotkeyConfig>;
+  format?: {
+    roleHeader?: (msg: UIMessage) => string;
+    message?: (msg: UIMessage) => string;
+  };
+  log?: { sink?: (line: string) => void; mode?: "human" | "jsonl" };
 }
 
-interface MultiWorkflowOptions {
+interface MultiWorkflowOptions extends BaseWorkflowOptions {
   initialWorkflows?: Array<InitialWorkflowRef>;
-  title?: React.ReactNode;
-  hotkeyConfig?: Partial<CustomizableHotkeyConfig>;
-}
-
-interface CustomizableHotkeyConfig {
-  previousWorkflow: Partial<{
-    key: string;
-    ctrl?: boolean;
-    meta?: boolean;
-    shift?: boolean;
-  }>;
-  nextWorkflow: Partial<{
-    key: string;
-    ctrl?: boolean;
-    meta?: boolean;
-    shift?: boolean;
-  }>;
-  appCommands: Partial<{
-    key: string;
-    ctrl?: boolean;
-    meta?: boolean;
-    shift?: boolean;
-  }>;
 }
 
 type WorkflowOptions = SingleWorkflowOptions | MultiWorkflowOptions;
@@ -293,7 +370,7 @@ const manager = run([codeAssistant, researchAssistant], {
 
 // Track workflow lifecycle
 manager.on("workflow:create", (event) => {
-  console.log(`Created new workflow: ${event.workflow.title}`);
+  console.log(`Created workflow: ${event.workflow.title}`);
   addTabToUI(event.workflow);
 });
 
@@ -566,16 +643,23 @@ This programmatic API provides complete control over the workflow environment, a
 ```javascript
 import { createAgentWorkflow } from "codex-sdk";
 
-const workflow = createAgentWorkflow("My Assistant", (context) => {
-  const { tools, actions } = context;
-
-  return {
-    async run({ state, actions }) {
-      // Your workflow logic here
-      await actions.say("Hello! How can I help?");
-    },
-  };
-});
+const workflow = createAgentWorkflow(
+  "My Assistant",
+  ({ state, actions, tools }) => {
+    return {
+      initialize: async () => {
+        actions.say("Hello! How can I help?");
+      },
+      message: async (userInput) => {
+        // Your workflow logic here
+        actions.addMessage(userInput);
+        // ... process user input
+      },
+      stop: () => actions.setLoading(false),
+      terminate: () => {},
+    };
+  },
+);
 ```
 
 ### Additional Features
@@ -583,23 +667,32 @@ const workflow = createAgentWorkflow("My Assistant", (context) => {
 #### Custom Commands
 
 ```typescript
-const workflow = createAgentWorkflow("With Commands", ({ actions }) => ({
-  commands: {
-    reset: {
-      description: "Reset conversation",
-      handler: () => actions.say("Conversation reset!"),
+const workflow = createAgentWorkflow(
+  "With Commands",
+  ({ state, actions, tools }) => ({
+    initialize: async () => {
+      actions.say("Ready!");
     },
-    analyze: {
-      description: "Analyze current context",
-      handler: (args) => {
-        /* Custom logic */
+    message: async (userInput) => {
+      actions.addMessage(userInput);
+      // Workflow implementation
+    },
+    stop: () => actions.setLoading(false),
+    terminate: () => {},
+    commands: {
+      reset: {
+        description: "Reset conversation",
+        handler: () => actions.say("Conversation reset!"),
+      },
+      analyze: {
+        description: "Analyze current context",
+        handler: (args) => {
+          /* Custom logic */
+        },
       },
     },
-  },
-  async run({ state, actions, tools }) {
-    // Workflow implementation
-  },
-}));
+  }),
+);
 ```
 
 #### Message Metadata
@@ -607,28 +700,36 @@ const workflow = createAgentWorkflow("With Commands", ({ actions }) => ({
 Attach custom metadata to any message for enhanced context tracking, analytics, or custom display formatting:
 
 ```typescript
-const workflow = createAgentWorkflow("Smart Assistant", ({ actions }) => ({
-  async run({ state, actions }) {
-    // Add metadata to UI messages
-    actions.say("Processing your request...", {
-      priority: "high",
-      source: "user_request",
-      timestamp: new Date().toISOString(),
-      userId: "user_123",
-    });
+const workflow = createAgentWorkflow(
+  "Smart Assistant",
+  ({ state, actions, tools }) => ({
+    initialize: async () => {
+      actions.say("Smart assistant ready!");
+    },
+    message: async (userInput) => {
+      // Add metadata to UI messages
+      actions.say("Processing your request...", {
+        priority: "high",
+        source: "user_request",
+        timestamp: new Date().toISOString(),
+        userId: "user_123",
+      });
 
-    // Add metadata to user messages
-    const enrichedMessage = {
-      ...userInput,
-      metadata: {
-        confidence: 0.95,
-        intent: "code_review",
-        sessionId: "session_456",
-      },
-    };
-    actions.addMessage(enrichedMessage);
-  },
-}));
+      // Add metadata to user messages
+      const enrichedMessage = {
+        ...userInput,
+        metadata: {
+          confidence: 0.95,
+          intent: "code_review",
+          sessionId: "session_456",
+        },
+      };
+      actions.addMessage(enrichedMessage);
+    },
+    stop: () => actions.setLoading(false),
+    terminate: () => {},
+  }),
+);
 ```
 
 **Why use metadata?**
@@ -744,8 +845,6 @@ run(workflow, {
 
 - Commands are matched exactly or by command name only
 - Built-in safe commands: `cd`, `ls`, `pwd`, `cat`, `grep`, `git status`, `find`, `wc`, `head`, `tail`
-- Supports both exact command matching and command name matching
-- Built-in safe commands: `cd`, `ls`, `pwd`, `cat`, `grep`, `git status`, etc.
 - User-defined safe commands are checked alongside built-in ones
 - Useful for frequently used read-only or safe operations
 
@@ -780,33 +879,37 @@ try {
 ### Tool Integration
 
 ```typescript
-const workflow = createAgentWorkflow("With Tools", ({ tools }) => {
-  // Access built-in tools
-  const { shell, apply_patch, user_select } = tools.definitions;
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
-  return {
-    async run({ state, actions, tools }) {
-      // Execute shell commands
-      const result = await shell.execute({ command: "ls -la" });
+const workflow = createAgentWorkflow(
+  "With Tools",
+  ({ state, actions, tools }) => {
+    return {
+      initialize: async () => {
+        actions.say("Tool-enabled assistant ready!");
+      },
+      message: async (userInput) => {
+        actions.setLoading(true);
+        actions.addMessage(userInput);
 
-      // Apply code patches
-      await apply_patch.execute({
-        patch: "...",
-        path: "src/app.ts",
-      });
+        // AI will use tools automatically when needed
+        const result = await generateText({
+          model: openai("gpt-4o"),
+          system: "You can use shell, apply_patch, and user_select tools.",
+          messages: state.transcript,
+          tools: tools.definitions,
+        });
 
-      // Get user selection
-      const choice = await user_select.execute({
-        message: "Choose option:",
-        options: ["A", "B", "C"],
-      });
-
-      return {
-        /* workflow implementation */
-      };
-    },
-  };
-});
+        // This automatically executes any tool calls the AI made
+        await actions.handleModelResult(result);
+        actions.setLoading(false);
+      },
+      stop: () => actions.setLoading(false),
+      terminate: () => {},
+    };
+  },
+);
 ```
 
 ## 📚 Type Definitions
