@@ -71,11 +71,8 @@ export function getMessageType(item: UIMessage): MessageType {
 }
 
 export function getReasoning(item: UIMessage) {
-  const type = getMessageType(item);
-  if (type === "reasoning") {
-    const part = Array.isArray(item.content)
-      ? item.content.find((part) => part.type === "reasoning")
-      : null;
+  if (item.role === "assistant" && Array.isArray(item.content)) {
+    const part = item.content.find((part) => part.type === "reasoning");
     return part?.text ?? null;
   }
   return null;

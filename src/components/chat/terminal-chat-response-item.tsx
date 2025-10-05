@@ -7,7 +7,6 @@ import type { ExecOutputMetadata } from "src/utils/agent/sandbox/interface";
 import { useTerminalSize } from "../../hooks/use-terminal-size";
 import {
   getMessageType,
-  getReasoning,
   getTextContent,
   getToolCall,
   getToolCallResult,
@@ -52,15 +51,14 @@ export default function TerminalChatResponseItem({
           fullStdout={fullStdout}
         />
       );
-    default:
-      break;
+    case "reasoning":
+      return (
+        <TerminalChatResponseReasoning
+          message={item}
+          displayConfig={displayConfig}
+        />
+      );
   }
-
-  if (getMessageType(item) === "reasoning") {
-    return <TerminalChatResponseReasoning message={item} />;
-  }
-
-  return <TerminalChatResponseGenericMessage message={item} />;
 }
 
 // TODO: this should be part of `ResponseReasoningItem`. Also it doesn't work.
@@ -85,20 +83,23 @@ export default function TerminalChatResponseItem({
 
 export function TerminalChatResponseReasoning({
   message,
+  displayConfig,
 }: {
   message: UIMessage & { duration_ms?: number };
+  displayConfig?: DisplayConfig;
 }): React.ReactElement | null {
-  const reasoning = getReasoning(message);
+  const textContent = getTextContent(message);
 
-  if (!reasoning) {
+  if (!textContent) {
     return null;
   }
 
   return (
-    <Box gap={1} flexDirection="column">
-      <Box flexDirection="column">
-        <Markdown>{reasoning}</Markdown>
-      </Box>
+    <Box flexDirection="column">
+      <TerminalChatResponseMessage
+        message={message}
+        displayConfig={displayConfig}
+      />
     </Box>
   );
 }
