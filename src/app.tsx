@@ -387,6 +387,12 @@ export default function App({
               } else {
                 openWorkflowPicker();
               }
+            } else if (value === "__close_current__") {
+              closeWorkflowSwitcher();
+              const toCloseId = activeWorkflowId;
+              if (toCloseId) {
+                closeWorkflow(toCloseId);
+              }
             } else {
               handleSwitcherSelectionWithTerminal(value);
             }

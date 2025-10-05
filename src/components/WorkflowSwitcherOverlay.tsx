@@ -67,6 +67,15 @@ export function WorkflowSwitcherOverlay({
               isLoading: workflow.isLoading || false,
             }))
           : []),
+        ...(currentWorkflows.length > 0
+          ? [
+              {
+                label: `Close current (${(currentWorkflows.find((w) => w.id === activeWorkflowId)?.displayTitle) || "current"})`,
+                value: "__close_current__",
+                isLoading: false,
+              },
+            ]
+          : []),
         {
           label:
             availableWorkflows.length === 1 ? "Create new" : "Create new...",

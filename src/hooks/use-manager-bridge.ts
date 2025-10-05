@@ -7,7 +7,7 @@ import type {
 } from "../workflow/index.js";
 import type { WorkflowManager } from "../workflow/manager-types.js";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export interface UseManagerBridgeParams {
   manager?: WorkflowManager;
@@ -50,6 +50,13 @@ export function useManagerBridge({
   setManagerTitle,
   setCurrentApprovalPolicy,
 }: UseManagerBridgeParams): void {
+  const addedWorkflowIdsRef = useRef<Set<string>>(new Set());
+  const prevWorkflowIdsRef = useRef<Set<string>>(new Set());
+  const prevLoadingByIdRef = useRef<Map<string, boolean>>(new Map());
+  const prevActiveIdRef = useRef<string>("");
+  const managerInstanceByIdRef = useRef<Map<string, ExtendedWorkflowInstance>>(
+    new Map(),
+  );
   // Set up manager state updaters
   useEffect(() => {
     if (manager && "setAppStateUpdaters" in manager) {
@@ -110,13 +117,7 @@ export function useManagerBridge({
           options?: { activate?: boolean },
         ) => {
           const instance = createWorkflow(factory, options);
-
-          // Emit workflow creation event if manager supports it
-          if (managerWithUpdaters.addWorkflow) {
-            // Controller will be added later when available
-            // For now, we just return the instance
-          }
-
+          // Defer event emission to reconciliation effects below
           return instance;
         },
         closeWorkflow: async (workflow: {
@@ -258,4 +259,129 @@ export function useManagerBridge({
     setManagerTitle,
     setCurrentApprovalPolicy,
   ]);
+
+  // Reconcile workflow additions/removals to emit create/close events
+  useEffect(() => {
+    if (!manager || !("addWorkflow" in manager)) {
+      return;
+    }
+    const mgr = manager as unknown as {
+      addWorkflow?: (
+        workflow: ExtendedWorkflowInstance,
+        controller: import("../workflow").WorkflowController,
+      ) => void;
+      removeWorkflow?: (workflow: ExtendedWorkflowInstance) => void;
+    };
+
+    const currentIds = new Set(currentWorkflows.map((w) => w.id));
+    const prevIds = prevWorkflowIdsRef.current;
+
+    // Added
+    for (const id of currentIds) {
+      if (!prevIds.has(id) && !addedWorkflowIdsRef.current.has(id)) {
+        const instance = workflowInstancesRef.current.get(id);
+        if (instance && mgr.addWorkflow) {
+          const controller = {
+            headless: false,
+            message: instance.message.bind(instance),
+            stop: instance.stop.bind(instance),
+            terminate: instance.terminate.bind(instance),
+            getState: instance.getState.bind(instance),
+            setState: instance.setState?.bind(instance),
+          } as import("../workflow").WorkflowController;
+          mgr.addWorkflow(instance, controller);
+          addedWorkflowIdsRef.current.add(id);
+          managerInstanceByIdRef.current.set(id, instance);
+        }
+      }
+    }
+
+    // Removed
+    for (const id of prevIds) {
+      if (!currentIds.has(id)) {
+        const instance =
+          managerInstanceByIdRef.current.get(id) ||
+          workflowInstancesRef.current.get(id);
+        if (instance && mgr.removeWorkflow) {
+          mgr.removeWorkflow(instance);
+        }
+        addedWorkflowIdsRef.current.delete(id);
+        managerInstanceByIdRef.current.delete(id);
+      }
+    }
+
+    prevWorkflowIdsRef.current = currentIds;
+  }, [manager, currentWorkflows, workflowInstancesRef]);
+
+  // Emit switch events when the active workflow changes via UI
+  useEffect(() => {
+    if (!manager || !("switchWorkflow" in manager)) {
+      return;
+    }
+    const mgr = manager as unknown as {
+      switchWorkflow?: (
+        fromWorkflow: ExtendedWorkflowInstance | null,
+        toWorkflow: ExtendedWorkflowInstance,
+      ) => void;
+    };
+
+    const prevActive = prevActiveIdRef.current;
+    if (activeWorkflowId && activeWorkflowId !== prevActive) {
+      const fromInstance = prevActive
+        ? managerInstanceByIdRef.current.get(prevActive) ||
+          workflowInstancesRef.current.get(prevActive) ||
+          null
+        : null;
+      const toInstance =
+        managerInstanceByIdRef.current.get(activeWorkflowId) ||
+        workflowInstancesRef.current.get(activeWorkflowId);
+      if (toInstance && mgr.switchWorkflow) {
+        try {
+          mgr.switchWorkflow(fromInstance, toInstance);
+        } catch {
+          // ignore; event emission will still occur inside if implemented defensively
+        }
+      }
+      prevActiveIdRef.current = activeWorkflowId;
+    }
+  }, [manager, activeWorkflowId, workflowInstancesRef]);
+
+  // Emit loading/ready events when loading state changes
+  useEffect(() => {
+    if (
+      !manager ||
+      !("updateWorkflowLoading" in manager) ||
+      !("updateWorkflowReady" in manager)
+    ) {
+      return;
+    }
+    const mgr = manager as unknown as {
+      updateWorkflowLoading?: (
+        workflow: ExtendedWorkflowInstance,
+        isLoading: boolean,
+      ) => void;
+      updateWorkflowReady?: (
+        workflow: ExtendedWorkflowInstance,
+        isReady: boolean,
+      ) => void;
+    };
+
+    for (const w of currentWorkflows) {
+      const prev = prevLoadingByIdRef.current.get(w.id) || false;
+      const curr = Boolean(w.isLoading);
+      if (curr !== prev) {
+        const instance =
+          managerInstanceByIdRef.current.get(w.id) ||
+          workflowInstancesRef.current.get(w.id);
+        if (instance) {
+          if (curr) {
+            mgr.updateWorkflowLoading?.(instance, true);
+          } else {
+            mgr.updateWorkflowReady?.(instance, true);
+          }
+        }
+        prevLoadingByIdRef.current.set(w.id, curr);
+      }
+    }
+  }, [manager, currentWorkflows, workflowInstancesRef]);
 }
