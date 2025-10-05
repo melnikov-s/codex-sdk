@@ -1,5 +1,5 @@
 import type { UIMessage } from "../../utils/ai.js";
-import type { ModelMessage, TextPart, ToolCallPart } from "ai";
+import type { ModelMessage } from "ai";
 
 export function normalizeToUiMessage(value: UIMessage | string): UIMessage {
   if (typeof value === "string") {
@@ -11,40 +11,11 @@ export function normalizeToUiMessage(value: UIMessage | string): UIMessage {
 export function filterTranscript(
   messages: Array<UIMessage>,
 ): Array<ModelMessage> {
-  // Exclude UI-only messages and strip reasoning parts from assistant content.
-  // Some providers require that prior messages do not include reasoning items.
-  const sanitized: Array<ModelMessage> = [];
-  for (const msg of messages) {
-    if (msg.role === "ui") {
-      continue;
-    }
-
-    if (msg.role === "assistant") {
-      const original = msg as Extract<ModelMessage, { role: "assistant" }>;
-      if (Array.isArray(original.content)) {
-        type AllowedAssistantPart = TextPart | ToolCallPart;
-        const filteredParts = (original.content as Array<
-          AllowedAssistantPart | { type?: string }
-        >).filter((part) => {
-          const t = (part as { type?: string } | undefined)?.type;
-          return t !== "reasoning";
-        }) as Array<AllowedAssistantPart>;
-        if (filteredParts.length === 0) {
-          // Drop assistant messages that would be empty after removing reasoning parts
-          continue;
-        }
-        const sanitizedAssistant: Extract<ModelMessage, { role: "assistant" }> = {
-          ...original,
-          content: filteredParts,
-        };
-        sanitized.push(sanitizedAssistant);
-        continue;
-      }
-    }
-
-    sanitized.push(msg as ModelMessage);
-  }
-  return sanitized;
+  // Keep all model messages as-is, only drop UI messages.
+  // Reasoning-capable models require reasoning items to accompany function calls.
+  return messages
+    .filter((msg) => msg.role !== "ui")
+    .map((msg) => msg as ModelMessage);
 }
 
 export function flattenUserInputContent(
