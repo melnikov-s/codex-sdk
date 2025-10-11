@@ -133,9 +133,13 @@ export interface DisplayConfig {
 
 export interface Workflow {
   /**
-   * Human-friendly title for this workflow (displayed in headers and UI)
+   * Unique identifier for this workflow instance. Auto-generated at runtime.
    */
-  title?: string;
+  id?: string;
+  /**
+   * Human-friendly name for this workflow instance.
+   */
+  name?: string;
   /**
    * Initialize the workflow
    * Called when the workflow is first created
@@ -475,7 +479,8 @@ export interface AgentHandle {
   name: string;
   say: (text: string, metadata?: MessageMetadata) => void;
   addMessage: (message: UIMessage | Array<UIMessage>) => void;
-  transcript: () => Array<ModelMessage>;
+  /** Per-agent transcript view (non-UI messages only) */
+  readonly transcript: Array<ModelMessage>;
   handleModelResults: (
     result: {
       response: { messages: Array<ModelMessage> };
@@ -484,6 +489,8 @@ export interface AgentHandle {
     opts?: { abortSignal?: AbortSignal },
   ) => Promise<Array<UIMessage>>;
   setName: (newName: string) => void;
+  /** Shared reference to the workflow's tools (definitions and execute). */
+  readonly tools: WorkflowHooks["tools"];
 }
 
 export type WorkflowMeta = {

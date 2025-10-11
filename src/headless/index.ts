@@ -385,7 +385,7 @@ export function runHeadless(
 
       const tag = (m: UIMessage): UIMessage => ({
         ...m,
-        metadata: { ...(m.metadata || {}), agentId: id },
+        agentId: id,
       });
 
       const say = (text: string, metadata?: MessageMetadata) => {
@@ -405,14 +405,11 @@ export function runHeadless(
         }));
       };
 
-      const transcript = (): Array<ModelMessage> => {
+      const computeTranscript = (): Array<ModelMessage> => {
         const all = syncRef.current.messages || [];
-        const mine = all.filter((m) => {
-          const meta = (m as UIMessage).metadata as
-            | { agentId?: string }
-            | undefined;
-          return m.role !== "ui" && meta?.agentId === id;
-        });
+        const mine = all.filter(
+          (m) => m.role !== "ui" && (m as UIMessage).agentId === id,
+        );
         return filterTranscript(mine as Array<UIMessage>);
       };
 
@@ -446,9 +443,14 @@ export function runHeadless(
         name: effectiveName,
         say,
         addMessage,
-        transcript,
+        get transcript() {
+          return computeTranscript();
+        },
         handleModelResults,
         setName,
+        get tools() {
+          return hooks.tools;
+        },
       } as const;
     },
     getAgent: (id: string) => {

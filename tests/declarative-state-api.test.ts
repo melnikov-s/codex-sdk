@@ -1,4 +1,5 @@
 import type { WorkflowHooks, WorkflowState } from "../src/workflow/index.js";
+import type { ModelMessage } from "ai";
 
 import { createAgentWorkflow } from "../src/workflow/index.js";
 import { describe, expect, it, vi } from "vitest";
@@ -358,9 +359,15 @@ describe("Declarative State API", () => {
             name,
             say: vi.fn(),
             addMessage: vi.fn(),
-            transcript: vi.fn(() => []),
+            get transcript() {
+              return [] as unknown as Array<ModelMessage>;
+            },
             handleModelResults: vi.fn(async () => []),
             setName: vi.fn(),
+            tools: {
+              definitions: {},
+              execute: vi.fn(),
+            },
           })),
           getAgent: vi.fn(() => undefined),
         },
@@ -462,9 +469,15 @@ describe("Declarative State API", () => {
             name,
             say: vi.fn(),
             addMessage: vi.fn(),
-            transcript: vi.fn(() => []),
+            get transcript() {
+              return [] as unknown as Array<ModelMessage>;
+            },
             handleModelResults: vi.fn(async () => []),
             setName: vi.fn(),
+            tools: {
+              definitions: {},
+              execute: vi.fn(),
+            },
           })),
           getAgent: vi.fn(() => undefined),
         },
@@ -637,9 +650,15 @@ describe("Declarative State API", () => {
               name,
               say: vi.fn(),
               addMessage: vi.fn(),
-              transcript: vi.fn(() => []),
+              get transcript() {
+                return [] as unknown as Array<ModelMessage>;
+              },
               handleModelResults: vi.fn(async () => []),
               setName: vi.fn(),
+              tools: {
+                definitions: {},
+                execute: vi.fn(),
+              },
             })),
             getAgent: vi.fn(() => undefined),
           },

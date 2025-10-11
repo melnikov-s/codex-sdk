@@ -58,11 +58,9 @@ describe("agent message scoping", () => {
     const state = controller.getState();
 
     const plannerMsgs = state.messages.filter(
-      (m: any) => m.metadata?.agentId === plannerId,
+      (m: any) => m.agentId === plannerId,
     );
-    const execMsgs = state.messages.filter(
-      (m: any) => m.metadata?.agentId === execId,
-    );
+    const execMsgs = state.messages.filter((m: any) => m.agentId === execId);
 
     expect(plannerMsgs.length).toBeGreaterThan(0);
     expect(execMsgs.length).toBeGreaterThan(0);

@@ -181,7 +181,7 @@ function TerminalChat({
     confirmationPrompt,
     items,
     cwd: PWD,
-    title: (workflow?.title as string) || "Codex SDK",
+    title: (workflow?.name as string) || "Codex SDK",
   });
 
   // Let's also track whenever the ref becomes available.
@@ -191,10 +191,10 @@ function TerminalChat({
 
   // Track title changes and notify parent
   useEffect(() => {
-    if (workflow?.title && onTitleChange) {
-      onTitleChange(id, workflow.title);
+    if (workflow?.name && onTitleChange) {
+      onTitleChange(id, workflow.name);
     }
-  }, [workflow?.title, onTitleChange, id]);
+  }, [workflow?.name, onTitleChange, id]);
 
   // ---------------------------------------------------------------------
   // Dynamic layout constraints – keep total rendered rows <= terminal rows

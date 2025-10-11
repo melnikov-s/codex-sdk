@@ -123,9 +123,7 @@ function DefaultMessageDisplay({
   displayConfig?: DisplayConfig;
 }) {
   const messageType = getDisplayMessageType(message);
-  const agentId =
-    (message as UIMessage).metadata &&
-    ((message as UIMessage).metadata!["agentId"] as string | undefined);
+  const agentId = (message as UIMessage).agentId as string | undefined;
   const nameFromResolver =
     agentId && displayConfig?.agentNameResolver
       ? displayConfig.agentNameResolver(agentId)
@@ -178,11 +176,9 @@ function TerminalChatResponseToolCall({
   message: ModelMessage;
   displayConfig?: DisplayConfig;
 }) {
-  const agentId =
-    (message as unknown as UIMessage).metadata &&
-    ((message as unknown as UIMessage).metadata!["agentId"] as
-      | string
-      | undefined);
+  const agentId = (message as unknown as UIMessage).agentId as
+    | string
+    | undefined;
   const nameFromResolver =
     agentId && displayConfig?.agentNameResolver
       ? displayConfig.agentNameResolver(agentId)
@@ -274,11 +270,9 @@ function TerminalChatResponseToolCallOutput({
   fullStdout: boolean;
   displayConfig?: DisplayConfig;
 }) {
-  const agentId =
-    (message as unknown as UIMessage).metadata &&
-    ((message as unknown as UIMessage).metadata!["agentId"] as
-      | string
-      | undefined);
+  const agentId = (message as unknown as UIMessage).agentId as
+    | string
+    | undefined;
   const nameFromResolver =
     agentId && displayConfig?.agentNameResolver
       ? displayConfig.agentNameResolver(agentId)

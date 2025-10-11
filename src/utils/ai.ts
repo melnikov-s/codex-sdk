@@ -34,9 +34,15 @@ export type UIMessageWithMetadata =
   | {
       role: "ui";
       content: string;
+      /** Optional agent attribution for multi-agent workflows */
+      agentId?: string;
       metadata?: MessageMetadata;
     }
-  | (ModelMessage & { metadata?: MessageMetadata });
+  | (ModelMessage & {
+      /** Optional agent attribution for multi-agent workflows */
+      agentId?: string;
+      metadata?: MessageMetadata;
+    });
 
 export type UIMessage = UIMessageWithMetadata;
 

@@ -83,7 +83,7 @@ export default function HelpOverlay({
         </Text>
         <Text {...componentStyles.help.description}>
           <Text {...componentStyles.help.shortcut}>Ctrl+C</Text> – quit{" "}
-          {workflow?.title ?? "Codex SDK"}
+          {workflow?.name ?? "Codex SDK"}
         </Text>
       </Box>
 

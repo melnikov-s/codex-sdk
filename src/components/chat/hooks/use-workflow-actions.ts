@@ -1,6 +1,11 @@
 import type { ApprovalPolicy } from "../../../approvals.js";
 import type { UIMessage, MessageMetadata } from "../../../utils/ai.js";
-import type { SlotRegion, TaskItem, WorkflowState } from "../../../workflow";
+import type {
+  SlotRegion,
+  TaskItem,
+  WorkflowState,
+  WorkflowHooks,
+} from "../../../workflow";
 import type { ModelMessage } from "ai";
 import type { ReactNode, MutableRefObject } from "react";
 
@@ -24,6 +29,7 @@ export function useWorkflowActions(params: {
     opts?: { abortSignal?: AbortSignal },
   ) => Promise<ModelMessage | Array<ModelMessage> | null>;
   inputSetterRef?: MutableRefObject<((value: string) => void) | undefined>;
+  tools: WorkflowHooks["tools"];
 }) {
   const {
     smartSetState,
@@ -31,6 +37,7 @@ export function useWorkflowActions(params: {
     setApprovalPolicy,
     handleToolCall,
     inputSetterRef,
+    tools,
   } = params;
 
   const say = useCallback(
@@ -231,12 +238,9 @@ export function useWorkflowActions(params: {
       },
       get transcript() {
         const all = syncStateRef.current.messages || [];
-        const topLevel = all.filter((m) => {
-          const meta = (m as UIMessage).metadata as
-            | { agentId?: string }
-            | undefined;
-          return m.role !== "ui" && !meta?.agentId;
-        });
+        const topLevel = all.filter(
+          (m) => m.role !== "ui" && !(m as UIMessage).agentId,
+        );
         return filterTranscript(topLevel as Array<UIMessage>);
       },
       get statusLine() {
@@ -259,7 +263,7 @@ export function useWorkflowActions(params: {
     (id: string, name: string) => {
       const tagUiMessage = (m: UIMessage): UIMessage => ({
         ...m,
-        metadata: { ...(m.metadata || {}), agentId: id },
+        agentId: id,
       });
 
       const sayForAgent = (text: string, metadata?: MessageMetadata) => {
@@ -279,14 +283,11 @@ export function useWorkflowActions(params: {
         }));
       };
 
-      const transcriptForAgent = (): Array<ModelMessage> => {
+      const computeTranscriptForAgent = (): Array<ModelMessage> => {
         const all = syncStateRef.current.messages || [];
-        const mine = all.filter((m) => {
-          const meta = (m as UIMessage).metadata as
-            | { agentId?: string }
-            | undefined;
-          return m.role !== "ui" && meta?.agentId === id;
-        });
+        const mine = all.filter(
+          (m) => m.role !== "ui" && (m as UIMessage).agentId === id,
+        );
         return filterTranscript(mine as Array<UIMessage>);
       };
 
@@ -316,12 +317,17 @@ export function useWorkflowActions(params: {
         name,
         say: sayForAgent,
         addMessage: addMessageForAgent,
-        transcript: transcriptForAgent,
+        get transcript() {
+          return computeTranscriptForAgent();
+        },
         handleModelResults: handleModelResultsForAgent,
         setName,
+        get tools() {
+          return tools;
+        },
       } as const;
     },
-    [handleToolCall, smartSetState, syncStateRef],
+    [handleToolCall, smartSetState, syncStateRef, tools],
   );
 
   const createAgent = useCallback(

@@ -122,6 +122,14 @@ export function useWorkflowManager(params: {
     setApprovalPolicy,
     handleToolCall,
     inputSetterRef,
+    tools: {
+      definitions: {
+        shell: createShellTool(),
+        apply_patch: createApplyPatchTool(),
+        user_select: createUserSelectTool(),
+      },
+      execute: handleToolCall as WorkflowHooks["tools"]["execute"],
+    },
   });
 
   const workflowRef = useRef<Workflow | null>(null);
@@ -220,6 +228,18 @@ export function useWorkflowManager(params: {
     } as WorkflowHooks;
 
     workflowRef.current = factory(workflowHooks);
+    // Ensure workflow has stable id/name so it can be treated like an AgentHandle
+    const generatedId =
+      globalThis.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    if (workflowRef.current && !workflowRef.current.id) {
+      workflowRef.current.id = generatedId;
+    }
+    if (workflowRef.current && !workflowRef.current.name) {
+      const initialName = (workflowFactory as { meta?: { title?: string } })
+        .meta?.title;
+      workflowRef.current.name = initialName || "Untitled";
+    }
     setDisplayConfig(workflowRef.current?.displayConfig);
     workflowRef.current?.initialize?.();
 
