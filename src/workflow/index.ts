@@ -56,6 +56,8 @@ export interface WorkflowState {
   taskList?: Array<TaskItem>;
   transcript?: Array<UIMessage>;
   statusLine?: ReactNode;
+  /** Map of agent id to human-friendly name used for display */
+  agentNames?: Record<string, string>;
   /**
    * Named UI slots rendered around core layout regions.
    * Values are arbitrary React nodes; set to null/undefined to clear.
@@ -121,6 +123,12 @@ export interface DisplayConfig {
       marginTop?: number;
     };
   };
+
+  /**
+   * Optional resolver to map an agent id to a display name for UI rendering.
+   * When not provided, the UI will default to showing the raw agent id.
+   */
+  agentNameResolver?: (agentId: string) => string;
 }
 
 export interface Workflow {
@@ -338,6 +346,48 @@ export interface WorkflowHooks {
       },
       opts?: { abortSignal?: AbortSignal },
     ) => Promise<Array<UIMessage>>;
+
+    /**
+     * Create or retrieve a lightweight per-agent handle for message scoping.
+     * The handle only affects message attribution (say/addMessage/transcript/handleModelResults).
+     * All control state (loading, inputDisabled, statusLine, queue, taskList) remains global.
+     */
+    createAgent: (name: string) => {
+      id: string;
+      name: string;
+      say: (text: string, metadata?: MessageMetadata) => void;
+      addMessage: (message: UIMessage | Array<UIMessage>) => void;
+      transcript: () => Array<ModelMessage>;
+      handleModelResults: (
+        result: {
+          response: { messages: Array<ModelMessage> };
+          finishReason?: string;
+        },
+        opts?: { abortSignal?: AbortSignal },
+      ) => Promise<Array<UIMessage>>;
+      setName: (newName: string) => void;
+    };
+
+    /**
+     * Retrieve an existing agent handle by id if created previously.
+     */
+    getAgent?: (id: string) =>
+      | {
+          id: string;
+          name: string;
+          say: (text: string, metadata?: MessageMetadata) => void;
+          addMessage: (message: UIMessage | Array<UIMessage>) => void;
+          transcript: () => Array<ModelMessage>;
+          handleModelResults: (
+            result: {
+              response: { messages: Array<ModelMessage> };
+              finishReason?: string;
+            },
+            opts?: { abortSignal?: AbortSignal },
+          ) => Promise<Array<UIMessage>>;
+          setName: (newName: string) => void;
+        }
+      | undefined;
   };
 
   /**

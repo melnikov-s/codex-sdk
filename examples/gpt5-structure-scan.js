@@ -1,6 +1,6 @@
+import { run, createAgentWorkflow } from "../dist/lib.js";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import { run, createAgentWorkflow } from "../dist/lib.js";
 
 // Basic GPT‑5 structure scanning workflow
 export const workflow = createAgentWorkflow(

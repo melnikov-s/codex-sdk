@@ -268,7 +268,7 @@ export function useManagerBridge({
     const mgr = manager as unknown as {
       addWorkflow?: (
         workflow: ExtendedWorkflowInstance,
-        controller: import("../workflow").WorkflowController,
+        controller: WorkflowController,
       ) => void;
       removeWorkflow?: (workflow: ExtendedWorkflowInstance) => void;
     };
@@ -288,7 +288,7 @@ export function useManagerBridge({
             terminate: instance.terminate.bind(instance),
             getState: instance.getState.bind(instance),
             setState: instance.setState?.bind(instance),
-          } as import("../workflow").WorkflowController;
+          } as WorkflowController;
           mgr.addWorkflow(instance, controller);
           addedWorkflowIdsRef.current.add(id);
           managerInstanceByIdRef.current.set(id, instance);

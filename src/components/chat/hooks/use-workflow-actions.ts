@@ -11,7 +11,7 @@ import {
   toggleNextIncomplete,
   toggleTaskAtIndex,
 } from "../../../utils/workflow/tasks.js";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 export function useWorkflowActions(params: {
   smartSetState: (
@@ -230,7 +230,14 @@ export function useWorkflowActions(params: {
         return syncStateRef.current.taskList || [];
       },
       get transcript() {
-        return filterTranscript(syncStateRef.current.messages);
+        const all = syncStateRef.current.messages || [];
+        const topLevel = all.filter((m) => {
+          const meta = (m as UIMessage).metadata as
+            | { agentId?: string }
+            | undefined;
+          return m.role !== "ui" && !meta?.agentId;
+        });
+        return filterTranscript(topLevel as Array<UIMessage>);
       },
       get statusLine() {
         return syncStateRef.current.statusLine;
@@ -243,6 +250,102 @@ export function useWorkflowActions(params: {
       },
     }),
     [syncStateRef],
+  );
+
+  // Agent API
+  const agentsRef = useRef<Map<string, string>>(new Map());
+
+  const makeAgentHandle = useCallback(
+    (id: string, name: string) => {
+      const tagUiMessage = (m: UIMessage): UIMessage => ({
+        ...m,
+        metadata: { ...(m.metadata || {}), agentId: id },
+      });
+
+      const sayForAgent = (text: string, metadata?: MessageMetadata) => {
+        const message = tagUiMessage({ role: "ui", content: text, metadata });
+        void smartSetState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, message],
+        }));
+      };
+
+      const addMessageForAgent = (message: UIMessage | Array<UIMessage>) => {
+        const list = Array.isArray(message) ? message : [message];
+        const tagged = list.map(tagUiMessage);
+        void smartSetState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, ...tagged],
+        }));
+      };
+
+      const transcriptForAgent = (): Array<ModelMessage> => {
+        const all = syncStateRef.current.messages || [];
+        const mine = all.filter((m) => {
+          const meta = (m as UIMessage).metadata as
+            | { agentId?: string }
+            | undefined;
+          return m.role !== "ui" && meta?.agentId === id;
+        });
+        return filterTranscript(mine as Array<UIMessage>);
+      };
+
+      const handleModelResultsForAgent = async (
+        result: ModelResult,
+        opts?: { abortSignal?: AbortSignal },
+      ): Promise<Array<UIMessage>> => {
+        const messages = result?.response?.messages ?? [];
+        addMessageForAgent(messages as unknown as Array<UIMessage>);
+        const toolResponses = (await handleToolCall(messages, {
+          ...(opts || {}),
+        })) as Array<ModelMessage>;
+        addMessageForAgent(toolResponses as unknown as Array<UIMessage>);
+        return (toolResponses as unknown as Array<UIMessage>) || [];
+      };
+
+      const setName = (newName: string) => {
+        agentsRef.current.set(id, newName);
+        void smartSetState((prev) => ({
+          ...prev,
+          agentNames: { ...(prev.agentNames || {}), [id]: newName },
+        }));
+      };
+
+      return {
+        id,
+        name,
+        say: sayForAgent,
+        addMessage: addMessageForAgent,
+        transcript: transcriptForAgent,
+        handleModelResults: handleModelResultsForAgent,
+        setName,
+      } as const;
+    },
+    [handleToolCall, smartSetState, syncStateRef],
+  );
+
+  const createAgent = useCallback(
+    (name: string) => {
+      const id = crypto.randomUUID();
+      agentsRef.current.set(id, name);
+      void smartSetState((prev) => ({
+        ...prev,
+        agentNames: { ...(prev.agentNames || {}), [id]: name },
+      }));
+      return makeAgentHandle(id, name);
+    },
+    [agentsRef, makeAgentHandle, smartSetState],
+  );
+
+  const getAgent = useCallback(
+    (id: string) => {
+      const name = agentsRef.current.get(id);
+      if (!name) {
+        return undefined;
+      }
+      return makeAgentHandle(id, name);
+    },
+    [agentsRef, makeAgentHandle],
   );
 
   const actions = useMemo(
@@ -265,6 +368,8 @@ export function useWorkflowActions(params: {
       setInputValue,
       truncateFromLastMessage,
       handleModelResult,
+      createAgent,
+      getAgent,
     }),
     [
       say,
@@ -285,6 +390,8 @@ export function useWorkflowActions(params: {
       setInputValue,
       truncateFromLastMessage,
       handleModelResult,
+      createAgent,
+      getAgent,
     ],
   );
 

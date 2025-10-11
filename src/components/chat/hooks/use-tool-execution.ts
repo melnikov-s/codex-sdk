@@ -119,7 +119,7 @@ export function useToolExecution(params: {
               // Forward to the workflow input path instead of duplicating in transcript
               dispatchUserMessage?.(r);
             } else if (r) {
-              toolResponses.push(r);
+              toolResponses.push(r as ModelMessage);
             }
           }
         }
