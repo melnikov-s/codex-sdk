@@ -352,42 +352,12 @@ export interface WorkflowHooks {
      * The handle only affects message attribution (say/addMessage/transcript/handleModelResults).
      * All control state (loading, inputDisabled, statusLine, queue, taskList) remains global.
      */
-    createAgent: (name: string) => {
-      id: string;
-      name: string;
-      say: (text: string, metadata?: MessageMetadata) => void;
-      addMessage: (message: UIMessage | Array<UIMessage>) => void;
-      transcript: () => Array<ModelMessage>;
-      handleModelResults: (
-        result: {
-          response: { messages: Array<ModelMessage> };
-          finishReason?: string;
-        },
-        opts?: { abortSignal?: AbortSignal },
-      ) => Promise<Array<UIMessage>>;
-      setName: (newName: string) => void;
-    };
+    createAgent: (name: string) => AgentHandle;
 
     /**
      * Retrieve an existing agent handle by id if created previously.
      */
-    getAgent?: (id: string) =>
-      | {
-          id: string;
-          name: string;
-          say: (text: string, metadata?: MessageMetadata) => void;
-          addMessage: (message: UIMessage | Array<UIMessage>) => void;
-          transcript: () => Array<ModelMessage>;
-          handleModelResults: (
-            result: {
-              response: { messages: Array<ModelMessage> };
-              finishReason?: string;
-            },
-            opts?: { abortSignal?: AbortSignal },
-          ) => Promise<Array<UIMessage>>;
-          setName: (newName: string) => void;
-        }
-      | undefined;
+    getAgent?: (id: string) => AgentHandle | undefined;
   };
 
   /**
@@ -494,6 +464,26 @@ export interface WorkflowHooks {
       writableRoots?: ReadonlyArray<string>,
     ): Promise<SafetyAssessment>;
   };
+}
+
+/**
+ * Public type representing the handle returned by actions.createAgent(name).
+ * Use this to type variables that store agent handles across your code.
+ */
+export interface AgentHandle {
+  id: string;
+  name: string;
+  say: (text: string, metadata?: MessageMetadata) => void;
+  addMessage: (message: UIMessage | Array<UIMessage>) => void;
+  transcript: () => Array<ModelMessage>;
+  handleModelResults: (
+    result: {
+      response: { messages: Array<ModelMessage> };
+      finishReason?: string;
+    },
+    opts?: { abortSignal?: AbortSignal },
+  ) => Promise<Array<UIMessage>>;
+  setName: (newName: string) => void;
 }
 
 export type WorkflowMeta = {
