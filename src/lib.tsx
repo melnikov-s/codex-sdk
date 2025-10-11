@@ -7,6 +7,7 @@ export {
   WorkflowHooks,
   WorkflowFactory,
   WorkflowState,
+  AgentHandle,
   createAgentWorkflow,
 } from "./workflow/index.js";
 
