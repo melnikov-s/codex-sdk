@@ -132,6 +132,7 @@ const workflow = createAgentWorkflow(
           tools: tools.definitions,
         });
 
+        // Using single-agent (global) helper
         await actions.handleModelResult(result);
         actions.setLoading(false);
       },
@@ -740,6 +741,69 @@ const workflow = createAgentWorkflow(
 - **Debugging**: Add debugging information that doesn't appear in AI conversations
 - **Integration**: Store data needed for external systems or APIs
 
+### Per‑Agent Message Scoping (Multi‑Agent in One Workflow)
+
+Keep control state global (loading, inputDisabled, statusLine, queue, taskList). Use lightweight agent handles to scope messages and transcripts per agent within a single workflow.
+
+```ts
+const planner = actions.createAgent("Planner"); // auto‑generates UUID id
+console.log(planner.id); // uuid
+console.log(planner.name); // "Planner"
+planner.setName("PlanBot"); // updates display name (keeps same id)
+planner.say("Starting plan…");
+
+const planResult = await generateText({
+  model: openai("gpt-4o"),
+  system: "You are the planning agent.",
+  messages: planner.transcript(),
+  tools: tools.definitions,
+});
+
+// Assistant and tool messages are tagged to this agent only
+await planner.handleModelResults(planResult);
+
+// Another agent in the same workflow
+const executor = actions.createAgent("Executor");
+const execResult = await generateText({
+  model: openai("gpt-4o-mini"),
+  system: "You are the execution agent.",
+  messages: executor.transcript(),
+  tools: tools.definitions,
+});
+await executor.handleModelResults(execResult);
+```
+
+Notes:
+- `actions.createAgent(name)` returns a handle with `id`, `name`, `setName`, `say`, `addMessage`, `transcript`, `handleModelResults`.
+- Messages produced via these methods carry `metadata.agentId = id` and the UI prefixes messages with `[name]` (fallback to `[id]`).
+- All other state (loading, inputDisabled, statusLine, queue, taskList) remains global at the workflow level.
+
+#### Message structure and storage
+
+- Storage model: a single workflow‑level message log (`state.messages`). There is no `agentsById` state; messages are attributed to agents via metadata and names are stored in `state.agentNames`.
+- Each message can include agent attribution by id only; names are resolved at render time:
+
+```ts
+// UI-only messages or model/tool messages with optional agent attribution
+type UIMessage =
+  | { role: "ui"; content: string; metadata?: { agentId?: string } & Record<string, unknown> }
+  | (ModelMessage & { metadata?: { agentId?: string } & Record<string, unknown> });
+
+// Example stored assistant message
+const m: UIMessage = {
+  role: "assistant",
+  content: [{ type: "text", text: "Plan complete." }],
+  metadata: { agentId: "planner" },
+};
+```
+
+#### Transcript semantics
+
+- Global transcript (`state.transcript`): excludes UI messages and excludes any message with `metadata.agentId` (i.e., sub‑agents are filtered out). Use this for simple single‑agent prompts.
+- Per‑agent transcript (`agent.transcript()`): includes only non‑UI messages tagged with that agent’s `id`.
+- Tool execution: assistant messages and tool results produced via `agent.handleModelResults(result)` are tagged with that agent. Tool‑synthesized user messages are routed via the normal input path.
+- UI display: when `metadata.agentId` is present, the terminal UI prefixes the role header with `[name]` using `state.agentNames[agentId]` (fallback to `[id]`). You can override this by providing `displayConfig.formatRoleHeader` or a custom `agentNameResolver`.
+
 ## 📚 Examples
 
 The SDK includes examples:
@@ -910,6 +974,71 @@ const workflow = createAgentWorkflow(
     };
   },
 );
+```
+
+### Built-in Tools
+
+These tools are available to your agent when you pass `tools.definitions` to your model call. Consider including the brief definitions below in your system prompt so the model knows how to use them.
+
+- **`shell`**
+  - **What it does**: Execute a shell/CLI command (including `git`) in a given working directory.
+  - **Parameters**:
+    - `cmd: string[]` — command and args, e.g. `["git","status"]`
+    - `workdir: string` — working directory
+    - `timeout: number` — milliseconds
+
+- **`apply_patch`**
+  - **What it does**: Apply file edits via a structured `apply_patch` payload for auditable changes.
+  - **Parameters**:
+    - `cmd: string[]` — invocation and payload, e.g. `["apply_patch","*** Begin Patch\\n...\\n*** End Patch"]`
+    - `workdir: string` — working directory
+    - `timeout: number` — milliseconds
+
+- **`user_select`** (UI mode only)
+  - **What it does**: Prompt the user to choose from options. The UI also includes a "None of the above (enter custom option)" choice automatically.
+  - **Parameters**:
+    - `message: string` — text shown to the user
+    - `options: string[]` — available choices
+    - `defaultValue: string` — must match one of `options`; used on timeout
+
+Note: In headless mode, only `shell` and `apply_patch` are available; `user_select` is not supported.
+
+### Prompt guidance: include tool definitions
+
+Add a succinct description of the tools and their parameter shapes in your system prompt so the model reliably uses them. For example:
+
+```text
+You can use the following tools. Call them with the exact parameter shapes.
+
+- shell: run terminal commands.
+  Parameters: { cmd: string[]; workdir: string; timeout: number }
+
+- apply_patch: make file edits using a single apply_patch payload wrapped in *** Begin Patch ... *** End Patch.
+  Parameters: { cmd: string[]; workdir: string; timeout: number }
+
+- user_select (UI only): ask the user to pick from options; a custom option entry is available in the UI.
+  Parameters: { message: string; options: string[]; defaultValue: string }
+
+Guidelines:
+- Use shell for executing commands; prefer safe/read-only commands where possible.
+- Use apply_patch for all file modifications; do not edit files via shell.
+- Use user_select to disambiguate choices; ensure defaultValue matches one of options.
+```
+
+### Sample system prompt
+
+```text
+You are an engineering agent assisting inside a terminal UI. You can use tools.
+
+Tools:
+- shell(cmd: string[], workdir: string, timeout: number): run terminal commands.
+- apply_patch(cmd: string[], workdir: string, timeout: number): apply file edits via a single *** Begin Patch ... *** End Patch block.
+- user_select(message: string, options: string[], defaultValue: string): prompt the user to choose (UI only).
+
+Rules:
+- Prefer safe commands; request approval before risky actions if applicable.
+- All code edits must use apply_patch with a complete patch block. Do not edit files via shell.
+- Use user_select when you need the user to choose among options or confirm a decision.
 ```
 
 ## 📚 Type Definitions

@@ -23,6 +23,13 @@ export interface MessageMetadata {
   [key: string]: unknown;
 }
 
+/**
+ * Agent attribution metadata used to scope messages to a specific logical agent
+ * within a single workflow. When present, the UI may display the agent name/id
+ * and filtering by agent becomes possible.
+ */
+export type AgentId = string;
+
 export type UIMessageWithMetadata =
   | {
       role: "ui";

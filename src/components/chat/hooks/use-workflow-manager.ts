@@ -25,7 +25,7 @@ import {
   createApplyPatchTool,
   createUserSelectTool,
 } from "../tools/definitions.js";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
 export function useWorkflowManager(params: {
   initialApprovalPolicy: ApprovalPolicy;
@@ -73,6 +73,7 @@ export function useWorkflowManager(params: {
     taskList: [],
     statusLine: undefined,
     slots: undefined,
+    agentNames: {},
     approvalPolicy: initialApprovalPolicy,
   });
 
@@ -124,9 +125,17 @@ export function useWorkflowManager(params: {
   });
 
   const workflowRef = useRef<Workflow | null>(null);
-  const [displayConfig, setDisplayConfig] = useState<
+  const [displayConfigRaw, setDisplayConfig] = useState<
     Workflow["displayConfig"] | undefined
   >(undefined);
+
+  const displayConfig = useMemo(() => {
+    const resolver = (id: string) =>
+      (syncRef.current.agentNames && syncRef.current.agentNames[id]) || id;
+    return displayConfigRaw
+      ? { ...displayConfigRaw, agentNameResolver: resolver }
+      : { agentNameResolver: resolver };
+  }, [displayConfigRaw, syncRef]);
 
   useEffect(() => {
     // Build the workflow once (and when the factory changes). Keep the instance

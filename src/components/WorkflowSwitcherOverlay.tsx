@@ -70,7 +70,7 @@ export function WorkflowSwitcherOverlay({
         ...(currentWorkflows.length > 0
           ? [
               {
-                label: `Close current (${(currentWorkflows.find((w) => w.id === activeWorkflowId)?.displayTitle) || "current"})`,
+                label: `Close current (${currentWorkflows.find((w) => w.id === activeWorkflowId)?.displayTitle || "current"})`,
                 value: "__close_current__",
                 isLoading: false,
               },

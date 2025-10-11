@@ -49,6 +49,7 @@ export default function TerminalChatResponseItem({
         <TerminalChatResponseToolCallOutput
           message={item as CoreToolMessage}
           fullStdout={fullStdout}
+          displayConfig={displayConfig}
         />
       );
     case "reasoning":
@@ -114,12 +115,27 @@ const defaultColors: Record<string, string> = {
 };
 
 // Default fallback component for messages
-function DefaultMessageDisplay({ message }: { message: UIMessage }) {
+function DefaultMessageDisplay({
+  message,
+  displayConfig,
+}: {
+  message: UIMessage;
+  displayConfig?: DisplayConfig;
+}) {
   const messageType = getDisplayMessageType(message);
+  const agentId =
+    (message as UIMessage).metadata &&
+    ((message as UIMessage).metadata!["agentId"] as string | undefined);
+  const nameFromResolver =
+    agentId && displayConfig?.agentNameResolver
+      ? displayConfig.agentNameResolver(agentId)
+      : undefined;
+  const agentLabel = agentId ? `[${nameFromResolver || agentId}] ` : "";
 
   return (
     <Box flexDirection="column">
       <Text bold color={defaultColors[messageType] || "gray"}>
+        {agentLabel}
         {getDisplayLabel(messageType)}
       </Text>
       <Markdown>{getTextContent(message)}</Markdown>
@@ -150,7 +166,9 @@ function TerminalChatResponseMessage({
   }
 
   // Fallback to default display
-  return <DefaultMessageDisplay message={message} />;
+  return (
+    <DefaultMessageDisplay message={message} displayConfig={displayConfig} />
+  );
 }
 
 function TerminalChatResponseToolCall({
@@ -160,6 +178,16 @@ function TerminalChatResponseToolCall({
   message: ModelMessage;
   displayConfig?: DisplayConfig;
 }) {
+  const agentId =
+    (message as unknown as UIMessage).metadata &&
+    ((message as unknown as UIMessage).metadata!["agentId"] as
+      | string
+      | undefined);
+  const nameFromResolver =
+    agentId && displayConfig?.agentNameResolver
+      ? displayConfig.agentNameResolver(agentId)
+      : undefined;
+  const agentLabel = agentId ? `[${nameFromResolver || agentId}] ` : "";
   // If custom formatters are provided, use them
   if (displayConfig?.formatMessage || displayConfig?.formatRoleHeader) {
     const roleHeader = displayConfig.formatRoleHeader?.(message);
@@ -221,6 +249,7 @@ function TerminalChatResponseToolCall({
       )}
       <Box flexDirection="column">
         <Text bold color={defaultColors[messageType] || "blue"}>
+          {agentLabel}
           {getDisplayLabel(messageType)}
         </Text>
         <Box flexDirection="column" marginLeft={2}>
@@ -239,10 +268,22 @@ function TerminalChatResponseToolCall({
 function TerminalChatResponseToolCallOutput({
   message,
   fullStdout,
+  displayConfig,
 }: {
   message: CoreToolMessage;
   fullStdout: boolean;
+  displayConfig?: DisplayConfig;
 }) {
+  const agentId =
+    (message as unknown as UIMessage).metadata &&
+    ((message as unknown as UIMessage).metadata!["agentId"] as
+      | string
+      | undefined);
+  const nameFromResolver =
+    agentId && displayConfig?.agentNameResolver
+      ? displayConfig.agentNameResolver(agentId)
+      : undefined;
+  const agentLabel = agentId ? `[${nameFromResolver || agentId}] ` : "";
   const toolResult = getToolCallResult(message)!;
 
   // Handle the new tool result output structure safely
@@ -329,6 +370,7 @@ function TerminalChatResponseToolCallOutput({
   return (
     <Box flexDirection="column" gap={0} marginLeft={2}>
       <Text color="magenta" bold>
+        {agentLabel}
         command.stdout{" "}
         <Text dimColor>{metadataInfo ? `(${metadataInfo})` : ""}</Text>
       </Text>

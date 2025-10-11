@@ -69,7 +69,14 @@ function createStateGetters(syncRef: { current: WorkflowState }) {
       return syncRef.current.taskList || [];
     },
     get transcript() {
-      return filterTranscript(syncRef.current.messages);
+      const all = syncRef.current.messages || [];
+      const topLevel = all.filter((m) => {
+        const meta = (m as UIMessage).metadata as
+          | { agentId?: string }
+          | undefined;
+        return m.role !== "ui" && !meta?.agentId;
+      });
+      return filterTranscript(topLevel as Array<UIMessage>);
     },
     get statusLine() {
       return syncRef.current.statusLine;
@@ -166,6 +173,7 @@ export function runHeadless(
     taskList: [],
     statusLine: undefined,
     slots: undefined,
+    agentNames: {},
     approvalPolicy,
   };
   const syncRef = { current: state };
@@ -357,6 +365,115 @@ export function runHeadless(
       )) as Array<ModelMessage>;
       actions.addMessage(toolResponses as unknown as Array<UIMessage>);
       return toolResponses as unknown as Array<UIMessage>;
+    },
+    createAgent: (name: string) => {
+      const agents =
+        (runHeadless as unknown as { _agents?: Map<string, string> })._agents ||
+        new Map<string, string>();
+      (runHeadless as unknown as { _agents?: Map<string, string> })._agents =
+        agents;
+
+      const id = globalThis.crypto?.randomUUID
+        ? globalThis.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const effectiveName = name;
+      agents.set(id, effectiveName);
+      void smartSetState((prev) => ({
+        ...prev,
+        agentNames: { ...(prev.agentNames || {}), [id]: effectiveName },
+      }));
+
+      const tag = (m: UIMessage): UIMessage => ({
+        ...m,
+        metadata: { ...(m.metadata || {}), agentId: id },
+      });
+
+      const say = (text: string, metadata?: MessageMetadata) => {
+        const msg = tag({ role: "ui", content: text, metadata } as UIMessage);
+        void smartSetState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, msg],
+        }));
+      };
+
+      const addMessage = (message: UIMessage | Array<UIMessage>) => {
+        const list = Array.isArray(message) ? message : [message];
+        const tagged = list.map(tag);
+        void smartSetState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, ...tagged],
+        }));
+      };
+
+      const transcript = (): Array<ModelMessage> => {
+        const all = syncRef.current.messages || [];
+        const mine = all.filter((m) => {
+          const meta = (m as UIMessage).metadata as
+            | { agentId?: string }
+            | undefined;
+          return m.role !== "ui" && meta?.agentId === id;
+        });
+        return filterTranscript(mine as Array<UIMessage>);
+      };
+
+      const handleModelResults = async (
+        result: {
+          response: { messages: Array<ModelMessage> };
+          finishReason?: string;
+        },
+        opts?: { abortSignal?: AbortSignal },
+      ): Promise<Array<UIMessage>> => {
+        const assistantMsgs = result?.response?.messages ?? [];
+        addMessage(assistantMsgs as unknown as Array<UIMessage>);
+        const toolResponses = (await executeTools(
+          assistantMsgs,
+          opts,
+        )) as Array<ModelMessage>;
+        addMessage(toolResponses as unknown as Array<UIMessage>);
+        return (toolResponses as unknown as Array<UIMessage>) || [];
+      };
+
+      const setName = (newName: string) => {
+        agents.set(id, newName);
+        void smartSetState((prev) => ({
+          ...prev,
+          agentNames: { ...(prev.agentNames || {}), [id]: newName },
+        }));
+      };
+
+      return {
+        id,
+        name: effectiveName,
+        say,
+        addMessage,
+        transcript,
+        handleModelResults,
+        setName,
+      } as const;
+    },
+    getAgent: (id: string) => {
+      const agents = (
+        runHeadless as unknown as { _agents?: Map<string, string> }
+      )._agents;
+      if (!agents) {
+        return undefined as unknown as ReturnType<
+          NonNullable<WorkflowHooks["actions"]["getAgent"]>
+        >;
+      }
+      const name = agents.get(id);
+      if (!name) {
+        return undefined as unknown as ReturnType<
+          NonNullable<WorkflowHooks["actions"]["getAgent"]>
+        >;
+      }
+      // Recreate a fresh handle bound to current closures
+      const handle = (
+        actions.createAgent as (
+          p: string,
+        ) => ReturnType<NonNullable<WorkflowHooks["actions"]["createAgent"]>>
+      )(name);
+      // override generated id with looked up id for a stable handle
+      return { ...handle, id };
     },
   };
 
